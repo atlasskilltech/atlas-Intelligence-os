@@ -8,7 +8,7 @@ export const maxDuration = 60;
 export async function POST(_request, { params }) {
   try {
     const { id } = await params;
-    return ok({ project: publicProject(await syncProject(getActor(), id)) });
+    return ok({ project: publicProject(await syncProject((await getActor()), id)) });
   } catch (err) {
     return fail(err);
   }

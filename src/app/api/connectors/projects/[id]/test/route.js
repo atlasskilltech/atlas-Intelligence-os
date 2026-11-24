@@ -10,7 +10,7 @@ const PREVIEW_MAX = 8_000;
 export async function POST(request, { params }) {
   try {
     const { id } = await params;
-    if (getActor().role !== "admin") throw new ProjectError("Only administrators can test projects.", 403);
+    if ((await getActor()).role !== "admin") throw new ProjectError("Only administrators can test projects.", 403);
     const body = await readJsonBody(request);
     const project = await getProject(id);
     const action = project.manifest.actions.find((a) => a.id === body.action);

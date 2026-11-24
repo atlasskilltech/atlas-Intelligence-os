@@ -6,7 +6,7 @@ import { listRuns } from "@/lib/runs/runRepo";
 export async function GET(request) {
   try {
     const q = new URL(request.url).searchParams;
-    return ok({ runs: await listRuns(getActor(), { status: q.get("status") || undefined, agentId: q.get("agentId") || undefined }) });
+    return ok({ runs: await listRuns((await getActor()), { status: q.get("status") || undefined, agentId: q.get("agentId") || undefined }) });
   } catch (err) {
     return fail(err);
   }

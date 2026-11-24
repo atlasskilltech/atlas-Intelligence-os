@@ -7,7 +7,7 @@ export async function POST(request, { params }) {
   try {
     const { id } = await params;
     const body = await readJsonBody(request);
-    return ok({ agent: await setAgentStatus(getActor(), id, body.action) });
+    return ok({ agent: await setAgentStatus((await getActor()), id, body.action) });
   } catch (err) {
     return fail(err);
   }

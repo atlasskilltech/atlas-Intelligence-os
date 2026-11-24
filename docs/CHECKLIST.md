@@ -14,6 +14,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 6 | Connector framework & network safety (REST connector later removed) | ✅ |
 | 7 | ATLAS project connections (key-based) | ✅ |
 | 8 | ~~Website, Gmail, Calendar connectors~~ — dropped, not needed | ❌ |
+| 7.1 | Users, roles & Google sign-in (MySQL) | ✅ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
 | 10 | Dashboard data, history, usage, security & tests | ⬜ |
 | 11 | Production readiness & DB/auth plan | ⬜ |
@@ -139,3 +140,19 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [ ] Install the add-on in the real ATLAS CRM (needs the CRM code)
 - [x] Removed the planned Website, Gmail and Google Calendar connectors (not needed); agents notify owners in the dashboard instead of email
 - [x] Removed the Custom REST API connector from Milestone 6: everything connects through project keys. Kept from it: connector SDK, network guard, safe HTTP client (tests: 64)
+
+## Milestone 7.1 — Users, roles & Google sign-in ✅
+
+- [x] MySQL/MariaDB connection (`src/lib/db/mysql.js`); accepts DATABASE_URL or DB_* / MYSQL_* variables
+- [x] Every table starts with `intelligence_os_`; tables created automatically (and recreated if dropped)
+- [x] `intelligence_os_users`: email, name, picture, role (admin | user), last sign-in
+- [x] Sign in with Google (OAuth code flow, no extra library): state check, ID token issuer/audience/expiry/verified-email checks, same-site redirects only
+- [x] Invite-only: an admin adds the email first; the first sign-in (empty table) or ADMIN_EMAILS become admin
+- [x] Signed, httpOnly login cookie (7 days); the user and role are re-read from the database on every request, so role changes and deletions apply at once
+- [x] Login gate (`src/proxy.js`): pages → /login, APIs → 401; login page explains setup problems (database down, wrong Google redirect URL…)
+- [x] Users page (admins only): add user, change role, delete; can't delete yourself or remove the last admin; status of database / Google / login
+- [x] Admin-only: users, project connections, model settings
+- [x] Sidebar shows the signed-in user, Admin badge and Sign out; "Users" visible to admins only
+- [x] Without database + Google settings the app still runs open as one local admin (development)
+- [x] Tests: 73 with a test database, 68 without (9 new: cookies, env names, redirects, Google token checks, table prefix, invite-only, roles, last admin, ADMIN_EMAILS); browser flow with MariaDB
+- [ ] Move agents, runs and connections from JSON files to MySQL (Milestone 11)

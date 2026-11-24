@@ -6,7 +6,7 @@ import { getRun, publicRun } from "@/lib/runs/runRepo";
 export async function GET(_request, { params }) {
   try {
     const { id } = await params;
-    await getRun(getActor(), id); // permission check first
+    await getRun((await getActor()), id); // permission check first
     const run = await reconcileStale(id);
     return ok({ run: publicRun(run) });
   } catch (err) {

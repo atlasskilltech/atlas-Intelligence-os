@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import ProjectDetail from "@/components/connectors/ProjectDetail";
 import { getProject, publicProject } from "@/lib/connectors/projects/projectRepo";
-import { getActor } from "@/lib/context";
+import { getPageActor } from "@/lib/context";
 
 export const metadata = { title: "Project access" };
 
@@ -15,5 +15,5 @@ export default async function ProjectPage({ params }) {
   } catch {
     notFound();
   }
-  return <ProjectDetail initialProject={publicProject(project)} isAdmin={getActor().role === "admin"} />;
+  return <ProjectDetail initialProject={publicProject(project)} isAdmin={(await getPageActor()).role === "admin"} />;
 }

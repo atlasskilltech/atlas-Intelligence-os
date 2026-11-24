@@ -11,7 +11,7 @@ export const maxDuration = 300;
 export async function GET(_request, { params }) {
   try {
     const { id } = await params;
-    return ok({ runs: await listRuns(getActor(), { agentId: id, limit: 20 }) });
+    return ok({ runs: await listRuns((await getActor()), { agentId: id, limit: 20 }) });
   } catch (err) {
     return fail(err);
   }
@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
   try {
     const { id } = await params;
     const body = await readJsonBody(request);
-    const run = await startRun(getActor(), id, { mode: body.mode === "live" ? "live" : "test", input: body.input, trigger: "manual" });
+    const run = await startRun((await getActor()), id, { mode: body.mode === "live" ? "live" : "test", input: body.input, trigger: "manual" });
     after(() => executeRun(run.id));
     return ok({ run: publicRun(run) }, 202);
   } catch (err) {

@@ -12,7 +12,7 @@ import { cn } from "@/components/ui/cn";
 import { listAgents, summarize } from "@/lib/agents/agentRepo";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { getTool } from "@/lib/catalog/toolCatalog";
-import { getActor } from "@/lib/context";
+import { getPageActor } from "@/lib/context";
 
 export const metadata = { title: "My Agents" };
 
@@ -28,7 +28,7 @@ export default async function AgentsPage({ searchParams }) {
   const { status: raw, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
 
-  const all = (await listAgents(getActor())).map(summarize);
+  const all = (await listAgents((await getPageActor()))).map(summarize);
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);

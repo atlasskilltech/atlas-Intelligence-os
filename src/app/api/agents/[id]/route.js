@@ -5,7 +5,7 @@ import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 export async function GET(_request, { params }) {
   try {
     const { id } = await params;
-    return ok({ agent: await getAgent(getActor(), id) });
+    return ok({ agent: await getAgent((await getActor()), id) });
   } catch (err) {
     return fail(err);
   }
@@ -17,7 +17,7 @@ export async function PUT(request, { params }) {
     const { id } = await params;
     const body = await readJsonBody(request, 100_000);
     if (!body.agent || typeof body.agent !== "object") throw new BadRequest("Missing agent.");
-    const rec = await updateAgent(getActor(), id, body.agent, { expectedUpdatedAt: body.expectedUpdatedAt });
+    const rec = await updateAgent((await getActor()), id, body.agent, { expectedUpdatedAt: body.expectedUpdatedAt });
     return ok({ agent: rec });
   } catch (err) {
     return fail(err);
@@ -27,7 +27,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     const { id } = await params;
-    return ok(await deleteAgent(getActor(), id));
+    return ok(await deleteAgent((await getActor()), id));
   } catch (err) {
     return fail(err);
   }

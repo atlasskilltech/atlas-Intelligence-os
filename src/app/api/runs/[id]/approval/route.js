@@ -11,7 +11,7 @@ export async function POST(request, { params }) {
   try {
     const { id } = await params;
     const body = await readJsonBody(request);
-    const run = await decideApproval(getActor(), id, { decision: body.decision, note: body.note });
+    const run = await decideApproval((await getActor()), id, { decision: body.decision, note: body.note });
     after(() => executeRun(run.id));
     return ok({ run: publicRun(run) });
   } catch (err) {

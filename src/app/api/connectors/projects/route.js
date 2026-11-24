@@ -17,7 +17,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await readJsonBody(request);
-    const rec = await connectProject(getActor(), { name: body.name, baseUrl: body.baseUrl, key: body.key });
+    const rec = await connectProject((await getActor()), { name: body.name, baseUrl: body.baseUrl, key: body.key });
     return ok({ project: publicProject(rec) }, 201);
   } catch (err) {
     return fail(err);

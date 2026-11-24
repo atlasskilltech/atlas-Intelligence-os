@@ -18,7 +18,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const body = await readJsonBody(request);
-    return ok({ project: publicProject(await updateProject(getActor(), id, body)) });
+    return ok({ project: publicProject(await updateProject((await getActor()), id, body)) });
   } catch (err) {
     return fail(err);
   }
@@ -27,7 +27,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(_request, { params }) {
   try {
     const { id } = await params;
-    return ok(await deleteProject(getActor(), id));
+    return ok(await deleteProject((await getActor()), id));
   } catch (err) {
     return fail(err);
   }

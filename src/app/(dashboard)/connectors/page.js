@@ -9,7 +9,7 @@ import { RISK_LEVELS } from "@/lib/catalog/toolCatalog";
 import { getEncryptionKey } from "@/lib/config/env";
 import { connectorOverview } from "@/lib/connectors";
 import { listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
-import { getActor } from "@/lib/context";
+import { getPageActor } from "@/lib/context";
 
 export const metadata = { title: "Connectors" };
 
@@ -18,7 +18,7 @@ const GROUPS = { "built-in": "Built in", general: "General", atlas: "ATLAS inter
 export default async function ConnectorsPage() {
   await connection();
   const [overview, projects] = await Promise.all([connectorOverview(), listProjects()]);
-  const isAdmin = getActor().role === "admin";
+  const isAdmin = (await getPageActor()).role === "admin";
 
   return (
     <>

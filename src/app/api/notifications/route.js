@@ -4,7 +4,7 @@ import { listNotifications, markAllRead } from "@/lib/notifications/notification
 
 export async function GET() {
   try {
-    return ok(await listNotifications(getActor()));
+    return ok(await listNotifications((await getActor())));
   } catch (err) {
     return fail(err);
   }
@@ -13,8 +13,8 @@ export async function GET() {
 /** POST → mark all as read */
 export async function POST() {
   try {
-    await markAllRead(getActor());
-    return ok(await listNotifications(getActor()));
+    await markAllRead((await getActor()));
+    return ok(await listNotifications((await getActor())));
   } catch (err) {
     return fail(err);
   }

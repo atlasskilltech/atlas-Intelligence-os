@@ -4,7 +4,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import { fmtDateTime } from "@/components/ui/format";
-import { getActor } from "@/lib/context";
+import { getPageActor } from "@/lib/context";
 import { listEvents } from "@/lib/runs/runRepo";
 
 export const metadata = { title: "Execution Logs" };
@@ -20,7 +20,7 @@ export default async function LogsPage({ searchParams }) {
   await connection();
   const { level: raw } = await searchParams;
   const level = LEVELS.some((l) => l.id === raw) ? raw : "all";
-  const events = await listEvents(getActor(), { limit: 300, level: level === "all" ? undefined : level });
+  const events = await listEvents((await getPageActor()), { limit: 300, level: level === "all" ? undefined : level });
 
   return (
     <>

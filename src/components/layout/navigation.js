@@ -10,6 +10,7 @@ export const PRIMARY_NAV = [
 export const SECONDARY_NAV = [
   { href: "/settings/models", label: "Model Settings", icon: "cpu" },
   { href: "/usage", label: "API Usage", icon: "chart" },
+  { href: "/settings/users", label: "Users", icon: "user", adminOnly: true },
 ];
 
 const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: "/agents/new", label: "New agent" }];

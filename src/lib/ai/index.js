@@ -1,6 +1,5 @@
 import "server-only";
 import { getAIEnv, getOpenAIKey, getSecretValues } from "../config/env.js";
-import { getActor } from "../context.js";
 import { redact } from "../security/redact.js";
 import { getModelSettings } from "../settings/modelSettings.js";
 import { recordUsage } from "../usage/usageStore.js";
@@ -51,7 +50,6 @@ export async function callModel(method, opts, meta = {}) {
   const settings = await getModelSettings();
   const model = meta.model || (meta.purpose === "planner" ? settings.plannerModel : settings.defaultModel);
   const provider = getProvider();
-  const actor = getActor();
   const started = Date.now();
   let retries = 0;
 
@@ -61,7 +59,7 @@ export async function callModel(method, opts, meta = {}) {
     purpose: meta.purpose || "other",
     agentId: meta.agentId ?? null,
     runId: meta.runId ?? null,
-    actorId: actor.id,
+    actorId: meta.actorId ?? null,
   };
 
   try {

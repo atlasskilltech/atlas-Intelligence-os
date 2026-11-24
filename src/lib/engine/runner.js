@@ -276,7 +276,7 @@ async function loop(runId, deps) {
             tools: limitHit ? [] : tools,
             timeoutMs: Math.max(5_000, Math.min(MODEL_CALL_TIMEOUT_MS, budgetMs - elapsed())),
           },
-          { purpose: "agent_run", agentId: run.agentId, runId: run.id },
+          { purpose: "agent_run", agentId: run.agentId, runId: run.id, actorId: run.ownerId },
         );
       } catch (err) {
         return await finish("failed", { error: `AI request failed: ${err?.message || "unknown error"}`, level: "error" });

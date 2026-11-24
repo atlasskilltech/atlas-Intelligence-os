@@ -9,7 +9,8 @@ agent with a reviewable plan, then runs it with approved tools.
 - Next.js 16 (App Router), **JavaScript only**, React 19
 - Tailwind CSS v4 (all styling; design tokens in `src/app/globals.css`)
 - Server-side API routes for all AI and connector work
-- No database / auth in the prototype (see "Future-ready seams")
+- MySQL for users (tables prefixed `intelligence_os_`); other data still in JSON files
+- Sign in with Google; roles admin / user
 
 > This Next.js version differs from older ones. Check `node_modules/next/dist/docs/`
 > before using an API. Notably: `middleware` is now `proxy.js`; `instrumentation.js`
@@ -142,6 +143,21 @@ ATLAS internal apps are connected in this order of preference:
 2. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
 
 Agents never get raw database, shell or arbitrary code access.
+
+## Users & sign-in (Milestone 7.1)
+
+```
+browser ─► proxy.js: valid ios_session cookie? ── no ─► /login (pages) · 401 (API)
+/login ─► /api/auth/google ─► Google ─► /api/auth/google/callback
+          (state cookie)            code → token → ID token checks → signInWithGoogle()
+                                    → intelligence_os_users (invite-only) → signed cookie
+route/page ─► getActor()/getPageActor(): cookie → user re-read from MySQL → { id: "u_<id>", role }
+```
+
+- Roles: `admin` (users, project connections, model settings, sees all agents) and `user` (own agents).
+- MySQL tables all start with `intelligence_os_` (`src/lib/db/mysql.js`, `table("users")`).
+- Login is on only when the database and Google are configured; otherwise one local admin (dev).
+- Background runs have no request: the AI usage log takes the run owner's id instead.
 
 ## Security
 

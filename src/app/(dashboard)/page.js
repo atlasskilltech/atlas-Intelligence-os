@@ -4,7 +4,7 @@ import PromptComposer from "@/components/agents/PromptComposer";
 import { PROMPT_SUGGESTIONS } from "@/components/agents/suggestions";
 import { fmtDateTime, fmtInt, fmtUsd } from "@/components/ui/format";
 import { countAgents } from "@/lib/agents/agentRepo";
-import { getActor } from "@/lib/context";
+import { getPageActor } from "@/lib/context";
 import { listNotifications } from "@/lib/notifications/notificationRepo";
 import { runStats } from "@/lib/runs/runRepo";
 import { getUsageSummary } from "@/lib/usage/usageStore";
@@ -22,7 +22,7 @@ function greeting() {
 
 export default async function HomePage() {
   await connection();
-  const actor = getActor();
+  const actor = (await getPageActor());
   const [usage, agentCounts, runCounts, { notifications }] = await Promise.all([
     getUsageSummary({ days: 31, recent: 0 }),
     countAgents(actor),

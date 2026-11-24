@@ -7,7 +7,7 @@ export async function GET(request) {
   try {
     const q = new URL(request.url).searchParams;
     const limit = Math.min(1000, Math.max(1, Number(q.get("limit")) || 300));
-    return ok({ events: await listEvents(getActor(), { limit, level: q.get("level") || undefined, runId: q.get("runId") || undefined }) });
+    return ok({ events: await listEvents((await getActor()), { limit, level: q.get("level") || undefined, runId: q.get("runId") || undefined }) });
   } catch (err) {
     return fail(err);
   }

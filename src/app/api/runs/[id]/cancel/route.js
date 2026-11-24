@@ -6,7 +6,7 @@ import { publicRun } from "@/lib/runs/runRepo";
 export async function POST(_request, { params }) {
   try {
     const { id } = await params;
-    return ok({ run: publicRun(await cancelRun(getActor(), id)) });
+    return ok({ run: publicRun(await cancelRun((await getActor()), id)) });
   } catch (err) {
     return fail(err);
   }
