@@ -43,3 +43,18 @@ export function Select({ invalid, className, children, ...props }) {
     </select>
   );
 }
+
+export function Textarea({ invalid, className, ...props }) {
+  return (
+    <textarea
+      className={cn(
+        control,
+        "resize-y leading-relaxed",
+        invalid ? "border-red-400 focus:border-red-500" : "border-slate-300 focus:border-brand-500",
+        className,
+      )}
+      aria-invalid={invalid || undefined}
+      {...props}
+    />
+  );
+}

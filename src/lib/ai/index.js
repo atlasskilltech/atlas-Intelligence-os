@@ -45,7 +45,7 @@ export function getAIStatus() {
  * Call a model.
  * @param {"generateText"|"generateStructured"|"chatWithTools"} method
  * @param {object} opts  provider options (messages, schema, tools …)
- * @param {object} meta  { purpose: "planner"|"agent"|"test"|…, model?, agentId?, runId? }
+ * @param {object} meta  { purpose: "planner"|"agent"|"test"|…, model?, agentId?, runId?, maxRetries? }
  */
 export async function callModel(method, opts, meta = {}) {
   const settings = await getModelSettings();
@@ -73,7 +73,7 @@ export async function callModel(method, opts, meta = {}) {
           ...opts,
           model,
         }),
-      { maxRetries: settings.maxRetries, onRetry: () => (retries += 1) },
+      { maxRetries: meta.maxRetries ?? settings.maxRetries, onRetry: () => (retries += 1) },
     );
     const costUsd = estimateCost(result.model || model, result.usage, settings.pricingOverrides);
     await safeRecordUsage({

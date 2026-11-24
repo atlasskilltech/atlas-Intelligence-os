@@ -28,9 +28,10 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
     }
   }
 
-  function baseBody({ model, messages, maxOutputTokens }) {
+  function baseBody({ model, messages, maxOutputTokens, reasoningEffort }) {
     const body = { model, messages: toOpenAIMessages(messages) };
     if (maxOutputTokens) body.max_completion_tokens = maxOutputTokens;
+    if (reasoningEffort && supportsReasoningEffort(model)) body.reasoning_effort = reasoningEffort;
     return body;
   }
 
@@ -84,6 +85,11 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
       }
     },
   };
+}
+
+/** Reasoning models (gpt-5 family, o-series) accept reasoning_effort; others reject it. */
+export function supportsReasoningEffort(model) {
+  return /^(gpt-5|o\d)/.test(model || "") && !/chat/.test(model);
 }
 
 // ---------- format conversion ----------

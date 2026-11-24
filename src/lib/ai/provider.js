@@ -18,7 +18,7 @@
  * @typedef {Object} ModelProvider
  * @property {string} id
  * @property {(opts: { model: string, messages: object[], maxOutputTokens?: number, timeoutMs?: number }) => Promise<object>} generateText
- * @property {(opts: { model: string, messages: object[], schema: object, schemaName: string, maxOutputTokens?: number, timeoutMs?: number }) => Promise<object>} generateStructured
+ * @property {(opts: { model: string, messages: object[], schema: object, schemaName: string, maxOutputTokens?: number, timeoutMs?: number, reasoningEffort?: string }) => Promise<object>} generateStructured
  *           Result additionally has `data` (the parsed JSON object).
  * @property {(opts: { model: string, messages: object[], tools: object[], toolChoice?: "auto"|"none"|"required", maxOutputTokens?: number, timeoutMs?: number }) => Promise<object>} chatWithTools
  * @property {() => Promise<string[]>} listModels

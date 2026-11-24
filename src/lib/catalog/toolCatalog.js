@@ -1,0 +1,129 @@
+/**
+ * Tool catalog — every tool an agent may use, grouped by connector.
+ *
+ * Pure data (safe to import on client and server). The planner may ONLY pick
+ * tool ids from this list. In Milestone 6 the connector registry becomes the
+ * source of this data; `availableIn` marks the milestone that makes a tool
+ * actually executable, so the UI can be honest about what works today.
+ *
+ * Risk levels (enforced by code, never by the model):
+ *   read        – reads data, no side effects                → runs automatically
+ *   internal    – writes only inside IntelligenceOS          → runs automatically
+ *   write       – creates/changes data in another system     → needs approval
+ *   send        – sends a message to people                  → needs approval
+ *   destructive – deletes or irreversible change             → always needs approval
+ */
+
+export const RISK_LEVELS = {
+  read: { label: "Read only", tone: "success", approval: false },
+  internal: { label: "Internal", tone: "neutral", approval: false },
+  write: { label: "Changes data", tone: "warning", approval: true },
+  send: { label: "Sends messages", tone: "warning", approval: true },
+  destructive: { label: "Destructive", tone: "danger", approval: true },
+};
+
+export const CONNECTORS = [
+  {
+    id: "report",
+    name: "Reports",
+    category: "built-in",
+    description: "Create the agent's report inside IntelligenceOS.",
+    availableIn: 5,
+    actions: [
+      { id: "create_report", name: "Create report", risk: "internal", description: "Save a formatted report (title, summary, sections, tables) as the run's result, visible in the dashboard." },
+    ],
+  },
+  {
+    id: "notify",
+    name: "Dashboard notifications",
+    category: "built-in",
+    description: "Notify the agent's owner inside IntelligenceOS.",
+    availableIn: 5,
+    actions: [
+      { id: "notify_owner", name: "Notify owner", risk: "internal", description: "Show a notification to the agent's owner in the dashboard." },
+    ],
+  },
+  {
+    id: "atlas_website",
+    name: "ATLAS University website",
+    category: "atlas",
+    description: "Read-only checks of atlasuniversity.edu.in pages.",
+    availableIn: 7,
+    actions: [
+      { id: "fetch_page", name: "Fetch page", risk: "read", description: "Fetch a page on atlasuniversity.edu.in and return its title, text and links." },
+      { id: "find_broken_links", name: "Find broken links", risk: "read", description: "Crawl pages on atlasuniversity.edu.in (bounded) and list links that fail or redirect." },
+      { id: "list_sitemap_pages", name: "List sitemap pages", risk: "read", description: "List page URLs from the site's sitemap." },
+    ],
+  },
+  {
+    id: "atlas_crm",
+    name: "ATLAS CRM",
+    category: "atlas",
+    description: "Admission leads and follow-ups through the CRM's secure Agent API.",
+    availableIn: 7,
+    actions: [
+      { id: "search_leads", name: "Search leads", risk: "read", description: "Search leads by date range, status, source, programme or counsellor." },
+      { id: "get_lead", name: "Get lead", risk: "read", description: "Get one lead's details, status history and follow-ups." },
+      { id: "list_followups", name: "List follow-ups", risk: "read", description: "List follow-ups by status (due, overdue, completed) and counsellor." },
+      { id: "get_lead_report", name: "Get lead report", risk: "read", description: "Get aggregate lead counts by status, source, programme and date." },
+      { id: "add_lead_note", name: "Add lead note", risk: "write", description: "Add a note to a lead's record." },
+      { id: "update_lead_status", name: "Update lead status", risk: "write", description: "Change a lead's status." },
+    ],
+  },
+  {
+    id: "http_api",
+    name: "Custom REST API",
+    category: "general",
+    description: "Call an administrator-approved REST API endpoint.",
+    availableIn: 6,
+    actions: [
+      { id: "get", name: "GET request", risk: "read", description: "Read data from an approved API endpoint." },
+      { id: "post", name: "POST request", risk: "write", description: "Send data to an approved API endpoint." },
+    ],
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    category: "external",
+    description: "Read and send email from the configured ATLAS mailbox.",
+    availableIn: 8,
+    actions: [
+      { id: "search_messages", name: "Search email", risk: "read", description: "Search messages in the mailbox." },
+      { id: "send_email", name: "Send email", risk: "send", description: "Send an email (subject, body, recipients)." },
+    ],
+  },
+  {
+    id: "google_calendar",
+    name: "Google Calendar",
+    category: "external",
+    description: "Read and create calendar events.",
+    availableIn: 8,
+    actions: [
+      { id: "list_events", name: "List events", risk: "read", description: "List events in a date range." },
+      { id: "create_event", name: "Create event", risk: "write", description: "Create a calendar event and invite attendees." },
+    ],
+  },
+];
+
+/** Flat list: one entry per tool, id = "connector.action". */
+export const TOOLS = CONNECTORS.flatMap((c) =>
+  c.actions.map((a) => ({
+    ...a,
+    id: `${c.id}.${a.id}`, // after the spread, so the action's short id can't overwrite it
+    actionId: a.id,
+    connectorId: c.id,
+    connectorName: c.name,
+    category: c.category,
+    availableIn: c.availableIn,
+    requiresApproval: RISK_LEVELS[a.risk].approval,
+  })),
+);
+
+export const TOOL_IDS = TOOLS.map((t) => t.id);
+
+const BY_ID = new Map(TOOLS.map((t) => [t.id, t]));
+export const getTool = (id) => BY_ID.get(id) || null;
+
+/** Latest completed milestone; tools with availableIn <= this can actually run. Bump as connectors ship. */
+export const CURRENT_MILESTONE = 3;
+export const isToolAvailable = (id) => (getTool(id)?.availableIn ?? Infinity) <= CURRENT_MILESTONE;

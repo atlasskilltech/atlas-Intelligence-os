@@ -7,7 +7,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 1 | Project foundation (JS, Tailwind, dashboard shell) | ✅ |
 | 2 | OpenAI integration & provider abstraction | ✅ |
 | 2.1 | UI redesign (ChatGPT/Claude layout, CRM palette) + Vercel storage fix | ✅ |
-| 3 | Prompt-to-Agent Builder | ⬜ |
+| 3 | Prompt-to-Agent Builder | ✅ |
 | 4 | Agent config, storage, plans & approval workflow | ⬜ |
 | 5 | Execution engine & tool-calling loop | ⬜ |
 | 6 | Connector framework & custom REST connector | ⬜ |
@@ -54,3 +54,18 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Vercel: data stored in `/tmp/atlas-data` with an on-screen “temporary storage” warning
 - [x] Storage failures no longer break AI calls; failed saves return a clear message (503)
 - [x] Tests: 15 unit tests; end-to-end with mock OpenAI incl. unwritable storage and simulated Vercel; desktop/tablet/mobile checks
+
+## Milestone 3 — Prompt-to-Agent Builder ✅
+
+- [x] Tool catalog (`src/lib/catalog/toolCatalog.js`): connectors, actions, risk levels, milestone availability
+- [x] Agent config format (`src/lib/agents/agentConfig.js`): strict planner JSON schema + zod validation
+- [x] Normaliser: removes unknown tools, derives tools/approvals/limits in code (model cannot grant itself permissions), clamps sizes
+- [x] Schedules: friendly fields → cron + readable text (`src/lib/agents/schedule.js`)
+- [x] Planner (`src/lib/planner/`): catalog-aware system prompt, prompt-injection rules, generate + refine
+- [x] `POST /api/agents/generate` (generate or refine; input validation; 120 s max duration for Vercel)
+- [x] Builder UI: Describe → Planning → Review; edit name/description/steps (reorder, add, delete, change tool)/schedule/instructions
+- [x] “Refine with AI” chat panel; clarifying questions with one-click “Answer”; assumptions & missing capabilities
+- [x] Summary: trigger, tools with risk + availability, approvals, limits; plan cost/tokens shown
+- [x] Draft kept in the browser tab (survives refresh); Download JSON; Start over
+- [x] Tests: 23 unit tests (schema strict-mode check, normaliser safety, schedules, planner against fake OpenAI); full browser flow incl. mobile
+- [ ] Saving agents → Milestone 4

@@ -84,6 +84,23 @@ planner / engine ──► callModel(method, opts, { purpose, agentId, runId }) 
 - Pages that show live data call `await connection()` (`export const dynamic` no longer exists).
 - Tests: `npm test` (Node test runner, `--conditions=react-server` so `server-only` imports work).
 
+## Prompt-to-Agent planner (Milestone 3)
+
+```
+prompt ─► POST /api/agents/generate ─► planner.generateAgent()
+            │   system prompt = rules + TOOL CATALOG (exact ids)
+            │   callModel("generateStructured", strict JSON schema, purpose "planner")
+            ▼
+         normalizeAgentConfig()  ← tools, approvals, limits, cron computed by CODE
+            ▼
+         { agent, warnings, meta } ─► Review UI (edit / refine) ─► (M4) save
+```
+
+- The planner may only choose tool ids from `toolCatalog.js` (enforced by a JSON-schema enum
+  and again by the normaliser). Unmet needs go to `notes.missingCapabilities`.
+- Approval rules come from each tool's risk level, never from the model.
+- Refinement sends the current (re-normalised) draft plus the employee's change request.
+
 ## Connectors
 
 Each connector is a module built with `defineConnector()` declaring: id, name,
