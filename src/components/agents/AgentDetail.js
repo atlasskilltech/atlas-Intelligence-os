@@ -7,7 +7,10 @@ import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { fmtDateTime } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Textarea } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
+import RunTable from "@/components/runs/RunTable";
 import AgentWorkspace, { agentApi, downloadAgentJson, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
 import { StatusBadge } from "./AgentStatus";
 
@@ -20,7 +23,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved }) {
+export default function AgentDetail({ initial, justSaved, runs = [] }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -33,6 +36,8 @@ export default function AgentDetail({ initial, justSaved }) {
   const [error, setError] = useState(null);
   const [serverErrors, setServerErrors] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [runMode, setRunMode] = useState(null); // null | "test" | "live"
+  const [runInput, setRunInput] = useState("");
 
   const dirty = useMemo(() => fingerprint(draft) !== baseline, [draft, baseline]);
   const blocking = Object.keys(workspaceErrors(draft)).length > 0;
@@ -108,6 +113,21 @@ export default function AgentDetail({ initial, justSaved }) {
     }
   }
 
+  async function startRun() {
+    setBusy("run");
+    setError(null);
+    try {
+      const { run } = await agentApi(`/api/agents/${rec.id}/runs`, "POST", { mode: runMode, input: runInput });
+      router.push(`/runs/${run.id}`);
+    } catch (err) {
+      setError(err.message);
+      setRunMode(null);
+      setBusy(null);
+    }
+  }
+
+  const runBlocked = dirty ? "Save or discard your changes first — runs use the saved version." : null;
+
   function discard() {
     const d = toDraft(rec.config);
     setDraft(d);
@@ -153,6 +173,16 @@ export default function AgentDetail({ initial, justSaved }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setRunMode("test")} disabled={!!busy || !!runBlocked} title={runBlocked || "Try the agent safely: changes and messages are simulated"}>
+            <Icon name="play" className="size-4" />
+            Run test
+          </Button>
+          {rec.status === "active" && (
+            <Button onClick={() => setRunMode("live")} disabled={!!busy || !!runBlocked} title={runBlocked || "Run the agent for real now"}>
+              <Icon name="play" className="size-4" />
+              Run now
+            </Button>
+          )}
           {statusButton}
           <Button variant="ghost" onClick={() => setConfirmDelete(true)} disabled={!!busy} className="text-red-600 hover:bg-red-50 hover:text-red-700">
             <Icon name="trash" className="size-4" />
@@ -205,17 +235,51 @@ export default function AgentDetail({ initial, justSaved }) {
                 Discard changes
               </Button>
             )}
-            <Button variant="secondary" className="w-full" disabled title="Test runs arrive in Milestone 5">
-              <Icon name="play" className="size-4" />
-              Run test
-            </Button>
-            <p className="text-center text-xs text-slate-500">{blocking ? "Fix the highlighted fields to save." : "Test runs arrive in Milestone 5"}</p>
+            {blocking && <p className="text-center text-xs text-slate-500">Fix the highlighted fields to save.</p>}
             <Button variant="ghost" size="sm" className="w-full" onClick={() => downloadAgentJson(toPayload(draft))}>
               Download JSON
             </Button>
           </>
         }
       />
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold text-ink">Recent runs</h2>
+          {runs.length > 0 && (
+            <Link href="/runs" className="text-sm font-medium text-brand-600 hover:underline">
+              All runs
+            </Link>
+          )}
+        </div>
+        {runs.length ? (
+          <RunTable runs={runs} showAgent={false} />
+        ) : (
+          <Card>
+            <CardBody className="text-sm text-slate-500">No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run.</CardBody>
+          </Card>
+        )}
+      </section>
+
+      <ConfirmDialog
+        open={!!runMode}
+        tone="primary"
+        title={runMode === "live" ? `Run "${rec.config.name}" now?` : `Test "${rec.config.name}"`}
+        confirmLabel={runMode === "live" ? "Run now" : "Start test run"}
+        busy={busy === "run"}
+        onConfirm={startRun}
+        onCancel={() => setRunMode(null)}
+      >
+        <p>
+          {runMode === "live"
+            ? "The agent runs for real. Actions that need approval will pause and wait for you."
+            : "The agent runs its plan with real AI and read-only tools. Actions that change data or send messages are simulated."}
+        </p>
+        <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="run-input">
+          Extra instructions for this run <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <Textarea id="run-input" rows={3} maxLength={2000} value={runInput} onChange={(e) => setRunInput(e.target.value)} className="mt-1.5" placeholder="e.g. Only look at leads from the B.Tech programme" />
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={confirmDelete}

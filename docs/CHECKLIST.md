@@ -10,7 +10,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 3 | Prompt-to-Agent Builder | ✅ |
 | 4 | Agent config, storage, plans & approval workflow | ✅ |
 | 4.1 | Logo, favicon, light/dark mode | ✅ |
-| 5 | Execution engine & tool-calling loop | ⬜ |
+| 5 | Execution engine & tool-calling loop | ✅ |
 | 6 | Connector framework & custom REST connector | ⬜ |
 | 7 | First ATLAS internal connector | ⬜ |
 | 8 | External connectors (Gmail, Calendar) | ⬜ |
@@ -85,4 +85,20 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Agent page: edit + save changes, discard, unsaved-changes warning, pause/resume/activate, delete with confirmation, AI refine
 - [x] Sidebar "Recent agents" and Home "Active agents" use real data
 - [x] Tests: 33 unit tests (+10: approvals, repository, permissions, concurrency, corrupt-file safety); full browser flow
-- [ ] Running agents (Run test) → Milestone 5
+- [x] Running agents (Run test) → done in Milestone 5
+
+## Milestone 5 — Execution engine ✅
+
+- [x] Engine (`src/lib/engine/runner.js`): bounded tool-calling loop, one action at a time
+- [x] Safety in code: only the agent's own connected tools; arguments validated against each tool's schema; unknown/unconnected tools refused and the run continues
+- [x] Tool output returned to the AI as labelled untrusted data; secrets redacted from logs and results
+- [x] Limits: max actions (then a forced final summary), time limit, AI-call cap, per-tool 60 s timeout
+- [x] Test runs simulate write/send actions; live runs need an active agent
+- [x] Approval workflow: run pauses, owner approves/rejects with a note, run resumes; pre-approved tools run directly; approvals expire after 7 days
+- [x] Cancel (stops after the current step, never overwritten); interrupted runs detected by stale heartbeat
+- [x] One active run per agent; usage/tokens/cost tracked per run
+- [x] Built-in tools that work now: Reports · Create report, Notify owner
+- [x] Storage: one file per run + index; global event log (`run-events.jsonl`); notifications
+- [x] UI: Run test / Run now (with optional extra instructions), live run page (polling, report, step-by-step log, approval card, cancel), Execution History with filters, Execution Logs, recent runs on agent page, Home counts + latest updates
+- [x] Tests: 46 unit tests (+13 engine: happy path, refusals, simulation, approve/reject, pre-approval, limits, AI failure, redaction, cancel, stale runs); browser flow incl. approval card, dark mode, mobile
+- [ ] Real connectors (CRM, website, REST, Gmail, Calendar) → Milestones 6–8

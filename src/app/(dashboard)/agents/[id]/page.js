@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import AgentDetail from "@/components/agents/AgentDetail";
 import { AgentNotFound, getAgent } from "@/lib/agents/agentRepo";
 import { getActor } from "@/lib/context";
+import { listRuns } from "@/lib/runs/runRepo";
 
 async function load(id) {
   try {
@@ -23,5 +24,6 @@ export default async function AgentPage({ params, searchParams }) {
   const { saved } = await searchParams;
   const rec = await load(id);
   if (!rec) notFound();
-  return <AgentDetail initial={rec} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
+  const runs = await listRuns(getActor(), { agentId: id, limit: 10 });
+  return <AgentDetail initial={rec} runs={runs} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
 }

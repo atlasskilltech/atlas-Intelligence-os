@@ -125,5 +125,5 @@ const BY_ID = new Map(TOOLS.map((t) => [t.id, t]));
 export const getTool = (id) => BY_ID.get(id) || null;
 
 /** Latest completed milestone; tools with availableIn <= this can actually run. Bump as connectors ship. */
-export const CURRENT_MILESTONE = 4;
+export const CURRENT_MILESTONE = 5;
 export const isToolAvailable = (id) => (getTool(id)?.availableIn ?? Infinity) <= CURRENT_MILESTONE;

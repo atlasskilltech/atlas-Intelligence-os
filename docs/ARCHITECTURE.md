@@ -154,6 +154,26 @@ Approvals: `permissions.toolsRequiringApproval` is computed from tool risk; the 
 can only opt OUT for write/send tools via `permissions.preApproved`. Destructive tools
 always ask. The model never sees these as editable — refine keeps them.
 
+## Execution engine (Milestone 5)
+
+`POST /api/agents/[id]/runs` creates a run (status `queued`) and `after()` starts
+`executeRun` in the same server process. The loop (`src/lib/engine/runner.js`):
+
+1. System prompt = agent instructions + plan + tool list + safety rules (`engine/prompt.js`).
+2. Call the model with the agent's **executable** tools (`tools/registry.js`).
+3. A tool call is checked (part of the plan? connected? arguments valid?) and then:
+   simulated (test run + external effect) · paused for approval (`waiting_approval`) · executed.
+4. The result goes back as `<tool_result untrusted="true">…`. Repeat until the model replies
+   without a tool call (→ `succeeded`), or a limit / error / cancel ends the run.
+
+Approve/reject (`POST /api/runs/[id]/approval`) records the decision, sets the run back to
+`queued` and resumes it. A run is stored as `run_<id>.json` + a summary in `runs-index.json`;
+events also go to `run-events.jsonl` (Execution Logs). Runs whose heartbeat is older than
+3 minutes while not executing in this process are marked *interrupted*.
+
+Vercel: `after()` is limited to the route's `maxDuration` (300 s), so long runs need the
+always-on server. New connectors register executors in `tools/registry.js`.
+
 ## Prototype persistence limits (no database)
 
 Data lives in JSON files under `DATA_DIR`:
