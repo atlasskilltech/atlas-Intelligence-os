@@ -12,8 +12,8 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 4.1 | Logo, favicon, light/dark mode | ✅ |
 | 5 | Execution engine & tool-calling loop | ✅ |
 | 6 | Connector framework & custom REST connector | ✅ |
-| 7 | First ATLAS internal connector | ⬜ |
-| 8 | External connectors (Gmail, Calendar) | ⬜ |
+| 7 | ATLAS project connections (key-based) | ✅ |
+| 8 | Website connector & external connectors (Gmail, Calendar) | ⬜ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
 | 10 | Dashboard data, history, usage, security & tests | ⬜ |
 | 11 | Production readiness & DB/auth plan | ⬜ |
@@ -102,7 +102,8 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] UI: Run test / Run now (with optional extra instructions), live run page (polling, report, step-by-step log, approval card, cancel), Execution History with filters, Execution Logs, recent runs on agent page, Home counts + latest updates
 - [x] Tests: 46 unit tests (+13 engine: happy path, refusals, simulation, approve/reject, pre-approval, limits, AI failure, redaction, cancel, stale runs); browser flow incl. approval card, dark mode, mobile
 - [x] Custom REST connector → done in Milestone 6
-- [ ] ATLAS connectors (CRM, website), Gmail, Calendar → Milestones 7–8
+- [x] ATLAS projects (CRM etc.) → Milestone 7
+- [ ] Website, Gmail, Calendar → Milestone 8
 
 ## Milestone 6 — Connector framework & custom REST connector ✅
 
@@ -120,3 +121,20 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Tests: 62 unit tests (+16: guard, validation, URL building, auth, redaction, redirects, size cap, DNS check, disabled APIs, engine read / simulated POST / approved POST / bad calls); browser flow incl. agent run against a mock API, dark mode, mobile
 - [ ] Per-agent API restriction (today any agent with the REST tools may use every enabled API)
 - [ ] Outbound HTTP proxy support (connectors connect directly)
+
+## Milestone 7 — ATLAS project connections ✅
+
+- [x] Connect a project with a key created in that project: name + Agent API URL + key
+- [x] IntelligenceOS asks the project what the key allows (`GET /manifest`) and shows it; nothing is typed by hand
+- [x] Plugin cards per project (status, access level, read/change counts, key hint) → detail page "What this key allows"
+- [x] Detail page: actions grouped Can read / Can change data with parameters, connection info, Re-check access, Replace key (checked first), Disable, Remove, Try a read action
+- [x] Key stored encrypted (AES-256-GCM, `CONNECTOR_ENCRYPTION_KEY`); only the last 4 characters shown; redacted from logs/runs
+- [x] Agent tools `atlas_project.read` (automatic) and `atlas_project.write` (approval, simulated in tests); read tool can't run write actions and vice versa
+- [x] Safety on top of the manifest: no destructive actions, POST always "write", typed/enum/required params, path values encoded
+- [x] A 401 during a run marks the project "Needs attention" and agents stop using it until re-checked
+- [x] Requests carry the agent name and run id for the project's own log
+- [x] Planner sees connected projects and their actions
+- [x] Spec for project teams: `docs/AGENT_API_SPEC.md`; reference add-on `examples/agent-api-node/` (keys with scopes, manifest, per-request checks, log)
+- [x] The old fixed `atlas_crm.*` tools are replaced by the generic project tools (the CRM connects as a project)
+- [x] Tests: 72 unit tests (+10, run against the reference add-on); browser flow (wrong key, connect, card, access page, try action, replace key, dark, mobile)
+- [ ] Install the add-on in the real ATLAS CRM (needs the CRM code)

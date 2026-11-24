@@ -3,12 +3,13 @@ import { CONNECTORS as CATALOG } from "../catalog/toolCatalog.js";
 import { notifyConnector, reportConnector } from "./builtin.js";
 import { executorsOf } from "./defineConnector.js";
 import { httpApiConnector } from "./http/httpApiConnector.js";
+import { projectConnector } from "./projects/projectConnector.js";
 
 /**
  * Connector registry: every connector with code behind it.
  * Add new connectors (Milestones 7–8) to this list.
  */
-export const REGISTERED = [reportConnector, notifyConnector, httpApiConnector];
+export const REGISTERED = [reportConnector, notifyConnector, projectConnector, httpApiConnector];
 
 /** { "connector.action": executor } for the engine. */
 export const EXECUTORS = executorsOf(REGISTERED);

@@ -48,7 +48,7 @@ export const CONNECTORS = [
     name: "ATLAS University website",
     category: "atlas",
     description: "Read-only checks of atlasuniversity.edu.in pages.",
-    availableIn: 7,
+    availableIn: 8,
     actions: [
       { id: "fetch_page", name: "Fetch page", risk: "read", description: "Fetch a page on atlasuniversity.edu.in and return its title, text and links." },
       { id: "find_broken_links", name: "Find broken links", risk: "read", description: "Crawl pages on atlasuniversity.edu.in (bounded) and list links that fail or redirect." },
@@ -56,18 +56,14 @@ export const CONNECTORS = [
     ],
   },
   {
-    id: "atlas_crm",
-    name: "ATLAS CRM",
+    id: "atlas_project",
+    name: "ATLAS projects",
     category: "atlas",
-    description: "Admission leads and follow-ups through the CRM's secure Agent API.",
+    description: "ATLAS apps (CRM, ERP, LMS…) connected with a project key. Only the actions that key allows.",
     availableIn: 7,
     actions: [
-      { id: "search_leads", name: "Search leads", risk: "read", description: "Search leads by date range, status, source, programme or counsellor." },
-      { id: "get_lead", name: "Get lead", risk: "read", description: "Get one lead's details, status history and follow-ups." },
-      { id: "list_followups", name: "List follow-ups", risk: "read", description: "List follow-ups by status (due, overdue, completed) and counsellor." },
-      { id: "get_lead_report", name: "Get lead report", risk: "read", description: "Get aggregate lead counts by status, source, programme and date." },
-      { id: "add_lead_note", name: "Add lead note", risk: "write", description: "Add a note to a lead's record." },
-      { id: "update_lead_status", name: "Update lead status", risk: "write", description: "Change a lead's status." },
+      { id: "read", name: "Read from project", risk: "read", description: "Run a read-only action that a connected ATLAS project allows, e.g. search leads or get a report." },
+      { id: "write", name: "Change data in project", risk: "write", description: "Run an action that changes data in a connected ATLAS project, e.g. add a note or update a status." },
     ],
   },
   {
@@ -125,5 +121,5 @@ const BY_ID = new Map(TOOLS.map((t) => [t.id, t]));
 export const getTool = (id) => BY_ID.get(id) || null;
 
 /** Latest completed milestone; tools with availableIn <= this can actually run. Bump as connectors ship. */
-export const CURRENT_MILESTONE = 6;
+export const CURRENT_MILESTONE = 7;
 export const isToolAvailable = (id) => (getTool(id)?.availableIn ?? Infinity) <= CURRENT_MILESTONE;

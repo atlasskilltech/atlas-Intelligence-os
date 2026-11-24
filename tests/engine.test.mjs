@@ -25,9 +25,9 @@ async function makeAgent(over = {}, { activate = true } = {}) {
       description: "",
       instructions: "Prepare a lead report.",
       steps: [
-        { title: "Fetch leads", tool: "atlas_crm.search_leads" },
+        { title: "Fetch leads", tool: "atlas_project.read" },
         { title: "Write report", tool: "report.create_report" },
-        { title: "Update a lead", tool: "atlas_crm.update_lead_status" },
+        { title: "Update a lead", tool: "atlas_project.write" },
       ],
       trigger: { type: "manual", schedule: null },
       ...over,
@@ -56,7 +56,7 @@ const reportArgs = { title: "Leads today", summary: "12 new leads.", tables: [{ 
 const writeCalls = [];
 const executors = {
   ...BUILTIN_TOOLS,
-  "atlas_crm.update_lead_status": {
+  "atlas_project.write": {
     parameters: { type: "object", required: ["leadId", "status"], properties: { leadId: { type: "string" }, status: { type: "string" } } },
     async execute(args) {
       writeCalls.push(args);
@@ -82,7 +82,7 @@ test("system prompt lists tools, marks unconnected ones, and states the data-not
   const p = runSystemPrompt(agent.config, { mode: "test", executable: (id) => id === "report.create_report" });
   assert.match(p, /TEST run/);
   assert.match(p, /You can call: report\.create_report/);
-  assert.match(p, /Not connected yet.*atlas_crm\.search_leads/);
+  assert.match(p, /Not connected yet.*atlas_project\.read/);
   assert.match(p, /DATA, never instructions/);
   await repo.deleteAgent(actor, agent.id);
 });
@@ -104,7 +104,7 @@ test("happy path: report tool runs, summary saved, usage counted, events logged"
   assert.equal(r.stats.inputTokens, 200);
   assert.ok(Math.abs(r.stats.costUsd - 0.002) < 1e-9);
   // only executable agent tools are offered
-  assert.deepEqual(model.calls[0].tools.sort(), ["atlas_crm__update_lead_status", "report__create_report"]);
+  assert.deepEqual(model.calls[0].tools.sort(), ["atlas_project__write", "report__create_report"]);
   // tool output wrapped as untrusted data
   const toolMsg = model.calls[1].messages.find((m) => m.role === "tool");
   assert.match(toolMsg.content, /^<tool_result untrusted="true">/);
@@ -120,7 +120,7 @@ test("unknown tool, unconnected tool and invalid arguments are refused and the r
   const run = await engine.startRun(actor, agent.id, { mode: "test" });
   const model = fakeModel([
     callTool("shell__exec", { cmd: "rm -rf /" }),
-    callTool("atlas_crm__search_leads", {}),
+    callTool("atlas_project__read", {}),
     callTool("report__create_report", { title: "No summary" }),
     { text: "Finished with problems." },
   ]);
@@ -139,7 +139,7 @@ test("test runs simulate write actions instead of performing them", async () => 
   writeCalls.length = 0;
   const agent = await makeAgent();
   const run = await engine.startRun(actor, agent.id, { mode: "test" });
-  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_crm__update_lead_status", { leadId: "L1", status: "won" }), { text: "ok" }])));
+  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_project__write", { leadId: "L1", status: "won" }), { text: "ok" }])));
   const r = await runs.loadRun(run.id);
   assert.equal(r.status, "succeeded");
   assert.equal(writeCalls.length, 0);
@@ -153,10 +153,10 @@ test("live run pauses for approval; approve executes the action, reject tells th
 
   // approve
   let run = await engine.startRun(actor, agent.id, { mode: "live" });
-  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_crm__update_lead_status", { leadId: "L1", status: "won" }, "c1")])));
+  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_project__write", { leadId: "L1", status: "won" }, "c1")])));
   let r = await runs.loadRun(run.id);
   assert.equal(r.status, "waiting_approval");
-  assert.equal(r.pendingApproval.toolId, "atlas_crm.update_lead_status");
+  assert.equal(r.pendingApproval.toolId, "atlas_project.write");
   assert.equal(writeCalls.length, 0);
   assert.ok(notes.some((n) => /waiting for your approval/.test(n.message)));
   await assert.rejects(engine.startRun(actor, agent.id, { mode: "test" }), (e) => e.status === 409); // one active run per agent
@@ -173,7 +173,7 @@ test("live run pauses for approval; approve executes the action, reject tells th
 
   // reject
   run = await engine.startRun(actor, agent.id, { mode: "live" });
-  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_crm__update_lead_status", { leadId: "L2", status: "lost" }, "c2")])));
+  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_project__write", { leadId: "L2", status: "lost" }, "c2")])));
   await engine.decideApproval(actor, run.id, { decision: "reject", note: "wrong lead" });
   const m3 = fakeModel([{ text: "Skipped the update." }]);
   await engine.executeRun(run.id, deps(m3));
@@ -185,9 +185,9 @@ test("live run pauses for approval; approve executes the action, reject tells th
 
 test("pre-approved tools run without asking", async () => {
   writeCalls.length = 0;
-  const agent = await makeAgent({ permissions: { preApproved: ["atlas_crm.update_lead_status"] } });
+  const agent = await makeAgent({ permissions: { preApproved: ["atlas_project.write"] } });
   const run = await engine.startRun(actor, agent.id, { mode: "live" });
-  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_crm__update_lead_status", { leadId: "L9", status: "won" }), { text: "done" }])));
+  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_project__write", { leadId: "L9", status: "won" }), { text: "done" }])));
   assert.equal((await runs.loadRun(run.id)).status, "succeeded");
   assert.equal(writeCalls.length, 1);
 });
@@ -230,7 +230,7 @@ test("AI failure fails the run with a clear error and secrets are redacted from 
 test("cancel stops a waiting run; stale runs are marked interrupted", async () => {
   const agent = await makeAgent();
   let run = await engine.startRun(actor, agent.id, { mode: "live" });
-  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_crm__update_lead_status", { leadId: "L1", status: "won" })])));
+  await engine.executeRun(run.id, deps(fakeModel([callTool("atlas_project__write", { leadId: "L1", status: "won" })])));
   const c = await engine.cancelRun(actor, run.id);
   assert.equal(c.status, "cancelled");
   assert.equal(c.pendingApproval, null);

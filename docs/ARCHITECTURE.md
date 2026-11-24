@@ -135,12 +135,24 @@ safeFetch ─► checkUrl (https; http only for INTERNAL_ALLOWED_HOSTS) ─► g
 The model never supplies a URL, host, header or method. GET = read (automatic), POST = write
 (approval; simulated in test runs). Only GET endpoints can be tried from the "Test" button.
 
+### ATLAS projects (Milestone 7)
+
+```
+project admin ─► creates key with scopes (inside the project)
+IntelligenceOS admin ─► Connect project { name, url, key } ─► GET url/manifest (Bearer key)
+     └► project-connections.json  { id, baseUrl, keyBox (AES-GCM), manifest{actions}, status }
+agent ─► atlas_project.read / .write { project, action, params }
+     └► callAction: action in manifest? right tool? params valid? ─► safeFetch with the key
+```
+
+Contract: `docs/AGENT_API_SPEC.md`. Reference add-on: `examples/agent-api-node/`. The project
+decides what a key may do; IntelligenceOS adds its own rules (approval for writes, no deletes).
+
 ATLAS internal apps are connected in this order of preference:
 
 1. Existing REST API → declarative REST connector.
-2. No API but ATLAS owns the code → add a small "Agent API" controller
-   (e.g. CodeIgniter 3) exposing only approved endpoints, protected by API key,
-   IP allowlist and a least-privilege DB user. Template provided in Milestone 7.
+2. ATLAS owns the code → add the Agent API (keys with scopes + manifest) in the project's own
+   stack, following `docs/AGENT_API_SPEC.md`; connect it as a project.
 3. Public website → read-only Website connector.
 4. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
 

@@ -58,10 +58,24 @@ export function getInternalAllowedHosts() {
     .filter(Boolean);
 }
 
+/**
+ * Master key for encrypting secrets saved through the UI (project keys, Milestone 7).
+ * Generate once with: openssl rand -base64 32
+ */
+export function getEncryptionKey() {
+  return clean(process.env.CONNECTOR_ENCRYPTION_KEY);
+}
+
+/** Secrets that only exist at run time (e.g. decrypted project keys) — redacted like env secrets. */
+const runtimeSecrets = new Set();
+export function registerSecret(value) {
+  if (typeof value === "string" && value.length >= 8) runtimeSecrets.add(value);
+}
+
 /** Values that must never appear in logs or responses. */
 export function getSecretValues() {
   const connectorSecrets = Object.keys(process.env)
     .filter((k) => k.startsWith(CONNECTOR_SECRET_PREFIX))
     .map((k) => clean(process.env[k]));
-  return [getOpenAIKey(), ...connectorSecrets].filter(Boolean);
+  return [getOpenAIKey(), getEncryptionKey(), ...connectorSecrets, ...runtimeSecrets].filter(Boolean);
 }

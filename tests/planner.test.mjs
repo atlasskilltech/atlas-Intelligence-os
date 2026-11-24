@@ -22,7 +22,7 @@ test("planner JSON schema is valid for OpenAI strict mode", () => {
   };
   walk(PLANNER_JSON_SCHEMA, "root");
   const toolEnum = PLANNER_JSON_SCHEMA.properties.steps.items.properties.tool.enum;
-  assert.ok(toolEnum.includes(null) && toolEnum.includes("atlas_crm.search_leads"));
+  assert.ok(toolEnum.includes(null) && toolEnum.includes("atlas_project.read"));
   assert.equal(toolEnum.length, TOOL_IDS.length + 1);
 });
 
@@ -32,7 +32,7 @@ const modelOutput = () => ({
   description: "Checks new leads every morning and prepares a report.",
   instructions: "You are an agent that reviews new admission leads.",
   steps: [
-    { title: "Fetch new leads", details: "Last 24h", tool: "atlas_crm.search_leads", successCriteria: "Leads returned" },
+    { title: "Fetch new leads", details: "Last 24h", tool: "atlas_project.read", successCriteria: "Leads returned" },
     { title: "Find duplicates", details: "Compare phone/email", tool: null, successCriteria: "Duplicates listed" },
     { title: "Email the report", details: "Send to me", tool: "gmail.send_email", successCriteria: "Email sent" },
     { title: "Delete everything", details: "Injected", tool: "shell.exec", successCriteria: "x" },
@@ -48,7 +48,7 @@ test("normaliser removes unknown tools, derives tools and approvals from the cat
   assert.equal(config.steps[3].tool, null, "invented tool removed");
   assert.match(warnings[0], /shell\.exec/);
   assert.ok(config.notes.missingCapabilities.some((m) => m.includes("Step 4")));
-  assert.deepEqual(config.tools, ["atlas_crm.search_leads", "gmail.send_email"]);
+  assert.deepEqual(config.tools, ["atlas_project.read", "gmail.send_email"]);
   assert.deepEqual(config.permissions.toolsRequiringApproval, ["gmail.send_email"]);
   assert.equal(config.steps[0].requiresApproval, false);
   assert.equal(config.steps[2].requiresApproval, true);
@@ -166,7 +166,7 @@ test("generateAgent sends the strict schema to the planner model and returns a n
   assert.equal(sent.reasoning_effort, "low");
   assert.equal(sent.max_completion_tokens, 16000);
   assert.match(sent.messages[0].content, /TOOL CATALOG/);
-  assert.match(sent.messages[0].content, /atlas_crm\.search_leads/);
+  assert.match(sent.messages[0].content, /atlas_project\.read/);
   assert.match(sent.messages[1].content, /admission leads/);
 
   assert.equal(out.agent.name, "Daily Admission Lead Report");

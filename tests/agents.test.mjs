@@ -20,9 +20,9 @@ const draft = (over = {}) => ({
   description: "Reports new leads.",
   instructions: "You review new admission leads.",
   steps: [
-    { title: "Fetch leads", details: "", tool: "atlas_crm.search_leads", successCriteria: "" },
+    { title: "Fetch leads", details: "", tool: "atlas_project.read", successCriteria: "" },
     { title: "Email me", details: "", tool: "gmail.send_email", successCriteria: "" },
-    { title: "Update status", details: "", tool: "atlas_crm.update_lead_status", successCriteria: "" },
+    { title: "Update status", details: "", tool: "atlas_project.write", successCriteria: "" },
   ],
   trigger: { type: "manual", schedule: null },
   ...over,
@@ -31,16 +31,16 @@ const draft = (over = {}) => ({
 // ---------- approvals ----------
 test("approvals are computed from tool risk; pre-approval only for write/send tools the agent uses", () => {
   const { config } = normalizeAgentConfig(
-    draft({ permissions: { preApproved: ["gmail.send_email", "atlas_crm.search_leads", "google_calendar.create_event", "nope"] } }),
+    draft({ permissions: { preApproved: ["gmail.send_email", "atlas_project.read", "google_calendar.create_event", "nope"] } }),
   );
   assert.deepEqual(config.permissions.preApproved, ["gmail.send_email"]); // read tool, unused tool, unknown tool dropped
-  assert.deepEqual(config.permissions.toolsRequiringApproval, ["atlas_crm.update_lead_status"]);
+  assert.deepEqual(config.permissions.toolsRequiringApproval, ["atlas_project.write"]);
   assert.deepEqual(config.steps.map((s) => s.requiresApproval), [false, false, true]);
   // A client cannot shrink the approval list directly.
   const forged = normalizeAgentConfig(draft({ permissions: { toolsRequiringApproval: [] } })).config;
-  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["gmail.send_email", "atlas_crm.update_lead_status"]);
+  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["gmail.send_email", "atlas_project.write"]);
   assert.equal(canPreApprove("gmail.send_email"), true);
-  assert.equal(canPreApprove("atlas_crm.search_leads"), false);
+  assert.equal(canPreApprove("atlas_project.read"), false);
 });
 
 test("draftErrors reports missing name, instructions and steps", () => {

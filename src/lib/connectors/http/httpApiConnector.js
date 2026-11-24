@@ -81,7 +81,7 @@ const clean = (s) => redact(String(s ?? ""), getSecretValues());
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}… [truncated]` : s);
 
 /** Turns a response body into something compact for the model. */
-function parseBody(res) {
+export function parseBody(res) {
   const type = res.contentType.toLowerCase();
   if (!res.body) return null;
   if (type.includes("json") && !res.truncated) {

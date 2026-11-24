@@ -1,14 +1,16 @@
 import { connection } from "next/server";
 import ApiConnectionsManager from "@/components/connectors/ApiConnectionsManager";
+import ProjectsSection from "@/components/connectors/ProjectsSection";
 import Badge from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import PageHeader from "@/components/ui/PageHeader";
 import StorageNotice from "@/components/ui/StorageNotice";
 import { RISK_LEVELS } from "@/lib/catalog/toolCatalog";
-import { getInternalAllowedHosts } from "@/lib/config/env";
+import { getEncryptionKey, getInternalAllowedHosts } from "@/lib/config/env";
 import { connectorOverview } from "@/lib/connectors";
 import { listConnections, publicConnection } from "@/lib/connectors/http/apiConnectionRepo";
+import { listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
 
 export const metadata = { title: "Connectors" };
@@ -17,7 +19,7 @@ const GROUPS = { "built-in": "Built in", general: "General", atlas: "ATLAS inter
 
 export default async function ConnectorsPage() {
   await connection();
-  const [overview, connections] = await Promise.all([connectorOverview(), listConnections()]);
+  const [overview, connections, projects] = await Promise.all([connectorOverview(), listConnections(), listProjects()]);
   const isAdmin = getActor().role === "admin";
 
   return (
@@ -64,6 +66,12 @@ export default async function ConnectorsPage() {
           </Card>
         ))}
       </div>
+
+      <ProjectsSection
+        initialProjects={projects.map(publicProject)}
+        isAdmin={isAdmin}
+        canStoreKeys={(getEncryptionKey() || "").length >= 16}
+      />
 
       <ApiConnectionsManager
         initialConnections={connections.map(publicConnection)}

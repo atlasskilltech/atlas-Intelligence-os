@@ -2,6 +2,7 @@ import "server-only";
 import { callModel } from "../ai/index.js";
 import { PLANNER_JSON_SCHEMA, normalizeAgentConfig, validateAgentConfig } from "../agents/agentConfig.js";
 import { describeApis } from "../connectors/http/httpApiConnector.js";
+import { describeProjects } from "../connectors/projects/projectConnector.js";
 import { plannerSystemPrompt, plannerUserPrompt, refineUserPrompt } from "./prompts.js";
 
 /**
@@ -18,6 +19,16 @@ const PLANNER_CALL = {
   reasoningEffort: "low",
 };
 
+/** Connected ATLAS projects, so the planner can name real actions (best-effort). */
+async function projectContext() {
+  try {
+    const [read, write] = await Promise.all([describeProjects("read"), describeProjects("write")]);
+    return [read && `READ (atlas_project.read):\n${read}`, write && `CHANGE DATA (atlas_project.write):\n${write}`].filter(Boolean).join("\n\n");
+  } catch {
+    return "";
+  }
+}
+
 /** Registered REST APIs, so the planner can name real endpoints (best-effort). */
 async function apiContext() {
   try {
@@ -29,7 +40,7 @@ async function apiContext() {
 }
 
 async function plan(userContent, { prompt, agentId, keep }) {
-  const apis = await apiContext();
+  const [apis, projects] = await Promise.all([apiContext(), projectContext()]);
   const result = await callModel(
     "generateStructured",
     {
@@ -37,7 +48,7 @@ async function plan(userContent, { prompt, agentId, keep }) {
       schema: PLANNER_JSON_SCHEMA,
       schemaName: "agent_plan",
       messages: [
-        { role: "system", content: plannerSystemPrompt({ apis }) },
+        { role: "system", content: plannerSystemPrompt({ apis, projects }) },
         { role: "user", content: userContent },
       ],
     },
