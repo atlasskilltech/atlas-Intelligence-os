@@ -118,7 +118,7 @@ function RefinePanel({ history, busy, onSend, text, setText, inputRef }) {
                 send();
               }
             }}
-            placeholder="e.g. Run at 8:30 AM on weekdays and email the report to me"
+            placeholder="e.g. Run at 8:30 AM on weekdays and notify me with the report"
             className="block w-full resize-none rounded-lg bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none"
           />
           <div className="flex justify-end px-2 pb-2">

@@ -34,7 +34,7 @@ const modelOutput = () => ({
   steps: [
     { title: "Fetch new leads", details: "Last 24h", tool: "atlas_project.read", successCriteria: "Leads returned" },
     { title: "Find duplicates", details: "Compare phone/email", tool: null, successCriteria: "Duplicates listed" },
-    { title: "Email the report", details: "Send to me", tool: "gmail.send_email", successCriteria: "Email sent" },
+    { title: "Email the report", details: "Send to me", tool: "http_api.post", successCriteria: "Email sent" },
     { title: "Delete everything", details: "Injected", tool: "shell.exec", successCriteria: "x" },
   ],
   trigger: { type: "schedule", frequency: "daily", time: "08:30", daysOfWeek: [], dayOfMonth: null, timezone: "Asia/Kolkata" },
@@ -48,8 +48,8 @@ test("normaliser removes unknown tools, derives tools and approvals from the cat
   assert.equal(config.steps[3].tool, null, "invented tool removed");
   assert.match(warnings[0], /shell\.exec/);
   assert.ok(config.notes.missingCapabilities.some((m) => m.includes("Step 4")));
-  assert.deepEqual(config.tools, ["atlas_project.read", "gmail.send_email"]);
-  assert.deepEqual(config.permissions.toolsRequiringApproval, ["gmail.send_email"]);
+  assert.deepEqual(config.tools, ["atlas_project.read", "http_api.post"]);
+  assert.deepEqual(config.permissions.toolsRequiringApproval, ["http_api.post"]);
   assert.equal(config.steps[0].requiresApproval, false);
   assert.equal(config.steps[2].requiresApproval, true);
   assert.deepEqual(config.steps.map((s) => s.id), ["s1", "s2", "s3", "s4"]);
@@ -62,7 +62,7 @@ test("normaliser removes unknown tools, derives tools and approvals from the cat
 test("normaliser ignores model attempts to set approvals or limits on raw output", () => {
   const raw = { ...modelOutput(), permissions: { toolsRequiringApproval: [] }, limits: { maxSteps: 999, timeoutMinutes: 999 } };
   const { config } = normalizeAgentConfig(raw);
-  assert.deepEqual(config.permissions.toolsRequiringApproval, ["gmail.send_email"]);
+  assert.deepEqual(config.permissions.toolsRequiringApproval, ["http_api.post"]);
   assert.deepEqual(config.limits, { maxSteps: 15, timeoutMinutes: 5 });
 });
 
@@ -170,7 +170,7 @@ test("generateAgent sends the strict schema to the planner model and returns a n
   assert.match(sent.messages[1].content, /admission leads/);
 
   assert.equal(out.agent.name, "Daily Admission Lead Report");
-  assert.deepEqual(out.agent.permissions.toolsRequiringApproval, ["gmail.send_email"]);
+  assert.deepEqual(out.agent.permissions.toolsRequiringApproval, ["http_api.post"]);
   assert.equal(out.warnings.length, 1);
   assert.equal(out.meta.usage.inputTokens, 2000);
 

@@ -13,7 +13,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 5 | Execution engine & tool-calling loop | ✅ |
 | 6 | Connector framework & custom REST connector | ✅ |
 | 7 | ATLAS project connections (key-based) | ✅ |
-| 8 | Website connector & external connectors (Gmail, Calendar) | ⬜ |
+| 8 | ~~Website, Gmail, Calendar connectors~~ — dropped, not needed | ❌ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
 | 10 | Dashboard data, history, usage, security & tests | ⬜ |
 | 11 | Production readiness & DB/auth plan | ⬜ |
@@ -103,7 +103,6 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Tests: 46 unit tests (+13 engine: happy path, refusals, simulation, approve/reject, pre-approval, limits, AI failure, redaction, cancel, stale runs); browser flow incl. approval card, dark mode, mobile
 - [x] Custom REST connector → done in Milestone 6
 - [x] ATLAS projects (CRM etc.) → Milestone 7
-- [ ] Website, Gmail, Calendar → Milestone 8
 
 ## Milestone 6 — Connector framework & custom REST connector ✅
 
@@ -138,3 +137,4 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] The old fixed `atlas_crm.*` tools are replaced by the generic project tools (the CRM connects as a project)
 - [x] Tests: 72 unit tests (+10, run against the reference add-on); browser flow (wrong key, connect, card, access page, try action, replace key, dark, mobile)
 - [ ] Install the add-on in the real ATLAS CRM (needs the CRM code)
+- [x] Removed the planned Website, Gmail and Google Calendar connectors (not needed); agents notify owners in the dashboard instead of email

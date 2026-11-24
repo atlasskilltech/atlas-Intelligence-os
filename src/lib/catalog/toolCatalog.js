@@ -44,18 +44,6 @@ export const CONNECTORS = [
     ],
   },
   {
-    id: "atlas_website",
-    name: "ATLAS University website",
-    category: "atlas",
-    description: "Read-only checks of atlasuniversity.edu.in pages.",
-    availableIn: 8,
-    actions: [
-      { id: "fetch_page", name: "Fetch page", risk: "read", description: "Fetch a page on atlasuniversity.edu.in and return its title, text and links." },
-      { id: "find_broken_links", name: "Find broken links", risk: "read", description: "Crawl pages on atlasuniversity.edu.in (bounded) and list links that fail or redirect." },
-      { id: "list_sitemap_pages", name: "List sitemap pages", risk: "read", description: "List page URLs from the site's sitemap." },
-    ],
-  },
-  {
     id: "atlas_project",
     name: "ATLAS projects",
     category: "atlas",
@@ -75,28 +63,6 @@ export const CONNECTORS = [
     actions: [
       { id: "get", name: "GET request", risk: "read", description: "Read data from an approved API endpoint." },
       { id: "post", name: "POST request", risk: "write", description: "Send data to an approved API endpoint." },
-    ],
-  },
-  {
-    id: "gmail",
-    name: "Gmail",
-    category: "external",
-    description: "Read and send email from the configured ATLAS mailbox.",
-    availableIn: 8,
-    actions: [
-      { id: "search_messages", name: "Search email", risk: "read", description: "Search messages in the mailbox." },
-      { id: "send_email", name: "Send email", risk: "send", description: "Send an email (subject, body, recipients)." },
-    ],
-  },
-  {
-    id: "google_calendar",
-    name: "Google Calendar",
-    category: "external",
-    description: "Read and create calendar events.",
-    availableIn: 8,
-    actions: [
-      { id: "list_events", name: "List events", risk: "read", description: "List events in a date range." },
-      { id: "create_event", name: "Create event", risk: "write", description: "Create a calendar event and invite attendees." },
     ],
   },
 ];

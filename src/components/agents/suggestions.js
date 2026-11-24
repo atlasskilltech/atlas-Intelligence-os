@@ -6,12 +6,12 @@ export const PROMPT_SUGGESTIONS = [
       "Every morning, check new admission leads in our CRM, identify duplicate entries, summarize the lead status, and prepare a daily report.",
   },
   {
-    label: "Website broken-link check",
-    prompt: "Every Monday, check atlasuniversity.edu.in for broken links and send me a summary of the pages that need fixing.",
+    label: "Counsellor workload report",
+    prompt: "Every Monday, count open leads and overdue follow-ups for each counsellor in our CRM and prepare a workload report.",
   },
   {
     label: "Follow-up reminders",
-    prompt: "Every evening, list CRM leads with overdue follow-ups and send each counsellor a summary of their pending calls.",
+    prompt: "Every evening, list CRM leads with overdue follow-ups, group them by counsellor and notify me with a summary.",
   },
   {
     label: "Research submission check",

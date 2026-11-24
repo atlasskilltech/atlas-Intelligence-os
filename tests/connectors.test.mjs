@@ -166,7 +166,7 @@ test("no APIs yet: REST tools are not ready, so agents skip them", async () => {
   const overview = await connectorOverview();
   const rest = overview.find((c) => c.id === "http_api");
   assert.equal(rest.ready, false);
-  assert.equal(overview.find((c) => c.id === "gmail").built, false);
+  assert.equal(overview.some((c) => c.id === "gmail"), false, "unbuilt connectors are not listed");
 });
 
 test("repository: admin-only writes, fixed id, no duplicates", async () => {

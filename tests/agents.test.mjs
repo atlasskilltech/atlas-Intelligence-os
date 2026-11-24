@@ -21,7 +21,7 @@ const draft = (over = {}) => ({
   instructions: "You review new admission leads.",
   steps: [
     { title: "Fetch leads", details: "", tool: "atlas_project.read", successCriteria: "" },
-    { title: "Email me", details: "", tool: "gmail.send_email", successCriteria: "" },
+    { title: "Email me", details: "", tool: "http_api.post", successCriteria: "" },
     { title: "Update status", details: "", tool: "atlas_project.write", successCriteria: "" },
   ],
   trigger: { type: "manual", schedule: null },
@@ -31,15 +31,15 @@ const draft = (over = {}) => ({
 // ---------- approvals ----------
 test("approvals are computed from tool risk; pre-approval only for write/send tools the agent uses", () => {
   const { config } = normalizeAgentConfig(
-    draft({ permissions: { preApproved: ["gmail.send_email", "atlas_project.read", "google_calendar.create_event", "nope"] } }),
+    draft({ permissions: { preApproved: ["http_api.post", "atlas_project.read", "unknown.tool", "nope"] } }),
   );
-  assert.deepEqual(config.permissions.preApproved, ["gmail.send_email"]); // read tool, unused tool, unknown tool dropped
+  assert.deepEqual(config.permissions.preApproved, ["http_api.post"]); // read tool, unused tool, unknown tool dropped
   assert.deepEqual(config.permissions.toolsRequiringApproval, ["atlas_project.write"]);
   assert.deepEqual(config.steps.map((s) => s.requiresApproval), [false, false, true]);
   // A client cannot shrink the approval list directly.
   const forged = normalizeAgentConfig(draft({ permissions: { toolsRequiringApproval: [] } })).config;
-  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["gmail.send_email", "atlas_project.write"]);
-  assert.equal(canPreApprove("gmail.send_email"), true);
+  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["http_api.post", "atlas_project.write"]);
+  assert.equal(canPreApprove("http_api.post"), true);
   assert.equal(canPreApprove("atlas_project.read"), false);
 });
 

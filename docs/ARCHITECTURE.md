@@ -153,8 +153,7 @@ ATLAS internal apps are connected in this order of preference:
 1. Existing REST API → declarative REST connector.
 2. ATLAS owns the code → add the Agent API (keys with scopes + manifest) in the project's own
    stack, following `docs/AGENT_API_SPEC.md`; connect it as a project.
-3. Public website → read-only Website connector.
-4. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
+3. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
 
 Agents never get raw database, shell or arbitrary code access.
 
