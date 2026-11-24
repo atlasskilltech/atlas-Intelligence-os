@@ -17,7 +17,7 @@ const PLANNER_CALL = {
   reasoningEffort: "low",
 };
 
-async function plan(userContent, { prompt, agentId }) {
+async function plan(userContent, { prompt, agentId, keep }) {
   const result = await callModel(
     "generateStructured",
     {
@@ -32,7 +32,9 @@ async function plan(userContent, { prompt, agentId }) {
     { purpose: "planner", agentId, maxRetries: 1 },
   );
 
-  const { config, warnings } = normalizeAgentConfig(result.data, { prompt });
+  // `keep` carries the employee's own settings the model never sees as editable
+  // (pre-approvals, run limits) through a revision.
+  const { config, warnings } = normalizeAgentConfig({ ...result.data, ...keep }, { prompt });
   const check = validateAgentConfig(config);
   if (!check.ok) {
     // Should not happen: the normaliser always produces a valid shape.
@@ -50,5 +52,8 @@ export function generateAgent(prompt) {
 }
 
 export function refineAgent(currentAgent, instruction) {
-  return plan(refineUserPrompt(currentAgent, instruction), { prompt: currentAgent.source?.prompt || "" });
+  return plan(refineUserPrompt(currentAgent, instruction), {
+    prompt: currentAgent.source?.prompt || "",
+    keep: { permissions: { preApproved: currentAgent.permissions?.preApproved || [] }, limits: currentAgent.limits },
+  });
 }

@@ -128,6 +128,21 @@ Agents never get raw database, shell or arbitrary code access.
 - Limits: max steps, run timeout, per-tool timeout, response size, cost cap.
 - Approval required for sensitive actions; runs pause and resume.
 
+## Agent storage (Milestone 4)
+
+`src/lib/agents/agentRepo.js` is the only code that touches stored agents (`agents.json`).
+A record is `{ id, ownerId, status, createdAt, updatedAt, createdBy, updatedBy, config }`,
+where `config` is the normalised agent config. Routes and pages call the repository only,
+so moving to MySQL replaces one file. Visibility: owners see their own agents, admins see
+all (today every request is the local admin — see `src/lib/context.js`).
+
+Writes go through `updateJson`, a per-file lock + atomic rename. A file that exists but
+can't be parsed is never overwritten (503) so its data can be recovered.
+
+Approvals: `permissions.toolsRequiringApproval` is computed from tool risk; the employee
+can only opt OUT for write/send tools via `permissions.preApproved`. Destructive tools
+always ask. The model never sees these as editable — refine keeps them.
+
 ## Prototype persistence limits (no database)
 
 Data lives in JSON files under `DATA_DIR`:

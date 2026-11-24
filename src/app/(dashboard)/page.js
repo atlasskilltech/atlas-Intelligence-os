@@ -2,7 +2,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 import PromptComposer from "@/components/agents/PromptComposer";
 import { PROMPT_SUGGESTIONS } from "@/components/agents/suggestions";
-import { fmtUsd } from "@/components/ui/format";
+import { fmtInt, fmtUsd } from "@/components/ui/format";
+import { countAgents } from "@/lib/agents/agentRepo";
+import { getActor } from "@/lib/context";
 import { getUsageSummary } from "@/lib/usage/usageStore";
 
 export const metadata = { title: "Home" };
@@ -18,10 +20,10 @@ function greeting() {
 
 export default async function HomePage() {
   await connection();
-  const usage = await getUsageSummary({ days: 31, recent: 0 });
+  const [usage, agentCounts] = await Promise.all([getUsageSummary({ days: 31, recent: 0 }), countAgents(getActor())]);
 
   const stats = [
-    { label: "Active agents", value: "0", href: "/agents" },
+    { label: "Active agents", value: fmtInt(agentCounts.active), href: "/agents?status=active" },
     { label: "Runs today", value: "0", href: "/runs" },
     { label: "Awaiting approval", value: "0", href: "/runs" },
     { label: "AI cost this month", value: fmtUsd(usage.thisMonth.costUsd), href: "/usage" },

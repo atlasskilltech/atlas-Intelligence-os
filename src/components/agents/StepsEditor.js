@@ -5,6 +5,7 @@ import { Input, Select, Textarea } from "@/components/ui/Field";
 import Icon from "@/components/ui/Icon";
 import { LIMITS } from "@/lib/agents/agentConfig";
 import { CONNECTORS, getTool } from "@/lib/catalog/toolCatalog";
+import Badge from "@/components/ui/Badge";
 import { ApprovalBadge, AvailabilityBadge, RiskBadge } from "./ToolBadges";
 
 let keySeq = 0;
@@ -43,7 +44,7 @@ function ToolSelect({ id, value, onChange }) {
 }
 
 /** Editable, reorderable list of plan steps. `steps` items carry a client-only `key`. */
-export default function StepsEditor({ steps, onChange }) {
+export default function StepsEditor({ steps, onChange, preApproved = [] }) {
   const update = (i, patch) => onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i, d) => {
     const next = [...steps];
@@ -112,7 +113,8 @@ export default function StepsEditor({ steps, onChange }) {
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                       <span className="mr-1 font-medium text-navy-800">{tool.connectorName}</span>
                       <RiskBadge risk={tool.risk} />
-                      {tool.requiresApproval && <ApprovalBadge />}
+                      {tool.requiresApproval && !preApproved.includes(tool.id) && <ApprovalBadge />}
+                      {tool.requiresApproval && preApproved.includes(tool.id) && <Badge tone="neutral">Pre-approved</Badge>}
                       <AvailabilityBadge toolId={tool.id} />
                     </div>
                   )}

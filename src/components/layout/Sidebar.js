@@ -47,7 +47,7 @@ function NavLink({ item, active, onNavigate }) {
  * Dark navy sidebar in the style of ChatGPT / Claude, coloured like the ATLAS CRM.
  * `onCollapse` shows the collapse button (desktop); `onNavigate` closes the mobile drawer.
  */
-export default function Sidebar({ aiConfigured, onNavigate, onCollapse }) {
+export default function Sidebar({ aiConfigured, recentAgents = [], onNavigate, onCollapse }) {
   const pathname = usePathname();
   const current = activeHref(pathname);
 
@@ -94,7 +94,38 @@ export default function Sidebar({ aiConfigured, onNavigate, onCollapse }) {
         </ul>
 
         <p className="mt-6 px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40">Recent agents</p>
-        <p className="px-3 text-xs text-white/45">Agents you create will appear here.</p>
+        {recentAgents.length === 0 ? (
+          <p className="px-3 text-xs text-white/45">Agents you create will appear here.</p>
+        ) : (
+          <ul className="space-y-px">
+            {recentAgents.map((a) => {
+              const href = `/agents/${a.id}`;
+              const active = pathname === href;
+              return (
+                <li key={a.id}>
+                  <Link
+                    href={href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors",
+                      active ? "bg-white/10 font-semibold text-white" : "text-white/65 hover:bg-white/8 hover:text-white",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        a.status === "active" ? "bg-brand-500" : a.status === "paused" ? "bg-amber-400" : "bg-white/30",
+                      )}
+                      title={a.status}
+                    />
+                    <span className="truncate">{a.name}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <div className="border-t border-white/10 px-3 py-3">

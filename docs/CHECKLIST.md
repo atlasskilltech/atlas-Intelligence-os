@@ -8,7 +8,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 2 | OpenAI integration & provider abstraction | ✅ |
 | 2.1 | UI redesign (ChatGPT/Claude layout, CRM palette) + Vercel storage fix | ✅ |
 | 3 | Prompt-to-Agent Builder | ✅ |
-| 4 | Agent config, storage, plans & approval workflow | ⬜ |
+| 4 | Agent config, storage, plans & approval workflow | ✅ |
 | 5 | Execution engine & tool-calling loop | ⬜ |
 | 6 | Connector framework & custom REST connector | ⬜ |
 | 7 | First ATLAS internal connector | ⬜ |
@@ -68,4 +68,20 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Summary: trigger, tools with risk + availability, approvals, limits; plan cost/tokens shown
 - [x] Draft kept in the browser tab (survives refresh); Download JSON; Start over
 - [x] Tests: 23 unit tests (schema strict-mode check, normaliser safety, schedules, planner against fake OpenAI); full browser flow incl. mobile
-- [ ] Saving agents → Milestone 4
+- [x] Saving agents → done in Milestone 4
+
+## Milestone 4 — Agent storage, plans & approval workflow ✅
+
+- [x] Agent repository (`src/lib/agents/agentRepo.js`) on `agents.json`: create / get / list / update / status / delete; ids `ag_<12 hex>`; owner + created/updated by
+- [x] Safe writes: per-file lock (`updateJson`) so concurrent saves never lose data; a corrupt file is never overwritten
+- [x] Stale-edit protection: saving an agent changed elsewhere returns 409 "reload to see the latest"
+- [x] Status workflow: draft → active ⇄ paused (invalid transitions refused, repeats are no-ops)
+- [x] Approval settings: per-tool "Ask me first"; only write/send tools can be pre-approved, destructive always asks; computed by code
+- [x] Editable run limits (max actions 1–30, time limit 1–15 min); kept through AI refine
+- [x] API: `GET/POST /api/agents`, `GET/PUT/DELETE /api/agents/[id]`, `POST /api/agents/[id]/status`
+- [x] Create page: Save & activate / Save as draft
+- [x] My Agents page: filters (All / Active / Paused / Drafts), quick pause/resume/delete, empty state
+- [x] Agent page: edit + save changes, discard, unsaved-changes warning, pause/resume/activate, delete with confirmation, AI refine
+- [x] Sidebar "Recent agents" and Home "Active agents" use real data
+- [x] Tests: 33 unit tests (+10: approvals, repository, permissions, concurrency, corrupt-file safety); full browser flow
+- [ ] Running agents (Run test) → Milestone 5

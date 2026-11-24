@@ -108,6 +108,7 @@ export const agentConfigSchema = z.object({
   }),
   permissions: z.object({
     toolsRequiringApproval: z.array(z.enum(TOOL_IDS)),
+    preApproved: z.array(z.enum(TOOL_IDS)),
   }),
   limits: z.object({
     maxSteps: z.number().int().min(1).max(30),
@@ -132,6 +133,39 @@ const clipList = (v) =>
     .map((x) => clip(x, LIMITS.note))
     .filter(Boolean)
     .slice(0, LIMITS.maxNotes);
+
+/** Risks an employee may choose to pre-approve. Destructive actions ALWAYS ask. */
+export const PRE_APPROVABLE_RISKS = new Set(["write", "send"]);
+
+export function canPreApprove(toolId) {
+  const t = getTool(toolId);
+  return !!t && PRE_APPROVABLE_RISKS.has(t.risk);
+}
+
+/**
+ * Approvals are computed by CODE from each tool's risk. The only input is the
+ * employee's own opt-out list (`preApproved`), and it is filtered to tools the
+ * agent actually uses whose risk allows it.
+ */
+function approvalsFor(tools, preApprovedRaw) {
+  const needs = tools.filter((id) => RISK_LEVELS[getTool(id).risk].approval);
+  const pre = [...new Set(Array.isArray(preApprovedRaw) ? preApprovedRaw : [])].filter(
+    (id) => needs.includes(id) && canPreApprove(id),
+  );
+  return { toolsRequiringApproval: needs.filter((id) => !pre.includes(id)), preApproved: pre };
+}
+
+/** Human-facing validation of a draft (client and server). Returns { field: message }. */
+export function draftErrors(draft) {
+  const e = {};
+  if (!draft || typeof draft !== "object") return { _: "Invalid agent." };
+  if (!String(draft.name || "").trim()) e.name = "Give the agent a name.";
+  if (!String(draft.instructions || "").trim()) e.instructions = "Instructions are required.";
+  if (!Array.isArray(draft.steps) || draft.steps.length === 0) e.steps = "Add at least one step.";
+  else if (draft.steps.some((s) => !String(s?.title || "").trim())) e.steps = "Every step needs a title.";
+  else if (draft.steps.length > LIMITS.maxPlanSteps) e.steps = `At most ${LIMITS.maxPlanSteps} steps.`;
+  return e;
+}
 
 export function normalizeAgentConfig(raw, { prompt = "" } = {}) {
   const warnings = [];
@@ -159,6 +193,9 @@ export function normalizeAgentConfig(raw, { prompt = "" } = {}) {
     });
 
   const tools = [...new Set(steps.map((s) => s.tool).filter(Boolean))];
+  const permissions = approvalsFor(tools, raw?.permissions?.preApproved);
+  // A step "requires approval" only if its tool still asks (not pre-approved by the employee).
+  for (const s of steps) s.requiresApproval = !!s.tool && permissions.toolsRequiringApproval.includes(s.tool);
 
   const t = raw?.trigger ?? {};
   const type = ["manual", "schedule", "webhook"].includes(t.type) ? t.type : "manual";
@@ -172,7 +209,7 @@ export function normalizeAgentConfig(raw, { prompt = "" } = {}) {
     steps,
     tools,
     trigger: { type, schedule },
-    permissions: { toolsRequiringApproval: tools.filter((id) => RISK_LEVELS[getTool(id).risk].approval) },
+    permissions,
     limits: { ...DEFAULT_RUN_LIMITS },
     notes: {
       missingCapabilities: [...new Set(missing)].slice(0, LIMITS.maxNotes),

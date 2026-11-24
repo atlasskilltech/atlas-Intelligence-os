@@ -56,6 +56,51 @@ export async function writeJson(name, data) {
   }
 }
 
+/**
+ * Like readJson, but a file that exists and cannot be read or parsed THROWS:
+ * writing defaults over it would silently destroy whatever it held.
+ */
+async function readJsonForUpdate(name, fallback) {
+  let text;
+  try {
+    text = await fs.readFile(resolve(name), "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") return fallback;
+    throw new StorageError(err);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error(`[storage] ${name} is corrupt — refusing to overwrite it`);
+    throw new StorageError({ code: "ECORRUPT" });
+  }
+}
+
+/**
+ * Read-modify-write under a per-file lock, so two requests in this process
+ * can never interleave and lose one another's update. `mutator(current)`
+ * returns { value, result } — `value` is written, `result` is returned.
+ * (One app server process is assumed — see docs/ARCHITECTURE.md.)
+ */
+const locks = new Map();
+export async function updateJson(name, fallback, mutator) {
+  const prev = locks.get(name) || Promise.resolve();
+  let release;
+  const mine = new Promise((r) => (release = r));
+  const chained = prev.then(() => mine);
+  locks.set(name, chained);
+  await prev;
+  try {
+    const current = await readJsonForUpdate(name, fallback);
+    const { value, result } = await mutator(current);
+    if (value !== undefined) await writeJson(name, value);
+    return result;
+  } finally {
+    release();
+    if (locks.get(name) === chained) locks.delete(name);
+  }
+}
+
 export async function appendJsonLine(name, obj) {
   try {
     await ensureDir();

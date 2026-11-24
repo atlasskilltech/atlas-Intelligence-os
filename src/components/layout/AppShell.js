@@ -15,7 +15,7 @@ const COLLAPSE_KEY = "atlas.sidebarCollapsed";
  * drawer on mobile/tablet, slim header above the page. Page content (server
  * components) is passed through as children.
  */
-export default function AppShell({ aiConfigured = false, children }) {
+export default function AppShell({ aiConfigured = false, recentAgents = [], children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
@@ -52,7 +52,7 @@ export default function AppShell({ aiConfigured = false, children }) {
         )}
         aria-hidden={collapsed || undefined}
       >
-        <Sidebar aiConfigured={aiConfigured} onCollapse={() => setCollapsedSaved(true)} />
+        <Sidebar aiConfigured={aiConfigured} recentAgents={recentAgents} onCollapse={() => setCollapsedSaved(true)} />
       </aside>
 
       {/* Mobile / tablet drawer */}
@@ -69,6 +69,7 @@ export default function AppShell({ aiConfigured = false, children }) {
         >
           <Sidebar
             aiConfigured={aiConfigured}
+            recentAgents={recentAgents}
             onNavigate={() => setDrawerOpen(false)}
             onCollapse={() => setDrawerOpen(false)}
           />
