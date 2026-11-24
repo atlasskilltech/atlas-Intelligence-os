@@ -22,8 +22,12 @@ jobs:
           script: |
             set -e
             cd /home/ubuntu/atlas-Intelligence-os
+
             git fetch origin main
             git reset --hard origin/main
-            npm ci --only=production
-            pm2 restart atlas-Intelligence-os || pm2 start --name atlas-Intelligence-os
+
+            npm ci
+            npm run build
+
+            pm2 restart atlas-Intelligence-os --update-env || pm2 start npm --name atlas-Intelligence-os -- start
             pm2 save
