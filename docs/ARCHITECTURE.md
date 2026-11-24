@@ -114,10 +114,26 @@ prompt ─► POST /api/agents/generate ─► planner.generateAgent()
 
 ## Connectors
 
-Each connector is a module built with `defineConnector()` declaring: id, name,
-description, auth (env var names), allowed hosts, and actions. Each action has a
-description, a zod input schema, a risk level (`read | write | send | destructive`)
-and a `run()` function. The engine converts actions into model tool definitions.
+The tool catalog (`lib/catalog/toolCatalog.js`) declares every connector and action with its
+risk level. A connector module built with `defineConnector()` (`lib/connectors/`) supplies the
+code: per action a JSON-schema `parameters`, `execute(args, ctx)`, and optionally `isReady()`
+(built but not set up → the step is skipped) and `describe()` (extra run-time tool text).
+`defineConnector` refuses actions that are not in the catalog, and approvals always come from
+the catalog's risk level. Register new connectors in `lib/connectors/index.js`.
+
+### Custom REST APIs (Milestone 6)
+
+```
+admin ─► Connectors page ─► api-connections.json  { id, baseUrl, auth{type, secretEnv}, endpoints[] }
+agent ─► http_api.get / http_api.post { api, endpoint, params, body? }
+          └► callEndpoint: endpoint must exist + match method → buildUrl (encode {placeholders},
+             allowed query params only) → auth header from env CONNECTOR_SECRET_* → safeFetch
+safeFetch ─► checkUrl (https; http only for INTERNAL_ALLOWED_HOSTS) ─► guarded DNS lookup
+             (private IPs refused unless allow-listed) ─► manual redirects, each re-checked
+```
+
+The model never supplies a URL, host, header or method. GET = read (automatic), POST = write
+(approval; simulated in test runs). Only GET endpoints can be tried from the "Test" button.
 
 ATLAS internal apps are connected in this order of preference:
 

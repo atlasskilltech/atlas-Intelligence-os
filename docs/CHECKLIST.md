@@ -11,7 +11,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 4 | Agent config, storage, plans & approval workflow | ✅ |
 | 4.1 | Logo, favicon, light/dark mode | ✅ |
 | 5 | Execution engine & tool-calling loop | ✅ |
-| 6 | Connector framework & custom REST connector | ⬜ |
+| 6 | Connector framework & custom REST connector | ✅ |
 | 7 | First ATLAS internal connector | ⬜ |
 | 8 | External connectors (Gmail, Calendar) | ⬜ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
@@ -101,4 +101,22 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Storage: one file per run + index; global event log (`run-events.jsonl`); notifications
 - [x] UI: Run test / Run now (with optional extra instructions), live run page (polling, report, step-by-step log, approval card, cancel), Execution History with filters, Execution Logs, recent runs on agent page, Home counts + latest updates
 - [x] Tests: 46 unit tests (+13 engine: happy path, refusals, simulation, approve/reject, pre-approval, limits, AI failure, redaction, cancel, stale runs); browser flow incl. approval card, dark mode, mobile
-- [ ] Real connectors (CRM, website, REST, Gmail, Calendar) → Milestones 6–8
+- [x] Custom REST connector → done in Milestone 6
+- [ ] ATLAS connectors (CRM, website), Gmail, Calendar → Milestones 7–8
+
+## Milestone 6 — Connector framework & custom REST connector ✅
+
+- [x] Connector SDK `defineConnector()` (`src/lib/connectors/`): code for actions declared in the tool catalog; risk/approval still come only from the catalog
+- [x] Registry (`connectors/index.js`) feeds the engine; built-in Reports / Notify moved onto it
+- [x] Readiness: a connector can be "built but not set up" (`isReady`) → its steps are skipped like unconnected tools; run-time tool descriptions (`describe`)
+- [x] Custom REST API connections (`api-connections.json`): base URL, auth (none / bearer / header / basic), explicit endpoint list (GET/POST, path template, allowed query params); admin-only changes; id fixed after creation
+- [x] Agents call only listed endpoints by API id + endpoint id; values are URL-encoded into `{placeholders}`, unknown parameters refused
+- [x] `http_api.get` reads run automatically; `http_api.post` needs approval and is simulated in test runs
+- [x] Secrets only in server env vars `CONNECTOR_SECRET_*` (the connection stores the name); never in responses, logs or runs; echoed secrets redacted
+- [x] SSRF guard (`security/netGuard.js`): https only, private/loopback/metadata addresses blocked unless the host is in `INTERNAL_ALLOWED_HOSTS` (then http allowed too), checked at connect time (DNS rebinding), every redirect re-checked, credentials dropped on cross-site redirects, 20 s timeout, 1 MB response cap
+- [x] Planner sees the registered APIs and names real endpoints in steps
+- [x] Connectors page: live status for every connector; add / edit / disable / delete APIs; "Test endpoint" (GET only) with response preview
+- [x] API: `GET /api/connectors`, `GET/POST /api/connectors/http-api`, `GET/PUT/DELETE /api/connectors/http-api/[id]`, `POST /api/connectors/http-api/[id]/test`
+- [x] Tests: 62 unit tests (+16: guard, validation, URL building, auth, redaction, redirects, size cap, DNS check, disabled APIs, engine read / simulated POST / approved POST / bad calls); browser flow incl. agent run against a mock API, dark mode, mobile
+- [ ] Per-agent API restriction (today any agent with the REST tools may use every enabled API)
+- [ ] Outbound HTTP proxy support (connectors connect directly)

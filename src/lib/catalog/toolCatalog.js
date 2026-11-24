@@ -2,8 +2,8 @@
  * Tool catalog — every tool an agent may use, grouped by connector.
  *
  * Pure data (safe to import on client and server). The planner may ONLY pick
- * tool ids from this list. In Milestone 6 the connector registry becomes the
- * source of this data; `availableIn` marks the milestone that makes a tool
+ * tool ids from this list. Connectors (src/lib/connectors) supply the code for
+ * these tools; `availableIn` marks the milestone that makes a tool
  * actually executable, so the UI can be honest about what works today.
  *
  * Risk levels (enforced by code, never by the model):
@@ -125,5 +125,5 @@ const BY_ID = new Map(TOOLS.map((t) => [t.id, t]));
 export const getTool = (id) => BY_ID.get(id) || null;
 
 /** Latest completed milestone; tools with availableIn <= this can actually run. Bump as connectors ship. */
-export const CURRENT_MILESTONE = 5;
+export const CURRENT_MILESTONE = 6;
 export const isToolAvailable = (id) => (getTool(id)?.availableIn ?? Infinity) <= CURRENT_MILESTONE;

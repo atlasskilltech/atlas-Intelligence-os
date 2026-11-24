@@ -37,7 +37,31 @@ export function getStorageInfo() {
   return { driver: "json-files", temporary: isServerless(), host: isServerless() ? "vercel" : "server" };
 }
 
+/**
+ * Connector secrets (Milestone 6) live ONLY in env vars named CONNECTOR_SECRET_<NAME>.
+ * A connection stores the variable's name, never its value. The prefix stops a
+ * connection from being pointed at unrelated secrets (e.g. OPENAI_API_KEY).
+ */
+export const CONNECTOR_SECRET_PREFIX = "CONNECTOR_SECRET_";
+export const CONNECTOR_SECRET_NAME_RE = /^CONNECTOR_SECRET_[A-Z0-9_]{1,60}$/;
+
+export function getConnectorSecret(name) {
+  if (!CONNECTOR_SECRET_NAME_RE.test(String(name || ""))) return undefined;
+  return clean(process.env[name]);
+}
+
+/** Hostnames (lower-case) that may resolve to private/internal addresses, from INTERNAL_ALLOWED_HOSTS. */
+export function getInternalAllowedHosts() {
+  return String(process.env.INTERNAL_ALLOWED_HOSTS || "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase().replace(/\.$/, ""))
+    .filter(Boolean);
+}
+
 /** Values that must never appear in logs or responses. */
 export function getSecretValues() {
-  return [getOpenAIKey()].filter(Boolean);
+  const connectorSecrets = Object.keys(process.env)
+    .filter((k) => k.startsWith(CONNECTOR_SECRET_PREFIX))
+    .map((k) => clean(process.env[k]));
+  return [getOpenAIKey(), ...connectorSecrets].filter(Boolean);
 }

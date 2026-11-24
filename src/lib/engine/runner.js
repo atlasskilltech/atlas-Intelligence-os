@@ -18,8 +18,8 @@ import {
 } from "../runs/runRepo.js";
 import { redact } from "../security/redact.js";
 import { validateArgs } from "../tools/argsValidator.js";
-import { BUILTIN_TOOLS } from "../tools/builtins.js";
-import { fromFunctionName, hasExternalEffect, toolDefinitions } from "../tools/registry.js";
+import { EXECUTORS } from "../connectors/index.js";
+import { fromFunctionName, hasExternalEffect, resolveTools, toolDefinitions } from "../tools/registry.js";
 import { runStartMessage, runSystemPrompt } from "./prompt.js";
 
 /**
@@ -46,7 +46,7 @@ const RUNNING = new Set(); // run ids executing in this process
 
 const DEFAULT_DEPS = {
   callModel: realCallModel,
-  executors: BUILTIN_TOOLS,
+  executors: EXECUTORS,
   notify: addNotification,
 };
 
@@ -172,8 +172,10 @@ async function loop(runId, deps) {
   if (run.status !== "running") return;
 
   const config = run.config;
-  const executable = (id) => !!deps.executors[id];
-  const tools = toolDefinitions(config.tools, deps.executors);
+  // Tools that can run now: connected AND set up (e.g. an API has been added).
+  const resolved = await resolveTools(config.tools, deps.executors);
+  const executable = (id) => resolved.ready.has(id);
+  const tools = toolDefinitions(config.tools, deps.executors, resolved);
   const budgetMs = config.limits.timeoutMinutes * 60_000;
   const maxModelCalls = config.limits.maxSteps * 2 + 5;
   const segmentStart = Date.now();
@@ -306,7 +308,7 @@ async function loop(runId, deps) {
       run.messages.push({ role: "assistant", content: res.text || "", toolCalls: [call] });
       if (res.text?.trim()) await logEvent(run, { type: "agent_note", message: clip(safeText(res.text.trim()), 500) });
 
-      const paused = await handleToolCall(run, call, deps, res.text);
+      const paused = await handleToolCall(run, call, deps, res.text, executable);
       await save();
       if (paused) {
         run.activeMs = elapsed();
@@ -325,7 +327,7 @@ async function loop(runId, deps) {
 }
 
 /** Returns true when the run must pause for approval. */
-async function handleToolCall(run, call, deps, reasonText) {
+async function handleToolCall(run, call, deps, reasonText, executable = (id) => !!deps.executors[id]) {
   const toolId = fromFunctionName(call.name);
   const tool = getTool(toolId);
   const reject = async (message) => {
@@ -336,7 +338,7 @@ async function handleToolCall(run, call, deps, reasonText) {
 
   if (!tool || !run.config.tools.includes(toolId)) return reject("This tool is not part of the agent's plan. Use only the tools listed.");
   const executor = deps.executors[toolId];
-  if (!executor) return reject("This tool is not connected yet. Skip this step and mention it in your final summary.");
+  if (!executor || !executable(toolId)) return reject("This tool is not connected yet. Skip this step and mention it in your final summary.");
   if (call.arguments == null) return reject("The arguments were not valid JSON. Try again with valid JSON.");
   const problems = validateArgs(executor.parameters, call.arguments);
   if (problems.length) return reject(`Invalid arguments: ${problems.join("; ")}.`);
