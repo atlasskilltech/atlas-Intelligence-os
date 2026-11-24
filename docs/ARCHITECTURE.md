@@ -15,6 +15,19 @@ agent with a reviewable plan, then runs it with approved tools.
 > before using an API. Notably: `middleware` is now `proxy.js`; `instrumentation.js`
 > `register()` runs once at server start (used for the scheduler).
 
+## Design system
+
+The UI mirrors the **ATLAS CRM** (`atlasskilltech/uat-crm`: `src/public/css/style.css`,
+`docs/BRAND_ASSETS.md`) in a ChatGPT/Claude-style layout:
+
+- Font **Inter** (UI) and **JetBrains Mono** (code), loaded with `next/font`.
+- `brand-*` = CRM emerald: `#10b981` primary, `#059669` hover, `#ecfdf5` tint.
+- `navy-*` = CRM navy `#1e293b` (sidebar, body text); neutrals are Tailwind `slate`.
+- Dark navy collapsible sidebar; active item = emerald fill + navy text (CRM rule).
+- Page titles are emerald, extra-bold (CRM `.page-title`). Info alerts use CRM blue `#3b82f6`.
+- Home page is a centred prompt box ("What would you like to automate?").
+- All tokens live in `src/app/globals.css` — change colours there only.
+
 ## Folder layout
 
 ```
@@ -107,7 +120,14 @@ Data lives in JSON files under `DATA_DIR`:
 - **Single server instance only** — two instances would double-run schedules.
 - If the disk is ephemeral or wiped, data is lost.
 
-Requires an always-on Node.js server (`next start` under PM2/Docker), not serverless.
+**Vercel (current deployment):** the filesystem is read-only except `/tmp`, so data is
+written to `/tmp/atlas-data` and **resets whenever Vercel recycles the instance**; each
+instance has its own copy. The app shows a warning on Model Settings and API Usage. Set
+`OPENAI_DEFAULT_MODEL` / `OPENAI_PLANNER_MODEL` as Vercel env vars for durable model choices.
+Storage failures never break AI calls (usage logging is best-effort; reads fall back to defaults).
+Scheduled agents (Milestone 9) need either an always-on server or Vercel Cron + a database.
+
+Recommended for production: an always-on Node.js server (`next start` under PM2/Docker).
 The app has no login yet: **host it on the internal network / VPN only.**
 
 ## Future-ready seams

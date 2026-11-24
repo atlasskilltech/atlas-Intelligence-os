@@ -1,92 +1,135 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import Sidebar, { Logo } from "./Sidebar";
 import { titleFor } from "./navigation";
 
+const COLLAPSE_KEY = "atlas.sidebarCollapsed";
+
 /**
- * Dashboard frame: fixed sidebar on desktop (lg+), slide-out drawer on
- * mobile/tablet. Page content (server components) is passed as children.
+ * ChatGPT/Claude-style frame: collapsible navy sidebar on desktop, slide-out
+ * drawer on mobile/tablet, slim header above the page. Page content (server
+ * components) is passed through as children.
  */
 export default function AppShell({ aiConfigured = false, children }) {
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const isHome = pathname === "/";
 
-  // Close the drawer with Escape.
+  // Remember the desktop collapse choice (per browser only; safe if storage is blocked).
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once after hydration
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+    } catch {}
+  }, []);
+  const setCollapsedSaved = (v) => {
+    setCollapsed(v);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0");
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e) => e.key === "Escape" && setDrawerOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [drawerOpen]);
 
   return (
     <div className="min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
-        <Sidebar />
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 hidden w-64 transition-transform duration-200 lg:block",
+          collapsed && "-translate-x-full",
+        )}
+        aria-hidden={collapsed || undefined}
+      >
+        <Sidebar aiConfigured={aiConfigured} onCollapse={() => setCollapsedSaved(true)} />
       </aside>
 
-      {/* Mobile drawer */}
-      <div className={cn("lg:hidden", open ? "" : "pointer-events-none")} aria-hidden={!open}>
+      {/* Mobile / tablet drawer */}
+      <div className={cn("lg:hidden", !drawerOpen && "pointer-events-none")} aria-hidden={!drawerOpen}>
         <div
-          onClick={() => setOpen(false)}
-          className={cn(
-            "fixed inset-0 z-40 bg-slate-900/40 transition-opacity",
-            open ? "opacity-100" : "opacity-0",
-          )}
+          onClick={() => setDrawerOpen(false)}
+          className={cn("fixed inset-0 z-40 bg-navy-900/50 transition-opacity", drawerOpen ? "opacity-100" : "opacity-0")}
         />
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white shadow-xl transition-transform",
-            open ? "translate-x-0" : "-translate-x-full",
+            "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-xl transition-transform",
+            drawerOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <Sidebar
+            aiConfigured={aiConfigured}
+            onNavigate={() => setDrawerOpen(false)}
+            onCollapse={() => setDrawerOpen(false)}
+          />
+        </aside>
+      </div>
+
+      <div className={cn("flex min-h-screen flex-col transition-[padding] duration-200", !collapsed && "lg:pl-64")}>
+        <header
+          className={cn(
+            "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 px-3 sm:px-5",
+            isHome ? "bg-slate-50/90 backdrop-blur" : "border-b border-slate-200 bg-white/90 backdrop-blur",
           )}
         >
           <button
             type="button"
-            onClick={() => setOpen(false)}
-            className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
-            aria-label="Close menu"
-            tabIndex={open ? 0 : -1}
-          >
-            <Icon name="close" />
-          </button>
-          <Sidebar onNavigate={() => setOpen(false)} />
-        </aside>
-      </div>
-
-      <div className="lg:pl-64">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+            onClick={() => setDrawerOpen(true)}
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:hidden"
             aria-label="Open menu"
-            aria-expanded={open}
+            aria-expanded={drawerOpen}
           >
             <Icon name="menu" />
           </button>
-          <div className="lg:hidden">
-            <Logo />
+          {collapsed && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCollapsedSaved(false)}
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:block"
+                aria-label="Open sidebar"
+                title="Open sidebar"
+              >
+                <Icon name="panel" />
+              </button>
+              <Link
+                href="/agents/new"
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:block"
+                aria-label="New agent"
+                title="New agent"
+              >
+                <Icon name="edit" />
+              </Link>
+            </>
+          )}
+          <div className={cn("lg:hidden", isHome && "hidden")}>
+            <Logo onDark={false} />
           </div>
-          <p className="hidden text-sm font-medium text-slate-500 lg:block">{titleFor(pathname)}</p>
-          <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/settings/models"
-              className="hidden items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 sm:inline-flex"
-            >
-              <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-emerald-500" : "bg-amber-500")} />
-              {aiConfigured ? "OpenAI configured" : "AI provider not configured"}
-            </Link>
-          </div>
+          {!isHome && <p className="hidden text-sm font-semibold text-navy-800 lg:block">{titleFor(pathname)}</p>}
+
+          <Link
+            href="/settings/models"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-brand-500" : "bg-amber-500")} />
+            <span className="hidden sm:inline">{aiConfigured ? "OpenAI configured" : "AI not configured"}</span>
+            <span className="sm:hidden">AI</span>
+          </Link>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className={cn("flex w-full flex-1 flex-col", !isHome && "mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8")}>
+          {children}
+        </main>
       </div>
     </div>
   );

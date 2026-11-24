@@ -36,7 +36,7 @@ export default function ConnectorsPage() {
               <Badge>Milestone {c.milestone}</Badge>
             </div>
             <p className="mt-4 text-xs font-medium uppercase tracking-wider text-slate-400">{c.group}</p>
-            <h3 className="mt-1 text-sm font-semibold text-slate-900">{c.name}</h3>
+            <h3 className="mt-1 text-sm font-semibold text-navy-800">{c.name}</h3>
             <p className="mt-1 text-sm text-slate-500">{c.detail}</p>
           </Card>
         ))}

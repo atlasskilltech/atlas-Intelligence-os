@@ -232,3 +232,25 @@ test("usage store aggregates totals, per-model and failures", async () => {
   assert.equal(u.byModel.find((m) => m.key === "gpt-4o-mini").calls, 3);
   assert.equal(u.recent[0].errorType, "rate_limit");
 });
+
+// ---------- storage failures (e.g. read-only filesystem on Vercel) ----------
+test("unreadable storage falls back to defaults; failed writes raise a safe StorageError", async () => {
+  const { writeFile } = await import("node:fs/promises");
+  const { readJson, writeJson, StorageError } = await import("../src/lib/storage/jsonFile.js");
+  const blocker = path.join(process.env.DATA_DIR, "blocker-file");
+  await writeFile(blocker, "x");
+  const saved = process.env.DATA_DIR;
+  process.env.DATA_DIR = blocker; // a file, so the "directory" can be neither read nor written
+  const origError = console.error;
+  console.error = () => {};
+  try {
+    assert.deepEqual(await readJson("settings.json", { fallback: true }), { fallback: true });
+    const s = await getModelSettings();
+    assert.equal(s.provider, "openai");
+    await assert.rejects(writeJson("settings.json", {}), (e) => e instanceof StorageError && !!e.publicMessage);
+    await assert.rejects(recordUsage({ model: "m" }), StorageError);
+  } finally {
+    process.env.DATA_DIR = saved;
+    console.error = origError;
+  }
+});

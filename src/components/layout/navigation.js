@@ -1,33 +1,20 @@
 // Single source of truth for the sidebar. Add new pages here.
-export const NAV_SECTIONS = [
-  {
-    label: "Workspace",
-    items: [
-      { href: "/", label: "Overview", icon: "home" },
-      { href: "/agents/new", label: "Create Agent", icon: "sparkles" },
-      { href: "/agents", label: "My Agents", icon: "bot" },
-    ],
-  },
-  {
-    label: "Activity",
-    items: [
-      { href: "/runs", label: "Execution History", icon: "history" },
-      { href: "/logs", label: "Execution Logs", icon: "terminal" },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { href: "/connectors", label: "Connectors", icon: "plug" },
-      { href: "/settings/models", label: "Model Settings", icon: "cpu" },
-      { href: "/usage", label: "API Usage", icon: "chart" },
-    ],
-  },
+export const PRIMARY_NAV = [
+  { href: "/", label: "Home", icon: "home" },
+  { href: "/agents", label: "My Agents", icon: "bot" },
+  { href: "/runs", label: "Execution History", icon: "history" },
+  { href: "/logs", label: "Execution Logs", icon: "terminal" },
+  { href: "/connectors", label: "Connectors", icon: "plug" },
 ];
 
-const ALL_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+export const SECONDARY_NAV = [
+  { href: "/settings/models", label: "Model Settings", icon: "cpu" },
+  { href: "/usage", label: "API Usage", icon: "chart" },
+];
 
-/** Longest matching nav item wins, so /agents/new highlights "Create Agent", not "My Agents". */
+const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: "/agents/new", label: "New agent" }];
+
+/** Longest matching item wins, so /agents/new is not treated as "My Agents". */
 export function activeHref(pathname) {
   let best = null;
   for (const item of ALL_ITEMS) {

@@ -27,4 +27,10 @@ Open http://localhost:3000, then go to **Model Settings → Test connection** to
 - [Architecture](docs/ARCHITECTURE.md)
 - [Implementation checklist](docs/CHECKLIST.md)
 
+## Deploying on Vercel
+
+Set `OPENAI_API_KEY` (and optionally `OPENAI_DEFAULT_MODEL`, `OPENAI_PLANNER_MODEL`) in the
+Vercel project's environment variables. Without a database, settings and usage history on
+Vercel are temporary (see docs/ARCHITECTURE.md).
+
 > Internal prototype: no login yet. Host only on the ATLAS internal network / VPN.

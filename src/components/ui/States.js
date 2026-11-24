@@ -13,7 +13,7 @@ export function EmptyState({ icon = "sparkles", title, description, action, clas
       <span className="grid size-11 place-items-center rounded-full bg-brand-50 text-brand-600">
         <Icon name={icon} className="size-5" />
       </span>
-      <h3 className="mt-4 text-sm font-semibold text-slate-900">{title}</h3>
+      <h3 className="mt-4 text-sm font-semibold text-navy-800">{title}</h3>
       {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -43,7 +43,7 @@ export function LoadingState({ label = "Loading…" }) {
 }
 
 const ALERT_TONES = {
-  info: { box: "border-brand-200 bg-brand-50 text-brand-900", icon: "sparkles" },
+  info: { box: "border-blue-200 bg-blue-50 text-blue-900", icon: "sparkles" }, // CRM --info #3b82f6
   success: { box: "border-emerald-200 bg-emerald-50 text-emerald-900", icon: "check" },
   warning: { box: "border-amber-200 bg-amber-50 text-amber-900", icon: "alert" },
   error: { box: "border-red-200 bg-red-50 text-red-900", icon: "alert" },

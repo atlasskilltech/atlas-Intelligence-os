@@ -20,8 +20,21 @@ export function getAIEnv() {
   };
 }
 
+/** True when running on Vercel (serverless; read-only filesystem except /tmp). */
+export function isServerless() {
+  return Boolean(process.env.VERCEL);
+}
+
+/**
+ * Where JSON files are stored. On Vercel only /tmp is writable, and it is
+ * wiped whenever the server instance is recycled — see getStorageInfo().
+ */
 export function getDataDir() {
-  return clean(process.env.DATA_DIR) || "./data";
+  return clean(process.env.DATA_DIR) || (isServerless() ? "/tmp/atlas-data" : "./data");
+}
+
+export function getStorageInfo() {
+  return { driver: "json-files", temporary: isServerless(), host: isServerless() ? "vercel" : "server" };
 }
 
 /** Values that must never appear in logs or responses. */

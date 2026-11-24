@@ -6,6 +6,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 |---|---|---|
 | 1 | Project foundation (JS, Tailwind, dashboard shell) | ✅ |
 | 2 | OpenAI integration & provider abstraction | ✅ |
+| 2.1 | UI redesign (ChatGPT/Claude layout, CRM palette) + Vercel storage fix | ✅ |
 | 3 | Prompt-to-Agent Builder | ⬜ |
 | 4 | Agent config, storage, plans & approval workflow | ⬜ |
 | 5 | Execution engine & tool-calling loop | ⬜ |
@@ -44,3 +45,12 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Secrets: key read only server-side, redacted from logs; never in responses or pages
 - [x] Tests: 14 unit tests (`npm test`) + end-to-end against a mock OpenAI server (retry, errors, cost, no key leak)
 - [ ] Live check with the real OpenAI key (run "Test connection" on the server)
+
+## Milestone 2.1 — UI redesign & Vercel fixes ✅
+
+- [x] ChatGPT/Claude-style layout: collapsible navy sidebar (remembered per browser), “New agent” button, recent agents, user/status footer
+- [x] Home = centred prompt box with suggestions; Enter submits and carries the prompt to “Create an agent”
+- [x] ATLAS CRM palette and font (Inter, emerald #10b981, navy #1e293b, slate neutrals, emerald page titles)
+- [x] Vercel: data stored in `/tmp/atlas-data` with an on-screen “temporary storage” warning
+- [x] Storage failures no longer break AI calls; failed saves return a clear message (503)
+- [x] Tests: 15 unit tests; end-to-end with mock OpenAI incl. unwritable storage and simulated Vercel; desktop/tablet/mobile checks

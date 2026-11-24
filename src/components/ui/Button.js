@@ -2,10 +2,15 @@ import Link from "next/link";
 import { cn } from "./cn";
 
 const VARIANTS = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600",
+  // CRM .btn-primary: emerald #10b981, hover #059669
+  primary: "bg-brand-500 text-white hover:bg-brand-600 focus-visible:outline-brand-500",
+  // CRM .btn-outline
   secondary:
-    "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-slate-400",
-  ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-slate-400",
+    "bg-white text-navy-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus-visible:outline-slate-400",
+  // CRM .btn-ghost
+  ghost: "text-slate-500 hover:bg-slate-100 hover:text-navy-800 focus-visible:outline-slate-400",
+  // CRM navy button (secondary emphasis)
+  navy: "bg-navy-800 text-white hover:bg-navy-700 focus-visible:outline-navy-800",
   danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600",
 };
 

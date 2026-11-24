@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { fmtDateTime, fmtInt, fmtUsd } from "@/components/ui/format";
 import PageHeader from "@/components/ui/PageHeader";
+import StorageNotice from "@/components/ui/StorageNotice";
 import StatCard from "@/components/ui/StatCard";
 import { Alert, EmptyState } from "@/components/ui/States";
 import { getUsageSummary } from "@/lib/usage/usageStore";
@@ -71,6 +72,7 @@ export default async function UsagePage() {
         description="Tokens used and estimated AI cost over the last 30 days. Costs are estimates based on the prices in Model Settings."
       />
 
+      <StorageNotice what="Usage records" />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="AI calls (30 days)"

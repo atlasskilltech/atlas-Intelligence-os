@@ -17,6 +17,15 @@ import { withRetry } from "./retry.js";
 
 let cached = null;
 
+/** Usage logging must never break an AI call (e.g. read-only or full disk). */
+async function safeRecordUsage(entry) {
+  try {
+    await recordUsage(entry);
+  } catch (err) {
+    console.error("[ai] could not record usage:", err?.code || err?.message);
+  }
+}
+
 export function getProvider() {
   const key = getOpenAIKey();
   const { openaiBaseURL } = getAIEnv();
@@ -67,7 +76,7 @@ export async function callModel(method, opts, meta = {}) {
       { maxRetries: settings.maxRetries, onRetry: () => (retries += 1) },
     );
     const costUsd = estimateCost(result.model || model, result.usage, settings.pricingOverrides);
-    await recordUsage({
+    await safeRecordUsage({
       ...base,
       responseModel: result.model,
       ok: true,
@@ -80,13 +89,13 @@ export async function callModel(method, opts, meta = {}) {
   } catch (err) {
     const aiErr = err instanceof AIError ? err : new AIError("server", err?.message);
     if (aiErr.type !== "not_configured") {
-      await recordUsage({
+      await safeRecordUsage({
         ...base,
         ok: false,
         errorType: aiErr.type,
         retries,
         latencyMs: Date.now() - started,
-      }).catch(() => {});
+      });
       console.error(`[ai] ${method} failed (${aiErr.type}):`, redact(aiErr.detail, getSecretValues()));
     }
     throw aiErr;
