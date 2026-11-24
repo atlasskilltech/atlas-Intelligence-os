@@ -34,7 +34,7 @@ export default async function HomePage() {
       <div className="w-full max-w-3xl">
         <div className="mb-8 text-center">
           <p className="text-sm font-medium text-brand-600">{greeting()}</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-navy-800 sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
             What would you like to automate?
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
@@ -50,10 +50,10 @@ export default async function HomePage() {
             <Link
               key={s.label}
               href={s.href}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-3 transition-colors hover:border-brand-500/40"
+              className="rounded-lg border border-slate-200 bg-surface px-4 py-3 transition-colors hover:border-brand-500/40"
             >
               <dt className="text-xs text-slate-500">{s.label}</dt>
-              <dd className="mt-1 text-lg font-bold tabular-nums text-navy-800">{s.value}</dd>
+              <dd className="mt-1 text-lg font-bold tabular-nums text-ink">{s.value}</dd>
             </Link>
           ))}
         </dl>

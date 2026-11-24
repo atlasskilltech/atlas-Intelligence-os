@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Dark mode is class-based: <html class="dark">, set before paint by the
+   script in src/app/layout.js and changed by the ThemeToggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * Design tokens — mirror the ATLAS CRM (uat-crm: src/public/css/style.css,
  * docs/BRAND_ASSETS.md). Change colours here only; everything else is
@@ -29,10 +33,63 @@
   --color-navy-700: #334155;
   --color-navy-600: #475569;
 
+  /* Semantic surfaces — redefined for dark mode below. */
+  --color-surface: #ffffff; /* cards, inputs, panels */
+  --color-ink: #1e293b; /* headings and primary text (CRM navy) */
+
   --radius-lg: 8px;
+}
+
+/*
+ * Dark mode. Instead of a dark: variant on every class, the neutral scale and
+ * the tint colours are remapped here, so every screen follows automatically.
+ * The sidebar stays navy in both modes (it uses navy/white only).
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-surface: #111a2e;
+  --color-ink: #e2e8f0;
+
+  --color-slate-50: #0b1120; /* page background */
+  --color-slate-100: #1a2438;
+  --color-slate-200: #263247;
+  --color-slate-300: #334155;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #b6c2d3;
+  --color-slate-700: #d5dde8;
+
+  --color-navy-900: #020617;
+
+  --color-brand-50: rgb(16 185 129 / 0.12);
+  --color-brand-100: rgb(16 185 129 / 0.22);
+  --color-brand-200: rgb(16 185 129 / 0.35);
+  --color-brand-700: #34d399;
+
+  --color-emerald-50: rgb(16 185 129 / 0.12);
+  --color-emerald-200: rgb(16 185 129 / 0.3);
+  --color-emerald-700: #34d399;
+  --color-emerald-900: #a7f3d0;
+
+  --color-amber-50: rgb(245 158 11 / 0.12);
+  --color-amber-200: rgb(245 158 11 / 0.3);
+  --color-amber-700: #fbbf24;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+
+  --color-red-50: rgb(239 68 68 / 0.12);
+  --color-red-200: rgb(239 68 68 / 0.3);
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-red-900: #fecaca;
+
+  --color-blue-50: rgb(59 130 246 / 0.12);
+  --color-blue-200: rgb(59 130 246 / 0.3);
+  --color-blue-900: #bfdbfe;
 }
 
 html {
   background-color: var(--color-slate-50);
-  color: var(--color-navy-800);
+  color: var(--color-ink);
 }

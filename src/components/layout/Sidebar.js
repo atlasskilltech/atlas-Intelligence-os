@@ -6,21 +6,19 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
 
-/** CRM-style brand block: emerald rounded square with navy initial. */
-export function Logo({ onDark = true }) {
+/**
+ * ATLAS IntelligenceOS logo. `onDark` = always the white-text logo (navy sidebar);
+ * otherwise it follows the theme: dark text in light mode, white text in dark mode.
+ */
+export function Logo({ onDark = true, className = "h-9" }) {
   return (
-    <Link href="/" className="flex min-w-0 items-center gap-2.5">
-      <span className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-brand-500 text-sm font-bold text-navy-800">
-        A
-      </span>
-      <span className="min-w-0 leading-tight">
-        <span className={cn("block truncate text-sm font-bold tracking-tight", onDark ? "text-white" : "text-navy-800")}>
-          ATLAS IntelligenceOS
-        </span>
-        <span className={cn("block truncate text-[10px]", onDark ? "text-white/50" : "text-slate-500")}>
-          AI Agent Builder
-        </span>
-      </span>
+    <Link href="/" aria-label="ATLAS IntelligenceOS — Home" className="flex min-w-0 shrink-0 items-center">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static SVG, no optimisation needed */}
+      <img src="/brand/logo-dark.svg" alt="ATLAS IntelligenceOS" className={cn("w-auto", className, !onDark && "hidden dark:block")} />
+      {!onDark && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/brand/logo-light.svg" alt="ATLAS IntelligenceOS" className={cn("w-auto dark:hidden", className)} />
+      )}
     </Link>
   );
 }

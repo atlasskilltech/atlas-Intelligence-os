@@ -6,14 +6,14 @@ export function EmptyState({ icon = "sparkles", title, description, action, clas
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center",
+        "flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-surface px-6 py-12 text-center",
         className,
       )}
     >
       <span className="grid size-11 place-items-center rounded-full bg-brand-50 text-brand-600">
         <Icon name={icon} className="size-5" />
       </span>
-      <h3 className="mt-4 text-sm font-semibold text-navy-800">{title}</h3>
+      <h3 className="mt-4 text-sm font-semibold text-ink">{title}</h3>
       {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>

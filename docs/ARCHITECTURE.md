@@ -28,6 +28,17 @@ The UI mirrors the **ATLAS CRM** (`atlasskilltech/uat-crm`: `src/public/css/styl
 - Home page is a centred prompt box ("What would you like to automate?").
 - All tokens live in `src/app/globals.css` — change colours there only.
 
+### Brand & themes
+
+- Logos in `public/brand/`: `logo-dark.svg` (white text — navy sidebar and dark mode),
+  `logo-light.svg` (dark text — light mode), `logo.svg` (original), `favicon.svg`.
+  `src/app/icon.svg` is the favicon (served by Next automatically).
+- Light / Dark / System theme (toggle in the header). Class-based (`html.dark`), applied
+  before paint by `THEME_BOOT_SCRIPT` (`src/lib/theme.js`), choice kept in localStorage.
+- Dark mode remaps the slate neutrals and tint colours in `globals.css`, plus two semantic
+  tokens: `bg-surface` (cards/inputs) and `text-ink` (headings). Use those instead of
+  `bg-white` / `text-navy-800` in new UI. The sidebar is navy in both themes.
+
 ## Folder layout
 
 ```

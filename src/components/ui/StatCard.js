@@ -12,7 +12,7 @@ export default function StatCard({ label, value, hint, icon }) {
           </span>
         )}
       </div>
-      <p className="mt-3 text-2xl font-semibold tabular-nums text-navy-800">{value}</p>
+      <p className="mt-3 text-2xl font-semibold tabular-nums text-ink">{value}</p>
       {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </Card>
   );

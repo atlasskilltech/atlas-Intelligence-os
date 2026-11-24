@@ -44,7 +44,7 @@ function Stepper({ current }) {
           >
             {i < current ? <Icon name="check" className="size-3.5" /> : i + 1}
           </span>
-          <span className={i === current ? "font-semibold text-navy-800" : "text-slate-500"}>{step}</span>
+          <span className={i === current ? "font-semibold text-ink" : "text-slate-500"}>{step}</span>
           {i < STEPS.length - 1 && <span className="mx-1 h-px w-5 bg-slate-300 sm:w-8" />}
         </li>
       ))}
@@ -63,13 +63,13 @@ function Planning({ prompt }) {
     <Card className="mx-auto max-w-3xl">
       <CardBody className="space-y-5 py-8">
         <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          <span className="font-medium text-navy-800">Your task: </span>
+          <span className="font-medium text-ink">Your task: </span>
           {prompt}
         </div>
         <div className="flex items-center gap-3">
           <Spinner />
           <div>
-            <p className="text-sm font-semibold text-navy-800">Planning your agent…</p>
+            <p className="text-sm font-semibold text-ink">Planning your agent…</p>
             <p className="text-xs text-slate-500">{phases[i]} · this can take up to a minute</p>
           </div>
         </div>

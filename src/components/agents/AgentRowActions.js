@@ -7,7 +7,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { agentApi } from "./AgentWorkspace";
 
-const iconBtn = "grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-navy-800 disabled:opacity-40";
+const iconBtn = "grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-40";
 
 /** Quick pause / resume / activate / delete for one row of My Agents. */
 export default function AgentRowActions({ id, name, status }) {

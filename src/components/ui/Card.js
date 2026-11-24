@@ -3,7 +3,7 @@ import { cn } from "./cn";
 export function Card({ className, children, ...props }) {
   return (
     <div
-      className={cn("rounded-xl border border-slate-200 bg-white shadow-xs", className)}
+      className={cn("rounded-xl border border-slate-200 bg-surface shadow-xs", className)}
       {...props}
     >
       {children}
@@ -20,7 +20,7 @@ export function CardHeader({ title, description, action, className }) {
       )}
     >
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-navy-800">{title}</h2>
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
       </div>
       {action}

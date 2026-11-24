@@ -50,7 +50,7 @@ export default function PromptComposer({
           submit();
         }}
         className={cn(
-          "rounded-3xl border border-slate-200 bg-white p-2 shadow-[0_4px_24px_-8px_rgba(15,23,42,.12)] transition-colors",
+          "rounded-3xl border border-slate-200 bg-surface p-2 shadow-[0_4px_24px_-8px_rgba(15,23,42,.12)] transition-colors",
           "focus-within:border-brand-500/60 focus-within:ring-4 focus-within:ring-brand-500/10",
         )}
       >
@@ -73,7 +73,7 @@ export default function PromptComposer({
             }
           }}
           placeholder={placeholder}
-          className="block max-h-[260px] w-full resize-none bg-transparent px-3 pt-2 pb-1 text-[15px] leading-6 text-navy-800 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
+          className="block max-h-[260px] w-full resize-none bg-transparent px-3 pt-2 pb-1 text-[15px] leading-6 text-ink placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
         />
         <div className="flex items-center justify-between gap-3 px-2 pb-1">
           <p className="truncate text-xs text-slate-400">
@@ -103,7 +103,7 @@ export default function PromptComposer({
                 setValue(s.prompt);
                 ref.current?.focus();
               }}
-              className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[13px] text-slate-600 transition-colors hover:border-brand-500/50 hover:bg-brand-50 hover:text-brand-700"
+              className="rounded-full border border-slate-200 bg-surface px-3.5 py-1.5 text-[13px] text-slate-600 transition-colors hover:border-brand-500/50 hover:bg-brand-50 hover:text-brand-700"
             >
               {s.label}
             </button>

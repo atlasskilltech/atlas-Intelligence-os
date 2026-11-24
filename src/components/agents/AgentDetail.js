@@ -137,7 +137,7 @@ export default function AgentDetail({ initial, justSaved }) {
   return (
     <div>
       <div className="mb-2">
-        <Link href="/agents" className="text-sm text-slate-500 hover:text-navy-800">
+        <Link href="/agents" className="text-sm text-slate-500 hover:text-ink">
           ← My Agents
         </Link>
       </div>

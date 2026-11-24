@@ -98,7 +98,7 @@ function RefinePanel({ history, busy, onSend, text, setText, inputRef }) {
         {history.length > 0 && (
           <ul className="max-h-64 space-y-2 overflow-y-auto">
             {history.map((h, i) => (
-              <li key={i} className={cn("rounded-lg px-3 py-2 text-sm", h.role === "user" ? "ml-6 bg-brand-50 text-navy-800" : "mr-6 bg-slate-100 text-slate-600")}>
+              <li key={i} className={cn("rounded-lg px-3 py-2 text-sm", h.role === "user" ? "ml-6 bg-brand-50 text-ink" : "mr-6 bg-slate-100 text-slate-600")}>
                 {h.text}
               </li>
             ))}
@@ -159,7 +159,7 @@ function PermissionsEditor({ draft, derived, set }) {
               return (
                 <li key={id} className="flex items-center justify-between gap-3 px-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-navy-800">
+                    <p className="truncate text-sm font-medium text-ink">
                       {t.connectorName} · {t.name}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
@@ -331,7 +331,7 @@ export default function AgentWorkspace({
             <CardBody className="space-y-4 text-sm">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Runs</p>
-                <p className="mt-0.5 text-navy-800">{describeTrigger(derived.trigger)}</p>
+                <p className="mt-0.5 text-ink">{describeTrigger(derived.trigger)}</p>
               </div>
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Tools ({derived.tools.length})</p>
@@ -343,7 +343,7 @@ export default function AgentWorkspace({
                       const t = getTool(id);
                       return (
                         <li key={id}>
-                          <p className="font-medium text-navy-800">
+                          <p className="font-medium text-ink">
                             {t.connectorName} · {t.name}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">

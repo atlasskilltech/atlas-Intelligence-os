@@ -9,6 +9,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 2.1 | UI redesign (ChatGPT/Claude layout, CRM palette) + Vercel storage fix | ✅ |
 | 3 | Prompt-to-Agent Builder | ✅ |
 | 4 | Agent config, storage, plans & approval workflow | ✅ |
+| 4.1 | Logo, favicon, light/dark mode | ✅ |
 | 5 | Execution engine & tool-calling loop | ⬜ |
 | 6 | Connector framework & custom REST connector | ⬜ |
 | 7 | First ATLAS internal connector | ⬜ |

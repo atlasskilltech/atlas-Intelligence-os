@@ -72,7 +72,7 @@ export default async function AgentsPage({ searchParams }) {
                 aria-current={status === f.id ? "page" : undefined}
                 className={cn(
                   "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-                  status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50",
+                  status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
                 )}
               >
                 {f.label} <span className={status === f.id ? "text-white/80" : "text-slate-400"}>{counts[f.id]}</span>
@@ -83,12 +83,12 @@ export default async function AgentsPage({ searchParams }) {
           {agents.length === 0 ? (
             <EmptyState icon="bot" title={`No ${FILTERS.find((f) => f.id === status).label.toLowerCase()} agents`} />
           ) : (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
               {agents.map((a) => (
                 <li key={a.id} className="flex flex-col gap-3 px-4 py-4 hover:bg-slate-50/60 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link href={`/agents/${a.id}`} className="truncate font-semibold text-navy-800 hover:text-brand-600">
+                      <Link href={`/agents/${a.id}`} className="truncate font-semibold text-ink hover:text-brand-600">
                         {a.name}
                       </Link>
                       <StatusBadge status={a.status} />

@@ -19,7 +19,7 @@ function IconButton({ label, onClick, disabled, children }) {
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-navy-800 disabled:opacity-30 disabled:hover:bg-transparent"
+      className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
     >
       {children}
     </button>
@@ -66,7 +66,7 @@ export default function StepsEditor({ steps, onChange, preApproved = [] }) {
         {steps.map((s, i) => {
           const tool = s.tool ? getTool(s.tool) : null;
           return (
-            <li key={s.key} className="rounded-lg border border-slate-200 bg-white">
+            <li key={s.key} className="rounded-lg border border-slate-200 bg-surface">
               <div className="flex items-start gap-3 p-4">
                 <span className="mt-1.5 grid size-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
                   {i + 1}
@@ -111,7 +111,7 @@ export default function StepsEditor({ steps, onChange, preApproved = [] }) {
                   </div>
                   {tool && (
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                      <span className="mr-1 font-medium text-navy-800">{tool.connectorName}</span>
+                      <span className="mr-1 font-medium text-ink">{tool.connectorName}</span>
                       <RiskBadge risk={tool.risk} />
                       {tool.requiresApproval && !preApproved.includes(tool.id) && <ApprovalBadge />}
                       {tool.requiresApproval && preApproved.includes(tool.id) && <Badge tone="neutral">Pre-approved</Badge>}

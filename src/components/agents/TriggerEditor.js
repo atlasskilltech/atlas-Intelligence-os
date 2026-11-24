@@ -37,10 +37,10 @@ export default function TriggerEditor({ trigger, onChange }) {
               onClick={() => onChange({ type: t.id, schedule: t.id === "schedule" ? schedule : null })}
               className={cn(
                 "rounded-lg border px-3 py-2.5 text-left transition-colors",
-                active ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-white hover:border-slate-300",
+                active ? "border-brand-500 bg-brand-50" : "border-slate-200 bg-surface hover:border-slate-300",
               )}
             >
-              <span className={cn("block text-sm font-semibold", active ? "text-brand-700" : "text-navy-800")}>{t.label}</span>
+              <span className={cn("block text-sm font-semibold", active ? "text-brand-700" : "text-ink")}>{t.label}</span>
               <span className="hidden text-xs text-slate-500 sm:block">{t.hint}</span>
             </button>
           );
@@ -89,7 +89,7 @@ export default function TriggerEditor({ trigger, onChange }) {
                       onClick={() => toggleDay(d)}
                       className={cn(
                         "h-9 w-12 rounded-lg border text-sm font-medium",
-                        on ? "border-brand-500 bg-brand-500 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                        on ? "border-brand-500 bg-brand-500 text-white" : "border-slate-200 bg-surface text-slate-600 hover:border-slate-300",
                       )}
                     >
                       {DAY_LABEL[d]}
@@ -115,7 +115,7 @@ export default function TriggerEditor({ trigger, onChange }) {
       )}
 
       <p className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-        <span className="font-medium text-navy-800">Runs:</span> {summary}
+        <span className="font-medium text-ink">Runs:</span> {summary}
       </p>
       {trigger.type !== "manual" && (
         <p className="text-xs text-slate-500">Automatic runs start working in Milestone 9. Until then you can run agents manually.</p>

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import Sidebar, { Logo } from "./Sidebar";
+import ThemeToggle from "./ThemeToggle";
 import { titleFor } from "./navigation";
 
 const COLLAPSE_KEY = "atlas.sidebarCollapsed";
@@ -80,13 +81,13 @@ export default function AppShell({ aiConfigured = false, recentAgents = [], chil
         <header
           className={cn(
             "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 px-3 sm:px-5",
-            isHome ? "bg-slate-50/90 backdrop-blur" : "border-b border-slate-200 bg-white/90 backdrop-blur",
+            isHome ? "bg-slate-50/90 backdrop-blur" : "border-b border-slate-200 bg-surface/90 backdrop-blur",
           )}
         >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:hidden"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-ink lg:hidden"
             aria-label="Open menu"
             aria-expanded={drawerOpen}
           >
@@ -97,7 +98,7 @@ export default function AppShell({ aiConfigured = false, recentAgents = [], chil
               <button
                 type="button"
                 onClick={() => setCollapsedSaved(false)}
-                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:block"
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-ink lg:block"
                 aria-label="Open sidebar"
                 title="Open sidebar"
               >
@@ -105,7 +106,7 @@ export default function AppShell({ aiConfigured = false, recentAgents = [], chil
               </button>
               <Link
                 href="/agents/new"
-                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-800 lg:block"
+                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-ink lg:block"
                 aria-label="New agent"
                 title="New agent"
               >
@@ -114,18 +115,19 @@ export default function AppShell({ aiConfigured = false, recentAgents = [], chil
             </>
           )}
           <div className={cn("lg:hidden", isHome && "hidden")}>
-            <Logo onDark={false} />
+            <Logo onDark={false} className="h-8" />
           </div>
-          {!isHome && <p className="hidden text-sm font-semibold text-navy-800 lg:block">{titleFor(pathname)}</p>}
+          {!isHome && <p className="hidden text-sm font-semibold text-ink lg:block">{titleFor(pathname)}</p>}
 
           <Link
             href="/settings/models"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-surface px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
           >
             <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-brand-500" : "bg-amber-500")} />
             <span className="hidden sm:inline">{aiConfigured ? "OpenAI configured" : "AI not configured"}</span>
             <span className="sm:hidden">AI</span>
           </Link>
+          <ThemeToggle />
         </header>
 
         <main className={cn("flex w-full flex-1 flex-col", !isHome && "mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8")}>

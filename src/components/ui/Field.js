@@ -1,7 +1,7 @@
 import { cn } from "./cn";
 
 const control =
-  "block w-full rounded-lg border bg-white px-3 py-2 text-sm text-navy-800 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500";
+  "block w-full rounded-lg border bg-surface px-3 py-2 text-sm text-ink shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500";
 
 /** Label + control + hint/error wrapper. */
 export function Field({ label, htmlFor, hint, error, children, className }) {
