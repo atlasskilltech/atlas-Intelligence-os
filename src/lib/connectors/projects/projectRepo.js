@@ -3,7 +3,7 @@ import { registerSecret } from "../../config/env.js";
 import { NetworkBlocked, checkUrl } from "../../security/netGuard.js";
 import { decryptSecret, encryptSecret } from "../../security/secretBox.js";
 import { readJson, updateJson } from "../../storage/jsonFile.js";
-import { parseBody } from "../http/httpApiConnector.js";
+import { parseBody } from "../http/parseBody.js";
 import { safeFetch } from "../http/safeFetch.js";
 import { ManifestError, parseManifest } from "./manifest.js";
 

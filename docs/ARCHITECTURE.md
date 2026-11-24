@@ -121,20 +121,6 @@ code: per action a JSON-schema `parameters`, `execute(args, ctx)`, and optionall
 `defineConnector` refuses actions that are not in the catalog, and approvals always come from
 the catalog's risk level. Register new connectors in `lib/connectors/index.js`.
 
-### Custom REST APIs (Milestone 6)
-
-```
-admin ─► Connectors page ─► api-connections.json  { id, baseUrl, auth{type, secretEnv}, endpoints[] }
-agent ─► http_api.get / http_api.post { api, endpoint, params, body? }
-          └► callEndpoint: endpoint must exist + match method → buildUrl (encode {placeholders},
-             allowed query params only) → auth header from env CONNECTOR_SECRET_* → safeFetch
-safeFetch ─► checkUrl (https; http only for INTERNAL_ALLOWED_HOSTS) ─► guarded DNS lookup
-             (private IPs refused unless allow-listed) ─► manual redirects, each re-checked
-```
-
-The model never supplies a URL, host, header or method. GET = read (automatic), POST = write
-(approval; simulated in test runs). Only GET endpoints can be tried from the "Test" button.
-
 ### ATLAS projects (Milestone 7)
 
 ```
@@ -150,10 +136,10 @@ decides what a key may do; IntelligenceOS adds its own rules (approval for write
 
 ATLAS internal apps are connected in this order of preference:
 
-1. Existing REST API → declarative REST connector.
-2. ATLAS owns the code → add the Agent API (keys with scopes + manifest) in the project's own
-   stack, following `docs/AGENT_API_SPEC.md`; connect it as a project.
-3. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
+1. Every ATLAS app connects as a **project with a key**: the app adds the Agent API (keys with
+   scopes + manifest) in its own stack, following `docs/AGENT_API_SPEC.md`. There is no other
+   connector type — no free-form REST, website, email or calendar connectors.
+2. Browser automation (Playwright) → last resort, read-only, post-Milestone 11.
 
 Agents never get raw database, shell or arbitrary code access.
 

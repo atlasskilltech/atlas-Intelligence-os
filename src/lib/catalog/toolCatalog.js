@@ -54,17 +54,6 @@ export const CONNECTORS = [
       { id: "write", name: "Change data in project", risk: "write", description: "Run an action that changes data in a connected ATLAS project, e.g. add a note or update a status." },
     ],
   },
-  {
-    id: "http_api",
-    name: "Custom REST API",
-    category: "general",
-    description: "Call an administrator-approved REST API endpoint.",
-    availableIn: 6,
-    actions: [
-      { id: "get", name: "GET request", risk: "read", description: "Read data from an approved API endpoint." },
-      { id: "post", name: "POST request", risk: "write", description: "Send data to an approved API endpoint." },
-    ],
-  },
 ];
 
 /** Flat list: one entry per tool, id = "connector.action". */

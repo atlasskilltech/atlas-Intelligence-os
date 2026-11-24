@@ -164,7 +164,7 @@ function ConnectForm({ onCancel, onConnected }) {
             <Field label="Project name" htmlFor="p-name" error={errors.name}>
               <Input id="p-name" value={form.name} placeholder="ATLAS CRM" invalid={!!errors.name} onChange={set("name")} />
             </Field>
-            <Field label="Project URL" htmlFor="p-url" error={errors.baseUrl} hint="The project's Agent API address.">
+            <Field label="Project URL" htmlFor="p-url" error={errors.baseUrl} hint="The project's Agent API address. https:// required (http:// only for internal hosts allowed on the server).">
               <Input
                 id="p-url"
                 value={form.baseUrl}

@@ -21,7 +21,6 @@ const draft = (over = {}) => ({
   instructions: "You review new admission leads.",
   steps: [
     { title: "Fetch leads", details: "", tool: "atlas_project.read", successCriteria: "" },
-    { title: "Email me", details: "", tool: "http_api.post", successCriteria: "" },
     { title: "Update status", details: "", tool: "atlas_project.write", successCriteria: "" },
   ],
   trigger: { type: "manual", schedule: null },
@@ -31,15 +30,15 @@ const draft = (over = {}) => ({
 // ---------- approvals ----------
 test("approvals are computed from tool risk; pre-approval only for write/send tools the agent uses", () => {
   const { config } = normalizeAgentConfig(
-    draft({ permissions: { preApproved: ["http_api.post", "atlas_project.read", "unknown.tool", "nope"] } }),
+    draft({ permissions: { preApproved: ["atlas_project.write", "atlas_project.read", "unknown.tool", "nope"] } }),
   );
-  assert.deepEqual(config.permissions.preApproved, ["http_api.post"]); // read tool, unused tool, unknown tool dropped
-  assert.deepEqual(config.permissions.toolsRequiringApproval, ["atlas_project.write"]);
-  assert.deepEqual(config.steps.map((s) => s.requiresApproval), [false, false, true]);
+  assert.deepEqual(config.permissions.preApproved, ["atlas_project.write"]); // read tool, unused tool, unknown tool dropped
+  assert.deepEqual(config.permissions.toolsRequiringApproval, []);
+  assert.deepEqual(config.steps.map((s) => s.requiresApproval), [false, false]);
   // A client cannot shrink the approval list directly.
   const forged = normalizeAgentConfig(draft({ permissions: { toolsRequiringApproval: [] } })).config;
-  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["http_api.post", "atlas_project.write"]);
-  assert.equal(canPreApprove("http_api.post"), true);
+  assert.deepEqual(forged.permissions.toolsRequiringApproval, ["atlas_project.write"]);
+  assert.equal(canPreApprove("atlas_project.write"), true);
   assert.equal(canPreApprove("atlas_project.read"), false);
 });
 
@@ -122,7 +121,7 @@ test("summaries exclude instructions and the list is newest first", async () => 
   const list = (await repo.listAgents(alice)).map(repo.summarize);
   assert.deepEqual(list.map((x) => x.name), ["Two", "One"]);
   assert.equal(list[0].instructions, undefined);
-  assert.equal(list[0].stepCount, 3);
+  assert.equal(list[0].stepCount, 2);
   await repo.deleteAgent(alice, one.id);
   await repo.deleteAgent(alice, two.id);
 });

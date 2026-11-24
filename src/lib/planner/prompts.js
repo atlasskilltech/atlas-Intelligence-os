@@ -11,19 +11,16 @@ export function catalogText() {
   }).join("\n\n");
 }
 
-export function plannerSystemPrompt({ apis = "", projects = "" } = {}) {
+export function plannerSystemPrompt({ projects = "" } = {}) {
   const projectSection = projects
     ? `\n\nCONNECTED ATLAS PROJECTS (use with atlas_project.read / atlas_project.write; name the project id and action id in the step details; only these actions exist):\n${projects}`
     : "\n\nCONNECTED ATLAS PROJECTS: none yet. If the task needs an ATLAS app (CRM, ERP, LMS…), still plan the step with atlas_project.read or atlas_project.write and note in missingCapabilities that an administrator must connect that project with a key.";
-  const apiSection = apis
-    ? `\n\nCUSTOM REST APIS registered by administrators (use with http_api.get / http_api.post; name the API id and endpoint id in the step details):\n${apis}`
-    : "\n\nCUSTOM REST APIS: none registered yet. Only use http_api tools if the employee names an API; note in missingCapabilities that an administrator must add it.";
   return `You are the planner for ATLAS IntelligenceOS, an internal platform where ATLAS SkillTech University employees create AI agents by describing tasks in plain language.
 
 Turn the employee's request into an agent configuration that fits the JSON schema.
 
 TOOL CATALOG (the ONLY tools that exist; use exact ids):
-${catalogText()}${projectSection}${apiSection}
+${catalogText()}${projectSection}
 
 RULES
 1. Tools: use only ids from the catalog. Never invent tools, APIs, URLs, credentials or data sources.

@@ -1,7 +1,6 @@
 import "server-only";
 import { callModel } from "../ai/index.js";
 import { PLANNER_JSON_SCHEMA, normalizeAgentConfig, validateAgentConfig } from "../agents/agentConfig.js";
-import { describeApis } from "../connectors/http/httpApiConnector.js";
 import { describeProjects } from "../connectors/projects/projectConnector.js";
 import { plannerSystemPrompt, plannerUserPrompt, refineUserPrompt } from "./prompts.js";
 
@@ -29,18 +28,8 @@ async function projectContext() {
   }
 }
 
-/** Registered REST APIs, so the planner can name real endpoints (best-effort). */
-async function apiContext() {
-  try {
-    const [get, post] = await Promise.all([describeApis("GET"), describeApis("POST")]);
-    return [get && `GET (http_api.get):\n${get}`, post && `POST (http_api.post):\n${post}`].filter(Boolean).join("\n\n");
-  } catch {
-    return "";
-  }
-}
-
 async function plan(userContent, { prompt, agentId, keep }) {
-  const [apis, projects] = await Promise.all([apiContext(), projectContext()]);
+  const projects = await projectContext();
   const result = await callModel(
     "generateStructured",
     {
@@ -48,7 +37,7 @@ async function plan(userContent, { prompt, agentId, keep }) {
       schema: PLANNER_JSON_SCHEMA,
       schemaName: "agent_plan",
       messages: [
-        { role: "system", content: plannerSystemPrompt({ apis, projects }) },
+        { role: "system", content: plannerSystemPrompt({ projects }) },
         { role: "user", content: userContent },
       ],
     },

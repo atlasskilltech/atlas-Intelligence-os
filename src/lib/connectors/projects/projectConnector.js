@@ -2,7 +2,7 @@ import "server-only";
 import { getSecretValues } from "../../config/env.js";
 import { redact } from "../../security/redact.js";
 import { defineConnector } from "../defineConnector.js";
-import { parseBody } from "../http/httpApiConnector.js";
+import { parseBody } from "../http/parseBody.js";
 import { safeFetch } from "../http/safeFetch.js";
 import { checkParams } from "./manifest.js";
 import { USER_AGENT, getProject, listProjects, markProjectError, projectKey } from "./projectRepo.js";

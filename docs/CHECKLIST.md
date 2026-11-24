@@ -11,7 +11,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 4 | Agent config, storage, plans & approval workflow | ✅ |
 | 4.1 | Logo, favicon, light/dark mode | ✅ |
 | 5 | Execution engine & tool-calling loop | ✅ |
-| 6 | Connector framework & custom REST connector | ✅ |
+| 6 | Connector framework & network safety (REST connector later removed) | ✅ |
 | 7 | ATLAS project connections (key-based) | ✅ |
 | 8 | ~~Website, Gmail, Calendar connectors~~ — dropped, not needed | ❌ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
@@ -138,3 +138,4 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Tests: 72 unit tests (+10, run against the reference add-on); browser flow (wrong key, connect, card, access page, try action, replace key, dark, mobile)
 - [ ] Install the add-on in the real ATLAS CRM (needs the CRM code)
 - [x] Removed the planned Website, Gmail and Google Calendar connectors (not needed); agents notify owners in the dashboard instead of email
+- [x] Removed the Custom REST API connector from Milestone 6: everything connects through project keys. Kept from it: connector SDK, network guard, safe HTTP client (tests: 64)
