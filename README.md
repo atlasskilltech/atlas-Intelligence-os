@@ -13,13 +13,14 @@ cp .env.example .env.local   # fill in values as milestones need them
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000, then go to **Model Settings → Test connection** to verify your OpenAI key.
 
 ## Scripts
 
 - `npm run dev` – development server
 - `npm run build` / `npm run start` – production build and server
 - `npm run lint` – ESLint
+- `npm test` – unit tests (no API key or network needed)
 
 ## Docs
 

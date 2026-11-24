@@ -1,21 +1,22 @@
-import ComingSoon from "@/components/ui/ComingSoon";
+import { connection } from "next/server";
+import ModelSettingsForm from "@/components/settings/ModelSettingsForm";
 import PageHeader from "@/components/ui/PageHeader";
+import { getAIStatus } from "@/lib/ai";
+import { DEFAULT_PRICING } from "@/lib/ai/pricing";
+import { getModelSettings, LIMITS } from "@/lib/settings/modelSettings";
 
 export const metadata = { title: "Model Settings" };
 
-export default function ModelSettingsPage() {
+export default async function ModelSettingsPage() {
+  await connection();
+  const [settings, status] = [await getModelSettings(), getAIStatus()];
   return (
     <>
       <PageHeader
         title="Model Settings"
-        description="Choose which AI models plan and run your agents, and set safety limits."
+        description="Choose which AI models plan and run your agents, and set safety limits. API keys stay on the server and are never shown here."
       />
-      <ComingSoon
-        milestone={2}
-        icon="cpu"
-        title="AI provider not connected"
-        description="OpenAI will be connected through a server-side provider layer. API keys stay on the server and are never shown here."
-      />
+      <ModelSettingsForm initialSettings={settings} status={status} limits={LIMITS} defaultPricing={DEFAULT_PRICING} />
     </>
   );
 }

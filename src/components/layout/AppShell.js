@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
@@ -11,7 +12,7 @@ import { titleFor } from "./navigation";
  * Dashboard frame: fixed sidebar on desktop (lg+), slide-out drawer on
  * mobile/tablet. Page content (server components) is passed as children.
  */
-export default function AppShell({ children }) {
+export default function AppShell({ aiConfigured = false, children }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -75,10 +76,13 @@ export default function AppShell({ children }) {
           </div>
           <p className="hidden text-sm font-medium text-slate-500 lg:block">{titleFor(pathname)}</p>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 sm:inline-flex">
-              <span className="size-1.5 rounded-full bg-amber-500" />
-              AI provider not configured
-            </span>
+            <Link
+              href="/settings/models"
+              className="hidden items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 sm:inline-flex"
+            >
+              <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-emerald-500" : "bg-amber-500")} />
+              {aiConfigured ? "OpenAI configured" : "AI provider not configured"}
+            </Link>
           </div>
         </header>
 

@@ -54,6 +54,23 @@ Prompt → Planner (structured JSON, validated) → Agent config → Employee re
 
 Permissions are enforced in code, never by the model.
 
+## AI layer (Milestone 2)
+
+```
+planner / engine ──► callModel(method, opts, { purpose, agentId, runId })   src/lib/ai/index.js
+                        │  model chosen by purpose from Model Settings
+                        │  timeout + retry (retry.js) + usage/cost logging
+                        ▼
+                   ModelProvider (provider.js)  ──►  providers/openai.js  (Chat Completions)
+```
+
+- Methods: `generateText`, `generateStructured` (strict JSON schema), `chatWithTools`, `listModels`.
+- All provider errors become `AIError` with a `type` and `retryable` flag (errors.js).
+- Usage: one JSON line per call in `DATA_DIR/usage.jsonl`; prices in `pricing.js`
+  plus per-model overrides in Model Settings. Unknown prices are reported, never guessed.
+- Pages that show live data call `await connection()` (`export const dynamic` no longer exists).
+- Tests: `npm test` (Node test runner, `--conditions=react-server` so `server-only` imports work).
+
 ## Connectors
 
 Each connector is a module built with `defineConnector()` declaring: id, name,

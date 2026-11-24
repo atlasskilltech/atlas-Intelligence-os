@@ -1,9 +1,12 @@
+import { connection } from "next/server";
 import Button from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
+import { fmtUsd } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import { EmptyState } from "@/components/ui/States";
+import { getUsageSummary } from "@/lib/usage/usageStore";
 
 export const metadata = { title: "Overview" };
 
@@ -13,7 +16,9 @@ const HOW_IT_WORKS = [
   { icon: "shield", title: "Approve & activate", text: "Test safely, then run it manually or on a schedule." },
 ];
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  await connection();
+  const usage = await getUsageSummary({ days: 31, recent: 0 });
   return (
     <>
       <PageHeader
@@ -31,7 +36,7 @@ export default function OverviewPage() {
         <StatCard label="Active agents" value="0" icon="bot" />
         <StatCard label="Runs today" value="0" icon="history" />
         <StatCard label="Awaiting approval" value="0" icon="shield" />
-        <StatCard label="Cost this month" value="$0.00" icon="chart" hint="Estimated" />
+        <StatCard label="Cost this month" value={fmtUsd(usage.thisMonth.costUsd)} icon="chart" hint="Estimated" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
