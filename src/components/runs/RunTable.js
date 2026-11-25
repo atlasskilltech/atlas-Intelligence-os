@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { fmtDateTime, fmtDuration, fmtUsd } from "@/components/ui/format";
+import AgentConnectors from "@/components/agents/AgentConnectors";
 import { ModeBadge, RunStatusBadge } from "./RunStatus";
 
 const dur = (r) => (r.startedAt && r.finishedAt ? Date.parse(r.finishedAt) - Date.parse(r.startedAt) : null);
 
-/** Run summaries as a responsive list. `showAgent` hides the agent column on an agent's own page. */
-export default function RunTable({ runs, showAgent = true }) {
+/**
+ * Run summaries as a responsive list. `showAgent` hides the agent column on an agent's own page.
+ * With `projects` ([{ id, name, usable }]), each run shows the connectors it could use.
+ */
+export default function RunTable({ runs, showAgent = true, projects = null }) {
   return (
     <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
       {runs.map((r) => (
@@ -20,6 +24,7 @@ export default function RunTable({ runs, showAgent = true }) {
               <p className="mt-0.5 truncate text-xs text-slate-500">
                 {r.error ? <span className="text-red-600">{r.error}</span> : r.reportTitle ? `Report: ${r.reportTitle}` : r.id}
               </p>
+              {projects && r.usesProjects && <AgentConnectors compact className="mt-1.5" ids={r.connectors} projects={projects} />}
             </div>
             <div className="flex shrink-0 flex-wrap gap-x-4 text-xs text-slate-500 sm:justify-end">
               <span>{fmtDateTime(r.createdAt)}</span>

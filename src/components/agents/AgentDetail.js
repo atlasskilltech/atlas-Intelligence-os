@@ -263,7 +263,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
           )}
         </div>
         {runs.length ? (
-          <RunTable runs={runs} showAgent={false} />
+          <RunTable runs={runs} showAgent={false} projects={projects} />
         ) : (
           <Card>
             <CardBody className="text-sm text-slate-500">No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run.</CardBody>

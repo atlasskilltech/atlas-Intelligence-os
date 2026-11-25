@@ -5,6 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import Button from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
+import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
 
@@ -22,7 +23,10 @@ export default async function RunsPage({ searchParams }) {
   await connection();
   const { status: raw } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
-  const runs = await listRuns((await getPageActor()), { status: status === "all" ? undefined : status, limit: 200 });
+  const [runs, projects] = await Promise.all([
+    listRuns(await getPageActor(), { status: status === "all" ? undefined : status, limit: 200 }),
+    projectStatusList(),
+  ]);
 
   return (
     <>
@@ -50,7 +54,7 @@ export default async function RunsPage({ searchParams }) {
           action={status === "all" && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
         />
       ) : (
-        <RunTable runs={runs} />
+        <RunTable runs={runs} projects={projects} />
       )}
     </>
   );

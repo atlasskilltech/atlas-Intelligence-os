@@ -59,6 +59,9 @@ export function summarizeRun(run) {
     pendingApproval: run.pendingApproval ? { toolId: run.pendingApproval.toolId, requestedAt: run.pendingApproval.requestedAt } : null,
     error: run.error ? run.error.slice(0, 200) : null,
     reportTitle: run.output.reports.at(-1)?.title || null,
+    // Connectors this run could use (snapshot of the agent at run time). [] = all connected projects.
+    usesProjects: (run.config?.tools || []).some((id) => id.startsWith("atlas_project.")),
+    connectors: run.config?.connectors?.projects || [],
   };
 }
 
