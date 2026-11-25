@@ -16,6 +16,7 @@ import { describeTrigger } from "@/lib/agents/schedule";
 import { getTool } from "@/lib/catalog/toolCatalog";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
+import { listRuns } from "@/lib/runs/runRepo";
 
 export const metadata = { title: "My Agents" };
 
@@ -26,29 +27,56 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-function listHref(status, connector) {
+function listHref({ status, connector, called }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
   if (connector) q.set("connector", connector);
+  if (called) q.set("called", called);
   const qs = q.toString();
   return qs ? `/agents?${qs}` : "/agents";
 }
 
 export default async function AgentsPage({ searchParams }) {
   await connection();
-  const { status: raw, connector: rawConnector, deleted } = await searchParams;
+  const { status: raw, connector: rawConnector, called: rawCalled, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
 
-  const [records, projects] = await Promise.all([listAgents(await getPageActor()), projectStatusList()]);
+  const actor = await getPageActor();
+  const [records, projects, recentRuns] = await Promise.all([listAgents(actor), projectStatusList(), listRuns(actor, { limit: 1000 })]);
   const everything = records.map(summarize);
 
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
 
-  const all = connector ? everything.filter((a) => matchesConnector({ ...a, usesProjects: usesProjects(a.tools) }, connector, projects)) : everything;
+  // Projects each agent's runs actually called (from the run history).
+  const calledBy = new Map(); // agentId → Set(project ids)
+  for (const r of recentRuns) {
+    for (const c of r.projectCalls || []) {
+      if (!calledBy.has(r.agentId)) calledBy.set(r.agentId, new Set());
+      calledBy.get(r.agentId).add(c.project);
+    }
+  }
+  const agentIds = new Set(everything.map((a) => a.id));
+  const calledIds = [...new Set([...calledBy].filter(([id]) => agentIds.has(id)).flatMap(([, set]) => [...set]))];
+  const calledName = (id) => projects.find((p) => p.id === id)?.name || `${id} (removed)`;
+  const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
+  const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
+
+  const filters = { status, connector, called };
+  const hrefWith = (patch) => listHref({ ...filters, ...patch });
+
+  const all = everything
+    .filter((a) => !connector || matchesConnector({ ...a, usesProjects: usesProjects(a.tools) }, connector, projects))
+    .filter((a) => !called || calledBy.get(a.id)?.has(called));
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
+
+  const statusWord = status === "all" ? "" : `${FILTERS.find((f) => f.id === status).label.toLowerCase()} `;
+  const emptyTitle =
+    connector || called
+      ? `No ${statusWord}agents${connector ? ` use ${names.get(connector)}` : ""}${connector && called ? " and" : ""}${called ? ` have called ${calledName(called)}` : ""}`
+      : `No ${statusWord}agents`;
 
   return (
     <>
@@ -85,7 +113,7 @@ export default async function AgentsPage({ searchParams }) {
             {FILTERS.map((f) => (
               <Link
                 key={f.id}
-                href={listHref(f.id, connector)}
+                href={hrefWith({ status: f.id })}
                 aria-current={status === f.id ? "page" : undefined}
                 className={cn(
                   "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
@@ -97,16 +125,16 @@ export default async function AgentsPage({ searchParams }) {
             ))}
           </nav>
 
-          <ConnectorFilter className="mb-4" options={options} current={connector} hrefFor={(id) => listHref(status, id)} />
+          <div className="mb-4 space-y-2">
+            <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
+            <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
+          </div>
 
           {agents.length === 0 ? (
             <EmptyState
               icon="bot"
-              title={
-                connector
-                  ? `No ${status === "all" ? "" : `${FILTERS.find((f) => f.id === status).label.toLowerCase()} `}agents use ${names.get(connector)}`
-                  : `No ${FILTERS.find((f) => f.id === status).label.toLowerCase()} agents`
-              }
+              title={emptyTitle}
+              description={called ? "Called projects come from the agent's recent runs." : undefined}
             />
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
