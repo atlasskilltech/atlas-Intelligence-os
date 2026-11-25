@@ -166,6 +166,7 @@ export async function synthesizeSpeech({ text, voice, instructions }, meta = {})
   const env = getAIEnv();
   const settings = await getModelSettings();
   let fallbackReason;
+  let fallbackDetail;
   if (settings.voiceProvider === "elevenlabs") {
     if (env.elevenlabsConfigured) {
       try {
@@ -179,13 +180,15 @@ export async function synthesizeSpeech({ text, voice, instructions }, meta = {})
         return { ...res, provider: "elevenlabs", fallback: false };
       } catch (err) {
         fallbackReason = err?.type || "server";
+        // ElevenLabs' own explanation (e.g. "free users cannot use library voices via the API").
+        fallbackDetail = redact(String(err?.detail || ""), getSecretValues()).slice(0, 300);
       }
     } else {
       fallbackReason = "not_configured";
     }
   }
   const res = await callAudio("speak", { text, voice: voice || env.ttsVoice, instructions }, env.ttsModel, meta);
-  return { ...res, provider: "openai", fallback: Boolean(fallbackReason), ...(fallbackReason ? { fallbackReason } : {}) };
+  return { ...res, provider: "openai", fallback: Boolean(fallbackReason), ...(fallbackReason ? { fallbackReason, fallbackDetail } : {}) };
 }
 
 /** Lists models the API key can use, filtered to chat-capable GPT/o-series models. */
