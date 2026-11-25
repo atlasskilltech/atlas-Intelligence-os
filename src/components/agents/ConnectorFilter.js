@@ -29,7 +29,7 @@ export function connectorOptions(projects, items = []) {
 }
 
 /** "Connector: Any · CRM · ERP" chip row. `hrefFor(id | null)` builds each link. */
-export default function ConnectorFilter({ options, current, hrefFor, className, label = "Connector", icon = "plug" }) {
+export default function ConnectorFilter({ options, current, hrefFor, className, label = "Connector", icon = "plug", scroll = true }) {
   if (!options.length) return null;
   return (
     <nav aria-label={`Filter by ${label.toLowerCase()}`} className={cn("flex flex-wrap items-center gap-1.5 text-xs", className)}>
@@ -41,6 +41,7 @@ export default function ConnectorFilter({ options, current, hrefFor, className, 
         <Link
           key={c.id || "any"}
           href={hrefFor(c.id)}
+          scroll={scroll}
           aria-current={current === c.id ? "page" : undefined}
           className={cn(
             "max-w-[220px] truncate rounded-full px-2.5 py-1 ring-1 ring-inset",

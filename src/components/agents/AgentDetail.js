@@ -14,6 +14,7 @@ import ProjectCalls from "@/components/runs/ProjectCalls";
 import RunTable from "@/components/runs/RunTable";
 import AgentWorkspace, { agentApi, downloadAgentJson, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
 import AgentConnectors, { usesProjects } from "./AgentConnectors";
+import ConnectorFilter from "./ConnectorFilter";
 import { StatusBadge } from "./AgentStatus";
 
 const SAVED_MSG = {
@@ -25,7 +26,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [], projectCalls = [] }) {
+export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [], projectCalls = [], called = null }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -269,11 +270,28 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
             </Link>
           )}
         </div>
+        {projectCalls.length > 0 && (
+          <ConnectorFilter
+            className="mb-3"
+            label="Called"
+            icon="check"
+            scroll={false}
+            options={projectCalls
+              .map((c) => ({ id: c.project, name: projects.find((p) => p.id === c.project)?.name || `${c.project} (removed)` }))
+              .sort((a, b) => a.name.localeCompare(b.name))}
+            current={called}
+            hrefFor={(id) => (id ? `/agents/${rec.id}?called=${encodeURIComponent(id)}` : `/agents/${rec.id}`)}
+          />
+        )}
         {runs.length ? (
           <RunTable runs={runs} showAgent={false} projects={projects} />
         ) : (
           <Card>
-            <CardBody className="text-sm text-slate-500">No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run.</CardBody>
+            <CardBody className="text-sm text-slate-500">
+              {called
+                ? "None of this agent's recent runs called that project."
+                : "No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run."}
+            </CardBody>
           </Card>
         )}
       </section>
