@@ -17,6 +17,10 @@ export function getAIEnv() {
     openaiBaseURL: clean(process.env.OPENAI_BASE_URL),
     defaultModel: clean(process.env.OPENAI_DEFAULT_MODEL),
     plannerModel: clean(process.env.OPENAI_PLANNER_MODEL),
+    // Voice assistant: speech-to-text and text-to-speech models / voice.
+    sttModel: clean(process.env.OPENAI_STT_MODEL) || "gpt-4o-mini-transcribe",
+    ttsModel: clean(process.env.OPENAI_TTS_MODEL) || "gpt-4o-mini-tts",
+    ttsVoice: clean(process.env.OPENAI_TTS_VOICE) || "nova",
   };
 }
 

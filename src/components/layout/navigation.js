@@ -1,6 +1,7 @@
 // Single source of truth for the sidebar. Add new pages here.
 export const PRIMARY_NAV = [
   { href: "/", label: "Home", icon: "home" },
+  { href: "/voice", label: "Voice Assistant", icon: "mic" },
   { href: "/agents", label: "My Agents", icon: "bot" },
   { href: "/runs", label: "Execution History", icon: "history" },
   { href: "/logs", label: "Execution Logs", icon: "terminal" },

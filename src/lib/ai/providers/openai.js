@@ -14,7 +14,15 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
     const fail = async () => {
       throw new AIError("not_configured", "OPENAI_API_KEY is empty", { provider: "openai" });
     };
-    return { id: "openai", generateText: fail, generateStructured: fail, chatWithTools: fail, listModels: fail };
+    return {
+      id: "openai",
+      generateText: fail,
+      generateStructured: fail,
+      chatWithTools: fail,
+      listModels: fail,
+      transcribe: fail,
+      speak: fail,
+    };
   }
 
   const client = new OpenAI({ apiKey, baseURL, maxRetries: 0, ...(fetch ? { fetch } : {}) });
@@ -73,6 +81,31 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
         body.parallel_tool_calls = false; // one action at a time: simpler approvals & logs
       }
       return complete(body, opts.timeoutMs);
+    },
+
+    /** Speech → text. `file` is a File/Blob; `language` (ISO-639-1) is optional — omit to auto-detect. */
+    async transcribe({ file, model, language, prompt, timeoutMs }) {
+      try {
+        const body = { file, model };
+        if (language) body.language = language;
+        if (prompt) body.prompt = prompt;
+        const res = await client.audio.transcriptions.create(body, { timeout: timeoutMs ?? 60_000 });
+        return { text: String(res?.text || "").trim(), model, usage: normalizeAudioUsage(res?.usage) };
+      } catch (err) {
+        throw toAIError(err);
+      }
+    },
+
+    /** Text → speech. Returns the raw MP3 bytes. */
+    async speak({ text, model, voice, instructions, timeoutMs }) {
+      try {
+        const body = { model, voice, input: text, response_format: "mp3" };
+        if (instructions && !/^tts-1/.test(model)) body.instructions = instructions;
+        const res = await client.audio.speech.create(body, { timeout: timeoutMs ?? 60_000 });
+        return { audio: Buffer.from(await res.arrayBuffer()), model, usage: { inputTokens: 0, outputTokens: 0 } };
+      } catch (err) {
+        throw toAIError(err);
+      }
     },
 
     async listModels() {
@@ -153,6 +186,11 @@ function retryAfterMs(headers) {
   const s = Number(get("retry-after"));
   if (Number.isFinite(s) && s > 0) return s * 1000;
   return undefined;
+}
+
+function normalizeAudioUsage(u) {
+  if (!u || u.type !== "tokens") return { inputTokens: 0, outputTokens: 0 };
+  return { inputTokens: u.input_tokens || 0, outputTokens: u.output_tokens || 0 };
 }
 
 export function toAIError(err) {

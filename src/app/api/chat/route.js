@@ -5,7 +5,7 @@ import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 export const maxDuration = 120;
 
 /**
- * POST { message, history?, projects?: string[], mode?: "auto" | "ask" | "agent" }
+ * POST { message, history?, projects?: string[], mode?: "auto" | "ask" | "agent", voice?: { language?: string } }
  *   → { route: "answer", answer, sources, meta }   a direct answer (read-only lookups)
  *   → { route: "agent", reason }                   this is work to automate: open the agent builder
  */
@@ -26,6 +26,7 @@ export async function POST(request) {
         projectIds: cleanProjectIds(body.projects),
         mode,
         actor,
+        voice: body.voice && typeof body.voice === "object" ? { language: body.voice.language } : null,
       }),
     );
   } catch (err) {

@@ -43,6 +43,14 @@ Login is required once the database and Google settings are present in the serve
 The first person to sign in becomes admin (or set `ADMIN_EMAILS`). Admins add other users on the
 **Users** page; only added emails can sign in. Roles: **admin** and **user**.
 
+## Voice Assistant
+
+Open **Voice Assistant** in the sidebar (or the **Voice** button on Home) for a ChatGPT-style voice
+mode: tap the orb, speak in Hindi, English, Hinglish or any other language, and the assistant answers
+out loud in the same language. It uses the same read-only connector lookups as Home. Needs only
+`OPENAI_API_KEY`; optional `OPENAI_STT_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`. Browsers only
+allow the microphone on `https://` (or `localhost`).
+
 ## Scheduled agents
 
 On the always-on server (EC2 + PM2) the scheduler starts automatically with `npm run start` and

@@ -12,7 +12,7 @@ import { getUsageSummary } from "@/lib/usage/usageStore";
 
 export const metadata = { title: "API Usage" };
 
-const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", test: "Connection tests", other: "Other" };
+const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
 
 function Breakdown({ title, rows, labelFor = (k) => k, mono }) {
   const max = Math.max(...rows.map((r) => r.inputTokens + r.outputTokens), 1);

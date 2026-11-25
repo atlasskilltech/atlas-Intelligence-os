@@ -57,7 +57,21 @@ const BUILD_AGENT_TOOL = {
   },
 };
 
-function systemPrompt({ projects, today }) {
+/** Extra rules when the answer will be spoken aloud by the voice assistant. */
+export function voiceRules(language) {
+  const lang = typeof language === "string" && /^[a-z]{2}$/.test(language) ? language : null;
+  return [
+    "VOICE MODE: your reply is converted to speech and played aloud, like a phone call with a helpful guide.",
+    "Speak naturally and warmly, in short sentences. Keep answers to 1–4 sentences unless the employee asks for detail or step-by-step guidance; for steps, say them as 'first… then… finally…'.",
+    "Never use markdown, tables, bullet symbols, emojis, URLs or code. Say numbers and dates the way a person would say them.",
+    lang
+      ? `Reply in the language with ISO code "${lang}", written in its native script (e.g. Hindi in Devanagari), even if the question mixes languages.`
+      : "Reply in the SAME language the employee used (Hindi, English, Hinglish, Marathi, Tamil, or any other). If they mix Hindi and English, reply in the same natural mix. Write Hindi in Devanagari.",
+    "If you did not understand or the message seems cut off, ask one short clarifying question.",
+  ].join("\n");
+}
+
+function systemPrompt({ projects, today, voice }) {
   return [
     "You are the IntelligenceOS assistant for ATLAS SkillTech University employees.",
     `Today is ${today} (Asia/Kolkata).`,
@@ -69,6 +83,7 @@ function systemPrompt({ projects, today }) {
     projects
       ? `Connectors you may use:\n${projects}`
       : "No connector is selected or connected, so you cannot look up live data. Answer general questions only, and tell the employee to pick a connector for data questions.",
+    ...(voice ? [voiceRules(voice.language)] : []),
   ].join("\n\n");
 }
 
@@ -80,10 +95,13 @@ const DEFAULT_DEPS = {
 };
 
 /**
- * @param {object} input { message, history?, projectIds?, mode?: "auto"|"ask", actor }
+ * @param {object} input { message, history?, projectIds?, mode?: "auto"|"ask", actor, voice?: { language? } }
  * @returns {Promise<{ route: "agent", reason } | { route: "answer", answer, sources, meta }>}
  */
-export async function answerQuestion({ message, history = [], projectIds = null, mode = "auto", actor = {} }, deps = DEFAULT_DEPS) {
+export async function answerQuestion(
+  { message, history = [], projectIds = null, mode = "auto", actor = {}, voice = null },
+  deps = DEFAULT_DEPS,
+) {
   const userEmail = actor.email || null;
   let projects = "";
   try {
@@ -105,7 +123,7 @@ export async function answerQuestion({ message, history = [], projectIds = null,
 
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
   const messages = [
-    { role: "system", content: systemPrompt({ projects, today }) },
+    { role: "system", content: systemPrompt({ projects, today, voice }) },
     ...cleanHistory(history),
     { role: "user", content: clip(String(message), MESSAGE_MAX) },
   ];
@@ -118,7 +136,7 @@ export async function answerQuestion({ message, history = [], projectIds = null,
     const res = await deps.callModel(
       "chatWithTools",
       { messages, ...(tools.length && !last ? { tools } : {}) },
-      { purpose: "chat", actorId: actor.id ?? null },
+      { purpose: voice ? "voice" : "chat", actorId: actor.id ?? null },
     );
     meta.modelCalls += 1;
     meta.model = res.model || meta.model;

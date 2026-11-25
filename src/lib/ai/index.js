@@ -100,6 +100,42 @@ export async function callModel(method, opts, meta = {}) {
   }
 }
 
+/**
+ * Voice: speech → text and text → speech. Same retry + usage logging as callModel,
+ * with the models from OPENAI_STT_MODEL / OPENAI_TTS_MODEL (see config/env.js).
+ */
+async function callAudio(method, opts, model, meta = {}) {
+  const settings = await getModelSettings();
+  const provider = getProvider();
+  const started = Date.now();
+  let retries = 0;
+  const base = { provider: provider.id, model, purpose: meta.purpose || "voice", agentId: null, runId: null, actorId: meta.actorId ?? null };
+  try {
+    const result = await withRetry(() => provider[method]({ timeoutMs: settings.requestTimeoutSec * 1000, ...opts, model }), {
+      maxRetries: meta.maxRetries ?? Math.min(settings.maxRetries, 2),
+      onRetry: () => (retries += 1),
+    });
+    await safeRecordUsage({ ...base, ok: true, ...result.usage, costUsd: null, retries, latencyMs: Date.now() - started });
+    return result;
+  } catch (err) {
+    const aiErr = err instanceof AIError ? err : new AIError("server", err?.message);
+    if (aiErr.type !== "not_configured") {
+      await safeRecordUsage({ ...base, ok: false, errorType: aiErr.type, retries, latencyMs: Date.now() - started });
+      console.error(`[ai] ${method} failed (${aiErr.type}):`, redact(aiErr.detail, getSecretValues()));
+    }
+    throw aiErr;
+  }
+}
+
+export function transcribeAudio({ file, language, prompt }, meta = {}) {
+  return callAudio("transcribe", { file, language, prompt }, getAIEnv().sttModel, meta);
+}
+
+export function synthesizeSpeech({ text, voice, instructions }, meta = {}) {
+  const env = getAIEnv();
+  return callAudio("speak", { text, voice: voice || env.ttsVoice, instructions }, env.ttsModel, meta);
+}
+
 /** Lists models the API key can use, filtered to chat-capable GPT/o-series models. */
 export async function listAvailableModels() {
   const ids = await withRetry(() => getProvider().listModels(), { maxRetries: 2 });

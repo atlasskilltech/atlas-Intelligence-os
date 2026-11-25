@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ConnectorPicker, { loadSelectedConnectors } from "@/components/agents/ConnectorPicker";
@@ -173,7 +174,19 @@ export default function HomeAssistant({ suggestions = [] }) {
         key={thread.length}
         placeholder={thread.length ? "Ask a follow-up…" : "Ask a question or describe a task to automate…"}
         onSubmit={send}
-        toolbar={<ConnectorPicker value={projects} onChange={setProjects} disabled={busy} />}
+        toolbar={
+          <div className="flex min-w-0 items-center gap-1.5">
+            <ConnectorPicker value={projects} onChange={setProjects} disabled={busy} />
+            <Link
+              href="/voice"
+              title="Talk to the assistant (Hindi, English and more)"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy-700 dark:bg-brand-600 dark:hover:bg-brand-500"
+            >
+              <Icon name="mic" className="size-3.5" />
+              Voice
+            </Link>
+          </div>
+        }
         suggestions={thread.length ? [] : suggestions}
         footer={
           <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
