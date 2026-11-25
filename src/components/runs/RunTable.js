@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fmtDateTime, fmtDuration, fmtUsd } from "@/components/ui/format";
 import AgentConnectors from "@/components/agents/AgentConnectors";
+import ProjectCalls from "./ProjectCalls";
 import { ModeBadge, RunStatusBadge } from "./RunStatus";
 
 const dur = (r) => (r.startedAt && r.finishedAt ? Date.parse(r.finishedAt) - Date.parse(r.startedAt) : null);
@@ -24,7 +25,12 @@ export default function RunTable({ runs, showAgent = true, projects = null }) {
               <p className="mt-0.5 truncate text-xs text-slate-500">
                 {r.error ? <span className="text-red-600">{r.error}</span> : r.reportTitle ? `Report: ${r.reportTitle}` : r.id}
               </p>
-              {projects && r.usesProjects && <AgentConnectors compact className="mt-1.5" ids={r.connectors} projects={projects} />}
+              {projects && (r.usesProjects || r.projectCalls?.length > 0) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  {r.usesProjects && <AgentConnectors compact ids={r.connectors} projects={projects} />}
+                  <ProjectCalls compact calls={r.projectCalls} projects={projects} />
+                </div>
+              )}
             </div>
             <div className="flex shrink-0 flex-wrap gap-x-4 text-xs text-slate-500 sm:justify-end">
               <span>{fmtDateTime(r.createdAt)}</span>

@@ -62,6 +62,8 @@ export function summarizeRun(run) {
     // Connectors this run could use (snapshot of the agent at run time). [] = all connected projects.
     usesProjects: (run.config?.tools || []).some((id) => id.startsWith("atlas_project.")),
     connectors: run.config?.connectors?.projects || [],
+    // Projects the run actually called: [{ project, ok, failed, simulated }].
+    projectCalls: (run.output?.projectCalls || []).map(({ project, ok, failed, simulated }) => ({ project, ok, failed, simulated })),
   };
 }
 

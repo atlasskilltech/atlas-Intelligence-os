@@ -204,6 +204,18 @@ test("engine: agent reads the CRM, then a status change waits for approval and i
   assert.equal(r.status, "succeeded", r.error);
   assert.equal(api.db.leads.find((l) => l.id === "L103").status, "contacted");
   assert.ok(!JSON.stringify(r).includes(rw.key), "key never stored in the run");
+  assert.deepEqual(r.output.projectCalls, [{ project: "atlas_crm", ok: 2, failed: 0, simulated: 0, actions: ["search_leads", "update_lead_status"] }]);
+  const summary = (await runs.listRuns(admin, { agentId: agent.id })).find((x) => x.id === run.id);
+  assert.deepEqual(summary.projectCalls, [{ project: "atlas_crm", ok: 2, failed: 0, simulated: 0 }], "history list knows which projects were called");
+});
+
+test("project calls: failed, simulated and malformed ids", () => {
+  const run = { output: {} };
+  engine.recordProjectCall(run, "atlas_project.read", { project: "crm", action: "a" }, "failed");
+  engine.recordProjectCall(run, "atlas_project.write", { project: "crm", action: "b" }, "simulated");
+  engine.recordProjectCall(run, "atlas_project.read", { project: "bad id!", action: "a" }, "ok");
+  engine.recordProjectCall(run, "report.create_report", { project: "crm" }, "ok");
+  assert.deepEqual(run.output.projectCalls, [{ project: "crm", ok: 0, failed: 1, simulated: 1, actions: ["a", "b"] }]);
 });
 
 test("revoked key: the run reports it, the project card shows the error, agents stop using it", async () => {

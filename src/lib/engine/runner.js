@@ -361,6 +361,7 @@ async function handleToolCall(run, call, deps, reasonText, executable = (id) => 
   if (run.mode === "test" && hasExternalEffect(toolId)) {
     pushToolResult(run, call.id, { ok: true, simulated: true, result: "TEST RUN: this action was simulated and not actually performed." });
     await logEvent(run, { type: "tool_simulated", level: "warning", message: `${tool.connectorName} · ${tool.name} simulated (test run)`, toolId, args: redactArgs(call.arguments) });
+    recordProjectCall(run, toolId, call.arguments, "simulated");
     return false;
   }
 
@@ -441,6 +442,7 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
       new Promise((_, rej) => (timer = setTimeout(() => rej(new Error(`Timed out after ${TOOL_TIMEOUT_MS / 1000}s`)), TOOL_TIMEOUT_MS))),
     ]).finally(() => clearTimeout(timer));
     pushToolResult(run, toolCallId, { ok: true, result: data });
+    recordProjectCall(run, toolId, args, "ok");
     await logEvent(run, {
       type: "tool_call",
       message: `${tool.connectorName} · ${tool.name} ✓ (${ms(Date.now() - started)})`,
@@ -451,7 +453,34 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
   } catch (err) {
     const message = safeText(err?.message || "Tool failed");
     pushToolResult(run, toolCallId, { ok: false, error: message });
+    recordProjectCall(run, toolId, args, "failed");
     await logEvent(run, { type: "tool_error", level: "error", message: `${tool?.name || toolId} failed: ${message}`, toolId, durationMs: Date.now() - started });
+  }
+}
+
+const PROJECT_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const ACTION_ID_RE = /^[A-Za-z0-9_.-]{1,60}$/;
+
+/**
+ * Which ATLAS projects this run actually called, for the history and run pages:
+ * run.output.projectCalls = [{ project, ok, failed, simulated, actions: [action ids] }].
+ * Ids come from the model's arguments, so only well-formed ones are kept.
+ */
+export function recordProjectCall(run, toolId, args, outcome) {
+  if (!String(toolId).startsWith("atlas_project.")) return;
+  const project = args?.project;
+  if (typeof project !== "string" || !PROJECT_ID_RE.test(project)) return;
+  run.output.projectCalls ??= [];
+  let entry = run.output.projectCalls.find((e) => e.project === project);
+  if (!entry) {
+    if (run.output.projectCalls.length >= 30) return;
+    entry = { project, ok: 0, failed: 0, simulated: 0, actions: [] };
+    run.output.projectCalls.push(entry);
+  }
+  entry[outcome] = (entry[outcome] || 0) + 1;
+  const action = args?.action;
+  if (typeof action === "string" && ACTION_ID_RE.test(action) && !entry.actions.includes(action) && entry.actions.length < 20) {
+    entry.actions.push(action);
   }
 }
 

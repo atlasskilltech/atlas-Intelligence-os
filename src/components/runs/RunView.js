@@ -16,6 +16,8 @@ import { RiskBadge } from "@/components/agents/ToolBadges";
 import StepsFlow from "@/components/agents/StepsFlow";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { endStatusFromRun, stepStatusesFromRun } from "@/lib/runs/stepStatus";
+import AgentConnectors from "@/components/agents/AgentConnectors";
+import ProjectCalls from "./ProjectCalls";
 import ReportView from "./ReportView";
 import { ModeBadge, RUN_STATUS, RunStatusBadge } from "./RunStatus";
 
@@ -113,7 +115,7 @@ function Timeline({ events, live }) {
 }
 
 /** Live view of one run: polls while it is active. */
-export default function RunView({ initial }) {
+export default function RunView({ initial, projects = [] }) {
   const router = useRouter();
   const [run, setRun] = useState(initial);
   const [pollError, setPollError] = useState(null);
@@ -280,6 +282,24 @@ export default function RunView({ initial }) {
               </dl>
             </CardBody>
           </Card>
+          {(run.output.projectCalls?.length > 0 || run.config?.tools?.some((t) => t.startsWith("atlas_project."))) && (
+            <Card>
+              <CardHeader title="Projects called" description="The ATLAS projects this run actually used." />
+              <CardBody className="space-y-4">
+                {run.output.projectCalls?.length > 0 ? (
+                  <ProjectCalls calls={run.output.projectCalls} projects={projects} />
+                ) : (
+                  <p className="text-sm text-slate-500">{live ? "No project called yet." : "No project was called in this run."}</p>
+                )}
+                {run.config?.connectors && (
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="mb-1.5 text-xs uppercase tracking-wider text-slate-400">Allowed connectors</p>
+                    <AgentConnectors compact ids={run.config.connectors.projects} projects={projects} />
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          )}
           {run.input && (
             <Card>
               <CardHeader title="Extra instructions" />
