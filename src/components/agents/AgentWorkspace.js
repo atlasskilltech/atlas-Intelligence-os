@@ -318,6 +318,7 @@ export default function AgentWorkspace({
                   onChange={(steps) => set({ steps })}
                   preApproved={derived.permissions.preApproved}
                   triggerLabel={describeTrigger(derived.trigger)}
+                  title={draft.name || "Agent flow"}
                 />
               ) : (
                 <StepsEditor steps={draft.steps} onChange={(steps) => set({ steps })} preApproved={derived.permissions.preApproved} />

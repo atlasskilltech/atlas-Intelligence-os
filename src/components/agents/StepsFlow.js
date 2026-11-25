@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
@@ -13,6 +14,7 @@ import { StepFields, blankStep } from "./StepsEditor";
  * connectors. Editable mode adds "+" on every connector, hover delete,
  * drag-to-reorder and an edit panel for the selected node. `readOnly` shows
  * the same diagram for viewing, optionally with per-step run `statuses`.
+ * Both modes open full screen (n8n-like canvas: pan, zoom, fit, side drawer).
  */
 
 const CONNECTOR_ICON = { report: "chart", notify: "monitor", atlas_project: "plug" };
@@ -179,8 +181,18 @@ function StepNode({ step, index, selected, status, readOnly, preApproved, onSele
   );
 }
 
-export default function StepsFlow({ steps, onChange, readOnly = false, preApproved = [], triggerLabel = "Manual", statuses = {}, endStatus = null }) {
+export default function StepsFlow({
+  steps,
+  onChange,
+  readOnly = false,
+  preApproved = [],
+  triggerLabel = "Manual",
+  statuses = {},
+  endStatus = null,
+  title = "Agent flow",
+}) {
   const [selectedKey, setSelectedKey] = useState(null);
+  const [full, setFull] = useState(false);
   const [dragFrom, setDragFrom] = useState(null);
   const [dragOver, setDragOver] = useState(null);
 
@@ -237,69 +249,253 @@ export default function StepsFlow({ steps, onChange, readOnly = false, preApprov
   const passed = (st) => !!st && st !== "running" && st !== "waiting";
   const reached = (i) => (i < 0 ? Object.keys(statuses).length > 0 || !!endStatus : passed(statuses[steps[i]?.id]));
 
+  const graph = (
+    <div className="flex w-max items-center p-6">
+      <TriggerNode label={triggerLabel} />
+      <Edge index={0} active={reached(-1)} canAdd={canAdd} onAdd={readOnly ? null : () => insert(0)} />
+      {steps.length === 0 && (
+        <>
+          <div className="grid w-52 shrink-0 place-items-center rounded-xl border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
+            {readOnly ? "No steps." : "No steps yet — press + to add one."}
+          </div>
+          <Edge index={0} />
+        </>
+      )}
+      {steps.map((s, i) => (
+        <div key={stepKey(s)} className="flex items-center">
+          <StepNode
+            step={s}
+            index={i}
+            selected={!readOnly && stepKey(s) === selectedKey}
+            status={statuses[s.id]}
+            readOnly={readOnly}
+            preApproved={preApproved}
+            onSelect={readOnly ? null : () => setSelectedKey((k) => (k === stepKey(s) ? null : stepKey(s)))}
+            onDelete={() => remove(i)}
+            drag={dragProps(i)}
+          />
+          <Edge index={i + 1} active={reached(i)} canAdd={canAdd} onAdd={readOnly ? null : () => insert(i + 1)} />
+        </div>
+      ))}
+      <EndNode status={endStatus} />
+    </div>
+  );
+
+  const editor = selected && (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
+        <p className="text-sm font-semibold text-ink">Edit step {selectedIndex + 1}</p>
+        <div className="flex items-center gap-1">
+          <PanelButton label="Move left" onClick={() => moveTo(selectedIndex, selectedIndex - 1)} disabled={selectedIndex === 0}>
+            <Icon name="arrowUp" className="size-4 -rotate-90" />
+          </PanelButton>
+          <PanelButton label="Move right" onClick={() => moveTo(selectedIndex, selectedIndex + 1)} disabled={selectedIndex === steps.length - 1}>
+            <Icon name="arrowUp" className="size-4 rotate-90" />
+          </PanelButton>
+          <PanelButton label="Delete step" onClick={() => remove(selectedIndex)} danger>
+            <Icon name="trash" className="size-4" />
+          </PanelButton>
+          <PanelButton label="Close editor" onClick={() => setSelectedKey(null)}>
+            <Icon name="close" className="size-4" />
+          </PanelButton>
+        </div>
+      </div>
+      <div className="p-4">
+        <StepFields step={selected} index={selectedIndex} onPatch={(patch) => update(selectedIndex, patch)} preApproved={preApproved} />
+      </div>
+    </>
+  );
+
+  if (full) {
+    return (
+      <FullScreen
+        title={title}
+        hint={readOnly ? "Drag to pan · Ctrl + scroll to zoom" : "Click a step to edit · drag steps to reorder · + to insert · drag the background to pan · Ctrl + scroll to zoom"}
+        onClose={() => setFull(false)}
+        onEscape={() => (selected ? (setSelectedKey(null), true) : false)}
+        drawer={editor}
+        fitKey={steps.length}
+      >
+        {graph}
+      </FullScreen>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 bg-[radial-gradient(circle,var(--color-slate-300)_1px,transparent_1px)] bg-size-[18px_18px]">
-        <div className="flex w-max items-center p-6">
-          <TriggerNode label={triggerLabel} />
-          <Edge index={0} active={reached(-1)} canAdd={canAdd} onAdd={readOnly ? null : () => insert(0)} />
-          {steps.length === 0 && (
-            <>
-              <div className="grid w-52 shrink-0 place-items-center rounded-xl border-2 border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-                {readOnly ? "No steps." : "No steps yet — press + to add one."}
-              </div>
-              <Edge index={0} />
-            </>
-          )}
-          {steps.map((s, i) => (
-            <div key={stepKey(s)} className="flex items-center">
-              <StepNode
-                step={s}
-                index={i}
-                selected={!readOnly && stepKey(s) === selectedKey}
-                status={statuses[s.id]}
-                readOnly={readOnly}
-                preApproved={preApproved}
-                onSelect={readOnly ? null : () => setSelectedKey((k) => (k === stepKey(s) ? null : stepKey(s)))}
-                onDelete={() => remove(i)}
-                drag={dragProps(i)}
-              />
-              <Edge index={i + 1} active={reached(i)} canAdd={canAdd} onAdd={readOnly ? null : () => insert(i + 1)} />
-            </div>
-          ))}
-          <EndNode status={endStatus} />
+      <div className="relative">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 bg-[radial-gradient(circle,var(--color-slate-300)_1px,transparent_1px)] bg-size-[18px_18px]">
+          {graph}
         </div>
+        <button
+          type="button"
+          onClick={() => setFull(true)}
+          title="Open full screen"
+          className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-surface px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:border-brand-300 hover:text-ink"
+        >
+          <Icon name="expand" className="size-3.5" />
+          Full screen
+        </button>
       </div>
 
       {!readOnly && !selected && steps.length > 0 && (
         <p className="text-xs text-slate-500">Click a step to edit it. Drag steps to reorder, press + between steps to insert one.</p>
       )}
 
-      {selected && (
-        <div className="rounded-xl border border-brand-200 bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
-            <p className="text-sm font-semibold text-ink">Edit step {selectedIndex + 1}</p>
-            <div className="flex items-center gap-1">
-              <PanelButton label="Move left" onClick={() => moveTo(selectedIndex, selectedIndex - 1)} disabled={selectedIndex === 0}>
-                <Icon name="arrowUp" className="size-4 -rotate-90" />
-              </PanelButton>
-              <PanelButton label="Move right" onClick={() => moveTo(selectedIndex, selectedIndex + 1)} disabled={selectedIndex === steps.length - 1}>
-                <Icon name="arrowUp" className="size-4 rotate-90" />
-              </PanelButton>
-              <PanelButton label="Delete step" onClick={() => remove(selectedIndex)} danger>
-                <Icon name="trash" className="size-4" />
-              </PanelButton>
-              <PanelButton label="Close" onClick={() => setSelectedKey(null)}>
-                <Icon name="close" className="size-4" />
-              </PanelButton>
-            </div>
+      {selected && <div className="rounded-xl border border-brand-200 bg-surface">{editor}</div>}
+    </div>
+  );
+}
+
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2;
+const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+/** Full-screen canvas: drag the background (or scroll) to pan, Ctrl/⌘ + scroll or the buttons to zoom. */
+function FullScreen({ title, hint, onClose, onEscape, drawer, fitKey, children }) {
+  const box = useRef(null);
+  const content = useRef(null);
+  const panning = useRef(null);
+  const [view, setView] = useState({ x: 0, y: 0, z: 1 });
+  const [grabbing, setGrabbing] = useState(false);
+
+  const fit = useCallback(() => {
+    const b = box.current;
+    const c = content.current;
+    if (!b || !c) return;
+    const w = c.offsetWidth;
+    const h = c.offsetHeight;
+    const W = b.clientWidth;
+    const H = b.clientHeight;
+    const z = clampZoom(Math.min((W - 48) / w, (H - 48) / h, 1));
+    if (W >= 640) return setView({ z, x: (W - w * z) / 2, y: (H - h * z) / 2 });
+    // Phones: keep nodes readable (pan to see the rest) and above the bottom edit sheet.
+    const mz = Math.max(z, 0.6);
+    setView({ z: mz, x: w * mz > W ? 16 : (W - w * mz) / 2, y: Math.max(16, H * 0.18 - (h * mz) / 2) });
+  }, []);
+
+  const zoomBy = useCallback((factor, cx, cy) => {
+    const b = box.current;
+    const px = cx ?? (b ? b.clientWidth / 2 : 0);
+    const py = cy ?? (b ? b.clientHeight / 2 : 0);
+    setView((v) => {
+      const z = clampZoom(v.z * factor);
+      const k = z / v.z;
+      return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
+    });
+  }, []);
+
+  // Fit when opened, when the number of steps changes and on window resize.
+  useLayoutEffect(() => fit(), [fit, fitKey]);
+  useEffect(() => {
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [fit]);
+
+  // Lock page scroll; Escape closes the drawer first, then full screen.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (!onEscape()) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose, onEscape]);
+
+  // Wheel: pan, or zoom with Ctrl/⌘ (also trackpad pinch). Non-passive so the page doesn't scroll.
+  useEffect(() => {
+    const b = box.current;
+    if (!b) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const r = b.getBoundingClientRect();
+        zoomBy(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+      } else {
+        const dx = e.shiftKey ? e.deltaY : e.deltaX;
+        const dy = e.shiftKey ? 0 : e.deltaY;
+        setView((v) => ({ ...v, x: v.x - dx, y: v.y - dy }));
+      }
+    };
+    b.addEventListener("wheel", onWheel, { passive: false });
+    return () => b.removeEventListener("wheel", onWheel);
+  }, [zoomBy]);
+
+  const onPointerDown = (e) => {
+    if (e.button !== 0 || e.target.closest("button, input, textarea, select, a, [draggable='true']")) return;
+    panning.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setGrabbing(true);
+  };
+  const onPointerMove = (e) => {
+    const p = panning.current;
+    if (p) setView((v) => ({ ...v, x: p.x + e.clientX - p.px, y: p.y + e.clientY - p.py }));
+  };
+  const endPan = () => {
+    panning.current = null;
+    setGrabbing(false);
+  };
+
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[60] flex flex-col bg-slate-50">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-surface px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-ink">{title}</p>
+          <p className="hidden truncate text-xs text-slate-500 sm:block">{hint}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-surface px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-brand-300 hover:text-ink"
+        >
+          <Icon name="collapse" className="size-4" />
+          Exit full screen
+        </button>
+      </div>
+      <div className="relative flex min-h-0 flex-1">
+        <div
+          ref={box}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPan}
+          onPointerCancel={endPan}
+          className={cn(
+            "relative min-w-0 flex-1 touch-none overflow-hidden bg-[radial-gradient(circle,var(--color-slate-300)_1px,transparent_1px)]",
+            grabbing ? "cursor-grabbing" : "cursor-grab",
+          )}
+          style={{ backgroundSize: `${18 * view.z}px ${18 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
+        >
+          <div ref={content} className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
+            {children}
           </div>
-          <div className="p-4">
-            <StepFields step={selected} index={selectedIndex} onPatch={(patch) => update(selectedIndex, patch)} preApproved={preApproved} />
+          <div className="absolute bottom-4 left-4 flex items-center gap-0.5 rounded-lg border border-slate-200 bg-surface p-1 shadow-xs">
+            <PanelButton label="Zoom out" onClick={() => zoomBy(1 / 1.2)} disabled={view.z <= MIN_ZOOM}>
+              <Icon name="minus" className="size-4" />
+            </PanelButton>
+            <button type="button" onClick={() => zoomBy(1 / view.z)} title="Reset to 100%" className="w-12 rounded-md py-1 text-center text-xs font-medium tabular-nums text-slate-600 hover:bg-slate-100">
+              {Math.round(view.z * 100)}%
+            </button>
+            <PanelButton label="Zoom in" onClick={() => zoomBy(1.2)} disabled={view.z >= MAX_ZOOM}>
+              <Icon name="plus" className="size-4" />
+            </PanelButton>
+            <PanelButton label="Fit to screen" onClick={fit}>
+              <Icon name="fit" className="size-4" />
+            </PanelButton>
           </div>
         </div>
-      )}
-    </div>
+        {drawer && (
+          <aside className="absolute inset-x-0 bottom-0 max-h-[65%] overflow-y-auto border-t border-slate-200 bg-surface shadow-lg sm:static sm:max-h-none sm:w-[26rem] sm:shrink-0 sm:border-l sm:border-t-0 sm:shadow-none">
+            {drawer}
+          </aside>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }
 

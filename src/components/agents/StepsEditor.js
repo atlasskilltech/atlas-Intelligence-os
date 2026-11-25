@@ -49,7 +49,7 @@ function ToolSelect({ id, value, onChange }) {
 export function StepFields({ step, index, onPatch, preApproved = [], className }) {
   const tool = step.tool ? getTool(step.tool) : null;
   return (
-    <div className={cn("min-w-0 flex-1 space-y-3", className)}>
+    <div className={cn("@container min-w-0 flex-1 space-y-3", className)}>
       <Input
         aria-label={`Step ${index + 1} title`}
         value={step.title}
@@ -67,7 +67,7 @@ export function StepFields({ step, index, onPatch, preApproved = [], className }
         placeholder="Details, decisions and what to do if something goes wrong"
         onChange={(e) => onPatch({ details: e.target.value })}
       />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 @lg:grid-cols-2">
         <div>
           <label htmlFor={`tool-${step.key}`} className="mb-1 block text-xs font-medium text-slate-500">
             Tool

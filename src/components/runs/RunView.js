@@ -243,6 +243,7 @@ export default function RunView({ initial }) {
                   preApproved={run.config.permissions?.preApproved ?? []}
                   statuses={stepStatusesFromRun(run)}
                   endStatus={endStatusFromRun(run)}
+                  title={`${run.agentName} · run`}
                 />
               </CardBody>
             </Card>
