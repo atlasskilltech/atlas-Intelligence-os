@@ -175,6 +175,9 @@ export default function RunView({ initial, projects = [] }) {
         <Link href={`/agents/${run.agentId}`} className="hover:text-ink">
           Agent: {run.agentName}
         </Link>
+        <Link href={`/logs?agent=${encodeURIComponent(run.agentId)}`} className="hover:text-ink">
+          Agent logs
+        </Link>
       </div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
