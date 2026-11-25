@@ -20,7 +20,7 @@ import {
 import { redact } from "../security/redact.js";
 import { validateArgs } from "../tools/argsValidator.js";
 import { EXECUTORS } from "../connectors/index.js";
-import { fromFunctionName, hasExternalEffect, resolveTools, toolDefinitions } from "../tools/registry.js";
+import { PLAN_TOOL_NAME, fromFunctionName, hasExternalEffect, planToolDefinition, resolveTools, toolDefinitions } from "../tools/registry.js";
 import { runStartMessage, runSystemPrompt } from "./prompt.js";
 
 /**
@@ -181,9 +181,11 @@ async function loop(runId, deps) {
   run.output.links ??= [];
   const resolved = await resolveTools(config.tools, deps.executors, { ownerEmail: run.ownerEmail });
   const executable = (id) => resolved.ready.has(id);
-  const tools = toolDefinitions(config.tools, deps.executors, resolved);
+  const actionTools = toolDefinitions(config.tools, deps.executors, resolved);
+  const planTool = planToolDefinition(config.steps);
+  const tools = [...actionTools, planTool];
   const budgetMs = config.limits.timeoutMinutes * 60_000;
-  const maxModelCalls = config.limits.maxSteps * 2 + 5;
+  const maxModelCalls = config.limits.maxSteps * 2 + 5 + config.steps.length; // + progress updates
   const segmentStart = Date.now();
   const elapsed = () => run.activeMs + (Date.now() - segmentStart);
 
@@ -228,7 +230,7 @@ async function loop(runId, deps) {
       const missing = config.tools.filter((id) => !executable(id));
       await logEvent(run, {
         type: "run_started",
-        message: `${run.mode === "test" ? "Test run" : "Run"} started · ${tools.length} tool${tools.length === 1 ? "" : "s"} available`,
+        message: `${run.mode === "test" ? "Test run" : "Run"} started · ${actionTools.length} tool${actionTools.length === 1 ? "" : "s"} available`,
       });
       if (missing.length) {
         await logEvent(run, {
@@ -270,7 +272,7 @@ async function loop(runId, deps) {
         run.output.limitReached = true;
         run.messages.push({
           role: "user",
-          content: `You have reached the limit of ${config.limits.maxSteps} actions for this run. Do not call any more tools. Write your final summary now, including what is left undone.`,
+          content: `You have reached the limit of ${config.limits.maxSteps} actions for this run. Do not call any more action tools. You may record progress with update_plan (mark unfinished steps as skipped), then write your final summary, including what is left undone.`,
         });
         await logEvent(run, { type: "limit_reached", level: "warning", message: `Action limit reached (${config.limits.maxSteps})` });
       }
@@ -281,7 +283,7 @@ async function loop(runId, deps) {
           "chatWithTools",
           {
             messages: run.messages,
-            tools: limitHit ? [] : tools,
+            tools: limitHit ? [planTool] : tools,
             timeoutMs: Math.max(5_000, Math.min(MODEL_CALL_TIMEOUT_MS, budgetMs - elapsed())),
           },
           { purpose: "agent_run", agentId: run.agentId, runId: run.id, actorId: run.ownerId },
@@ -303,7 +305,8 @@ async function loop(runId, deps) {
         costUsd: res.costUsd ?? null,
       });
 
-      const call = !limitHit ? res.toolCalls?.[0] : null;
+      const first = res.toolCalls?.[0];
+      const call = first && (!limitHit || first.name === PLAN_TOOL_NAME) ? first : null;
       if (!call) {
         run.output.summary = clip(safeText(res.text || "").trim(), 20_000) || "(The agent finished without a summary.)";
         run.messages.push({ role: "assistant", content: res.text || "" });
@@ -336,6 +339,7 @@ async function loop(runId, deps) {
 
 /** Returns true when the run must pause for approval. */
 async function handleToolCall(run, call, deps, reasonText, executable = (id) => !!deps.executors[id]) {
+  if (call.name === PLAN_TOOL_NAME) return recordProgress(run, call);
   const toolId = fromFunctionName(call.name);
   const tool = getTool(toolId);
   const reject = async (message) => {
@@ -380,6 +384,29 @@ async function handleToolCall(run, call, deps, reasonText, executable = (id) => 
   }
 
   await executeTool(run, toolId, call.id, call.arguments, deps);
+  return false;
+}
+
+/** update_plan: log step progress for the run page. Never pauses, never counts as an action. */
+async function recordProgress(run, call) {
+  const problems = call.arguments == null ? ["the arguments were not valid JSON"] : validateArgs(planToolDefinition(run.config.steps).parameters, call.arguments);
+  if (problems.length) {
+    pushToolResult(run, call.id, { ok: false, error: `Invalid progress update: ${problems.join("; ")}.` });
+    await logEvent(run, { type: "tool_rejected", level: "warning", message: `${PLAN_TOOL_NAME}: ${problems.join("; ")}` });
+    return false;
+  }
+  const titles = new Map(run.config.steps.map((s, i) => [s.id, `${i + 1}. ${s.title}`]));
+  for (const u of call.arguments.steps) {
+    const note = u.note ? clip(safeText(u.note.trim()), 300) : "";
+    await logEvent(run, {
+      type: "step_progress",
+      level: u.status === "failed" ? "warning" : "info",
+      message: `Step ${titles.get(u.id)} — ${u.status}${note ? `: ${note}` : ""}`,
+      stepId: u.id,
+      stepStatus: u.status,
+    });
+  }
+  pushToolResult(run, call.id, { ok: true, recorded: call.arguments.steps.length });
   return false;
 }
 

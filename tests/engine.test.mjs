@@ -103,8 +103,8 @@ test("happy path: report tool runs, summary saved, usage counted, events logged"
   assert.equal(r.stats.actions, 1);
   assert.equal(r.stats.inputTokens, 200);
   assert.ok(Math.abs(r.stats.costUsd - 0.002) < 1e-9);
-  // only executable agent tools are offered
-  assert.deepEqual(model.calls[0].tools.sort(), ["atlas_project__write", "report__create_report"]);
+  // only executable agent tools are offered, plus the built-in progress tool
+  assert.deepEqual(model.calls[0].tools.sort(), ["atlas_project__write", "report__create_report", "update_plan"]);
   // tool output wrapped as untrusted data
   const toolMsg = model.calls[1].messages.find((m) => m.role === "tool");
   assert.match(toolMsg.content, /^<tool_result untrusted="true">/);
@@ -212,8 +212,37 @@ test("action limit forces a final summary without tools", async () => {
   const r = await runs.loadRun(run.id);
   assert.equal(r.status, "succeeded");
   assert.equal(r.output.limitReached, true);
-  assert.deepEqual(model.calls[2].tools, []);
+  assert.deepEqual(model.calls[2].tools, ["update_plan"]); // only progress updates after the limit
   assert.match(model.calls[2].messages.at(-1).content, /limit of 2 actions/);
+});
+
+test("update_plan records step progress (AI steps too) without counting as an action", async () => {
+  const agent = await makeAgent({
+    steps: [
+      { title: "Write report", tool: "report.create_report" },
+      { title: "Rank the leads", tool: null },
+      { title: "Update a lead", tool: "atlas_project.write" },
+    ],
+  });
+  const run = await engine.startRun(actor, agent.id, { mode: "test" });
+  const model = fakeModel([
+    callTool("report__create_report", reportArgs),
+    callTool("update_plan", { steps: [{ id: "s1", status: "done" }, { id: "s2", status: "done" }] }),
+    callTool("update_plan", { steps: [{ id: "s9", status: "done" }] }), // unknown step: refused
+    callTool("update_plan", { steps: [{ id: "s3", status: "skipped", note: "No lead to update" }] }),
+    { text: "All done." },
+  ]);
+  await engine.executeRun(run.id, deps(model));
+  const r = await runs.loadRun(run.id);
+  assert.equal(r.status, "succeeded");
+  assert.equal(r.stats.actions, 1);
+  const progress = r.events.filter((e) => e.type === "step_progress").map((e) => [e.stepId, e.stepStatus]);
+  assert.deepEqual(progress, [["s1", "done"], ["s2", "done"], ["s3", "skipped"]]);
+  assert.ok(r.events.some((e) => e.type === "tool_rejected" && /update_plan/.test(e.message)));
+  assert.match(model.calls[0].messages[0].content, /\[s2\] Rank the leads/);
+  assert.match(model.calls[0].messages[0].content, /update_plan/);
+  const { stepStatusesFromRun } = await import("../src/lib/runs/stepStatus.js");
+  assert.deepEqual(stepStatusesFromRun(r), { s1: "done", s2: "done", s3: "skipped" });
 });
 
 test("AI failure fails the run with a clear error and secrets are redacted from logs", async () => {

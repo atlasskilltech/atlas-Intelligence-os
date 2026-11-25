@@ -13,7 +13,7 @@ const config = {
   ],
 };
 
-test("step status comes from the latest event for its tool; AI steps have none", () => {
+test("step status comes from the latest event for its tool; unrecorded AI steps have none", () => {
   const run = {
     status: "running",
     config,
@@ -24,7 +24,8 @@ test("step status comes from the latest event for its tool; AI steps have none",
       { type: "model_call" },
     ],
   };
-  assert.deepEqual(stepStatusesFromRun(run), { s1: "done", s3: "simulated" });
+  assert.deepEqual(stepStatusesFromRun({ ...run, status: "succeeded" }), { s1: "done", s3: "simulated" });
+  assert.equal(stepStatusesFromRun(run).s2, "running");
 });
 
 test("an approval request counts only while the run is waiting on it", () => {
@@ -32,8 +33,23 @@ test("an approval request counts only while the run is waiting on it", () => {
   const waiting = { status: "waiting_approval", pendingApproval: { toolId: "atlas_project.write" }, config, events };
   assert.equal(stepStatusesFromRun(waiting).s4, "waiting");
   assert.equal(stepStatusesFromRun({ ...waiting, status: "failed", pendingApproval: null }).s4, undefined);
-  const rejected = { ...waiting, events: [...events, { type: "approval_rejected", toolId: "atlas_project.write" }] };
+  const rejected = { ...waiting, status: "succeeded", pendingApproval: null, events: [...events, { type: "approval_rejected", toolId: "atlas_project.write" }] };
   assert.equal(stepStatusesFromRun(rejected).s4, "rejected");
+});
+
+test("recorded progress covers AI steps and wins over tool events; a live run marks the next step running", () => {
+  const run = {
+    status: "running",
+    config,
+    events: [
+      { type: "tool_call", toolId: "atlas_project.read" },
+      { type: "step_progress", stepId: "s1", stepStatus: "failed" },
+      { type: "step_progress", stepId: "s2", stepStatus: "done" },
+      { type: "step_progress", stepId: "s9", stepStatus: "bogus" },
+    ],
+  };
+  assert.deepEqual(stepStatusesFromRun(run), { s1: "failed", s2: "done", s3: "running" });
+  assert.deepEqual(stepStatusesFromRun({ ...run, status: "succeeded" }), { s1: "failed", s2: "done" });
 });
 
 test("end status follows the run outcome", () => {

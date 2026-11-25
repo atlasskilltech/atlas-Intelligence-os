@@ -14,7 +14,7 @@ export function runSystemPrompt(config, { mode, executable, now = new Date() }) 
   const plan = config.steps
     .map((s, i) => {
       const tool = s.tool ? `tool: ${s.tool}${executable(s.tool) ? "" : " — NOT CONNECTED YET"}` : "AI step, no tool";
-      return `${i + 1}. ${s.title} (${tool})${s.details ? `\n   ${s.details}` : ""}${s.successCriteria ? `\n   Done when: ${s.successCriteria}` : ""}`;
+      return `${i + 1}. [${s.id}] ${s.title} (${tool})${s.details ? `\n   ${s.details}` : ""}${s.successCriteria ? `\n   Done when: ${s.successCriteria}` : ""}`;
     })
     .join("\n");
 
@@ -45,6 +45,7 @@ export function runSystemPrompt(config, { mode, executable, now = new Date() }) 
     "- Call one tool at a time and only the tools listed above. Never invent data you did not receive.",
     "- Some actions need the owner's approval first. If an action is rejected, do not try it again — continue without it.",
     "- If a tool fails, you may retry once with corrected input; then continue and report the failure.",
+    "- Record progress with update_plan: after you finish, skip or fail a step, call it with that step's id (e.g. s2). You may record several steps in one call. AI steps count too. Before your final summary, every step must be recorded.",
     "- When you are done, reply with a short plain-text summary of what you did, what you found and anything that needs attention. Do not call a tool in that final reply.",
   ];
   return lines.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");

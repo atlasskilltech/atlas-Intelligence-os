@@ -234,7 +234,7 @@ export default function RunView({ initial }) {
 
           {run.config?.steps?.length > 0 && (
             <Card>
-              <CardHeader title="Plan" description="The agent's steps. Tool steps show what happened in this run." />
+              <CardHeader title="Plan" description="Each step's status in this run, as the agent recorded it." />
               <CardBody>
                 <StepsFlow
                   readOnly

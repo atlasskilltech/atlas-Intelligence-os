@@ -15,6 +15,44 @@ export function getExecutor(toolId) {
 export const toFunctionName = (toolId) => toolId.replace(".", "__");
 export const fromFunctionName = (name) => String(name || "").replace("__", ".");
 
+/**
+ * Built-in progress tool offered in every run: the agent records which plan
+ * steps it has finished, skipped or failed, so the run page can show status
+ * for every step (AI-only steps included). Not a catalog tool: no side
+ * effects, no approval, does not count as an action.
+ */
+export const PLAN_TOOL_NAME = "update_plan";
+export const STEP_PROGRESS = ["done", "skipped", "failed"];
+
+export function planToolDefinition(steps) {
+  return {
+    name: PLAN_TOOL_NAME,
+    description:
+      "Record progress on your plan. Call it when you finish, skip or fail one or more plan steps. Several steps can go in one call. This is not an action and needs no approval.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["steps"],
+      properties: {
+        steps: {
+          type: "array",
+          maxItems: 30,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "status"],
+            properties: {
+              id: { type: "string", enum: steps.map((s) => s.id), description: "Plan step id, e.g. s1." },
+              status: { type: "string", enum: STEP_PROGRESS },
+              note: { type: "string", maxLength: 300, description: "Optional short note, e.g. why a step was skipped." },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
 /** Is this tool a side effect outside IntelligenceOS (write / send / destructive)? */
 export const hasExternalEffect = (toolId) => RISK_LEVELS[getTool(toolId)?.risk]?.approval === true;
 

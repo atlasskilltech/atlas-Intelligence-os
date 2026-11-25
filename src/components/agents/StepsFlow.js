@@ -20,6 +20,8 @@ const CONNECTOR_ICON = { report: "chart", notify: "monitor", atlas_project: "plu
 const STATUS = {
   done: { label: "Done", tone: "success", ring: "border-emerald-400" },
   approved: { label: "Approved", tone: "success", ring: "border-emerald-400" },
+  skipped: { label: "Skipped", tone: "neutral", ring: "border-slate-300 border-dashed" },
+  running: { label: "Running…", tone: "brand", ring: "border-brand-400 animate-pulse" },
   simulated: { label: "Simulated", tone: "neutral", ring: "border-slate-400" },
   waiting: { label: "Waiting for you", tone: "warning", ring: "border-amber-400 animate-pulse" },
   rejected: { label: "Stopped", tone: "warning", ring: "border-amber-400" },
@@ -232,7 +234,8 @@ export default function StepsFlow({ steps, onChange, readOnly = false, preApprov
           },
         };
 
-  const reached = (i) => (i < 0 ? Object.keys(statuses).length > 0 || !!endStatus : !!statuses[steps[i]?.id]);
+  const passed = (st) => !!st && st !== "running" && st !== "waiting";
+  const reached = (i) => (i < 0 ? Object.keys(statuses).length > 0 || !!endStatus : passed(statuses[steps[i]?.id]));
 
   return (
     <div className="space-y-4">
