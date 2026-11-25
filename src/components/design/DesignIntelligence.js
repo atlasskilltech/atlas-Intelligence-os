@@ -1,446 +1,661 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "@/components/voice/ParticleOrb";
 import "./designintelligence.css";
 
-// Class names from designintelligence.css (prefixed di- so they never clash with the app).
-const s = Object.fromEntries(
-  ["root", "aurora", "blob1", "blob2", "blob3", "blob", "grid", "glass", "spot", "ring", "gradientText", "caret", "reveal", "feedIn", "pulseDot", "draw", "bar", "shimmerBar", "marqueeWrap", "marquee", "float", "navActive", "button"].map((c) => [c, `di-${c.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`]),
-);
-
 /**
- * Design Intelligence — a single preview page for a new IntelligenceOS look:
- * glassmorphism panels, aurora background, cursor spotlights, animated numbers,
- * live activity feed and the Agent A orb. Uses sample data only; nothing here is
- * wired to the real app yet. If approved, the pieces move into the shared UI.
+ * Design Intelligence — preview of a calm, professional dark look for IntelligenceOS
+ * (overview dashboard). Sample data only; nothing here is wired to the real app.
+ * Motion is limited to what explains a change: range switches tween numbers and the
+ * chart, new runs slide into the table, hover reveals detail.
  */
 
+// ---------- sample data ----------
+
+const RANGES = [
+  { id: "24h", label: "24h", points: 24, label0: (i) => `${String(i).padStart(2, "0")}:00` },
+  { id: "7d", label: "7 days", points: 7, label0: (i) => ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"][i] },
+  { id: "30d", label: "30 days", points: 30, label0: (i) => `${((i + 26) % 30) + 1} ${i < 4 ? "Oct" : "Nov"}` },
+];
+
+function seeded(seed) {
+  let x = seed;
+  return () => {
+    x = (x * 16807) % 2147483647;
+    return (x - 1) / 2147483646;
+  };
+}
+
+const SERIES = Object.fromEntries(
+  RANGES.map((r, k) => {
+    const rnd = seeded(7 + k * 31);
+    const base = r.id === "24h" ? 40 : r.id === "7d" ? 1100 : 1050;
+    const ok = [];
+    const failed = [];
+    for (let i = 0; i < r.points; i++) {
+      const wave = r.id === "24h" ? Math.sin(((i - 6) / 24) * Math.PI * 2) * 0.55 + 0.6 : 0.85 + Math.sin(i / 2.2) * 0.12 + i * 0.006;
+      const v = Math.max(4, Math.round(base * wave * (0.9 + rnd() * 0.2)));
+      ok.push(v);
+      failed.push(Math.round(v * (0.004 + rnd() * 0.012)));
+    }
+    return [r.id, { ok, failed }];
+  }),
+);
+
+const KPIS = {
+  "24h": { runs: 1284, success: 99.2, agents: 24, saved: 41, d: [18.2, 0.4, 3, 12.5] },
+  "7d": { runs: 8231, success: 98.9, agents: 24, saved: 268, d: [9.6, 0.2, 3, 8.1] },
+  "30d": { runs: 33910, success: 98.6, agents: 24, saved: 1104, d: [22.4, -0.3, 7, 19.7] },
+};
+
+const AGENTS = ["Admissions Daily Digest", "Lead Follow-up Nudger", "Fee Reminder", "Attendance Watch", "Placement Drive Sync", "Hostel Request Triage"];
+const TRIGGERS = ["Schedule", "Manual", "Webhook", "Agent A"];
+const STATUSES = ["succeeded", "succeeded", "succeeded", "succeeded", "running", "failed", "approval"];
+
+const INITIAL_RUNS = [
+  { id: 9, agent: "Admissions Daily Digest", trigger: "Schedule", status: "running", duration: "—", started: "just now" },
+  { id: 8, agent: "Lead Follow-up Nudger", trigger: "Schedule", status: "succeeded", duration: "42s", started: "4 min ago" },
+  { id: 7, agent: "Fee Reminder", trigger: "Webhook", status: "approval", duration: "18s", started: "11 min ago" },
+  { id: 6, agent: "Placement Drive Sync", trigger: "Manual", status: "succeeded", duration: "1m 06s", started: "23 min ago" },
+  { id: 5, agent: "Attendance Watch", trigger: "Schedule", status: "failed", duration: "9s", started: "38 min ago" },
+  { id: 4, agent: "Hostel Request Triage", trigger: "Agent A", status: "succeeded", duration: "27s", started: "52 min ago" },
+];
+
+const TOP_AGENTS = [
+  { name: "Lead Follow-up Nudger", runs: 412, owner: "Admissions" },
+  { name: "Admissions Daily Digest", runs: 318, owner: "Admissions" },
+  { name: "Fee Reminder", runs: 241, owner: "Accounts" },
+  { name: "Placement Drive Sync", runs: 156, owner: "Career Services" },
+  { name: "Attendance Watch", runs: 97, owner: "Academics" },
+];
+
 const NAV = [
-  { label: "Home", icon: "home", active: true },
-  { label: "Voice · Agent A", icon: "mic" },
-  { label: "My Agents", icon: "bot" },
-  { label: "Execution History", icon: "history" },
-  { label: "Execution Logs", icon: "terminal" },
-  { label: "Connectors", icon: "plug" },
-  { label: "API Usage", icon: "chart" },
+  { section: null, items: [{ label: "Overview", icon: "home", active: true }, { label: "Agents", icon: "bot", count: 24 }, { label: "Runs", icon: "history" }, { label: "Logs", icon: "terminal" }, { label: "Connectors", icon: "plug", count: 9 }] },
+  { section: "Assistant", items: [{ label: "Agent A", icon: "mic", href: "/voice", badge: "Voice" }] },
+  { section: "Admin", items: [{ label: "API usage", icon: "chart" }, { label: "Models", icon: "cpu" }, { label: "Users", icon: "user" }] },
 ];
 
-const PROMPTS = [
-  "Aaj kitni admissions pending hain?",
-  "Every morning, email me yesterday's lead report",
-  "Summarise this week's fee collections by programme",
-  "Remind faculty about attendance every Friday 4 PM",
-];
+const STATUS = {
+  succeeded: { label: "Succeeded", dot: "bg-emerald-400", text: "text-emerald-300" },
+  running: { label: "Running", dot: "bg-sky-400", text: "text-sky-300" },
+  failed: { label: "Failed", dot: "bg-rose-400", text: "text-rose-300" },
+  approval: { label: "Needs approval", dot: "bg-amber-400", text: "text-amber-300" },
+};
 
-const STATS = [
-  { label: "Active agents", value: 24, suffix: "", delta: "+3 this week", icon: "bot", points: [8, 10, 9, 13, 12, 16, 18, 21, 24] },
-  { label: "Runs today", value: 1284, suffix: "", delta: "+18%", icon: "play", points: [30, 42, 38, 55, 61, 58, 72, 80, 96] },
-  { label: "Success rate", value: 99.2, suffix: "%", delta: "+0.4 pts", icon: "check", decimals: 1, points: [96, 97, 96.5, 98, 98.4, 98.1, 98.9, 99, 99.2] },
-  { label: "Hours saved", value: 312, suffix: "h", delta: "this month", icon: "clock", points: [20, 45, 70, 110, 140, 190, 230, 275, 312] },
-];
+// ---------- helpers ----------
 
-const AGENTS = [
-  { name: "Admissions Daily Digest", desc: "Pending applications summary to the admissions team", status: "running", progress: 72, next: "Running now", tools: ["CRM", "Email"] },
-  { name: "Lead Follow-up Nudger", desc: "Finds cold leads and drafts follow-ups for counsellors", status: "active", progress: 100, next: "Next run 6:00 PM", tools: ["CRM", "WhatsApp"] },
-  { name: "Fee Reminder Bot", desc: "Reminds students with dues 3 days before the deadline", status: "active", progress: 100, next: "Tomorrow 9:00 AM", tools: ["ERP", "SMS"] },
-  { name: "Attendance Watch", desc: "Flags students below 75% attendance to mentors", status: "paused", progress: 40, next: "Paused", tools: ["LMS"] },
-];
+const fmt = (n, d = 0) => n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+const anim = (ms) => ({ animationDelay: `${ms}ms` });
+const ease = (p) => 1 - Math.pow(1 - p, 3);
 
-const EVENTS = [
-  { icon: "check", tone: "ok", text: "Admissions Daily Digest sent to 6 people" },
-  { icon: "plug", tone: "info", text: "CRM connector synced 1,920 records" },
-  { icon: "bot", tone: "ok", text: "Lead Follow-up Nudger drafted 14 messages" },
-  { icon: "mic", tone: "info", text: "Agent A answered a question in Hindi" },
-  { icon: "shield", tone: "warn", text: "Fee Reminder Bot is waiting for approval" },
-  { icon: "chart", tone: "info", text: "Usage report for November is ready" },
-  { icon: "check", tone: "ok", text: "Attendance Watch checked 3 programmes" },
-];
-
-const CONNECTORS = ["ATLAS CRM", "Admissions ERP", "Gmail", "Google Sheets", "WhatsApp", "LMS", "Fee Portal", "HRMS", "Slack", "Google Calendar"];
-
-// ---------- hooks ----------
-
-function useCountUp(target, { duration = 1800, decimals = 0, delay = 0 } = {}) {
-  const [v, setV] = useState(0);
+/** Smoothly tweens a number (or array of numbers) to a new target. */
+function useTween(target, duration = 600) {
+  const [value, setValue] = useState(target);
+  const from = useRef(target);
   useEffect(() => {
+    const start = from.current;
+    const t0 = performance.now();
     let raf = 0;
-    const t0 = performance.now() + delay;
     const tick = (now) => {
-      const p = Math.min(1, Math.max(0, (now - t0) / duration));
-      const eased = 1 - Math.pow(1 - p, 4);
-      setV(target * eased);
+      const p = ease(Math.min(1, (now - t0) / duration));
+      const v = Array.isArray(target) ? target.map((t, i) => (start[i] ?? t) + (t - (start[i] ?? t)) * p) : start + (target - start) * p;
+      from.current = v;
+      setValue(v);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration, delay]);
-  return v.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }, [target, duration]);
+  return value;
 }
 
-function useTypewriter(lines) {
-  const [text, setText] = useState("");
+/** Resample to n points so different ranges can morph into each other. */
+function resample(arr, n) {
+  if (arr.length === n) return arr;
+  return Array.from({ length: n }, (_, i) => {
+    const x = (i / (n - 1)) * (arr.length - 1);
+    const a = Math.floor(x);
+    const b = Math.min(arr.length - 1, a + 1);
+    return arr[a] + (arr[b] - arr[a]) * (x - a);
+  });
+}
+
+function smoothPath(pts) {
+  if (!pts.length) return "";
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1];
+    const [x1, y1] = pts[i];
+    const cx = (x0 + x1) / 2;
+    d += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`;
+  }
+  return d;
+}
+
+function useWidth() {
+  const ref = useRef(null);
+  const [w, setW] = useState(0);
   useEffect(() => {
-    let i = 0;
-    let j = 0;
-    let deleting = false;
-    let timer = 0;
-    const step = () => {
-      const line = lines[i];
-      j += deleting ? -1 : 1;
-      setText(line.slice(0, j));
-      let wait = deleting ? 22 : 45;
-      if (!deleting && j === line.length) {
-        deleting = true;
-        wait = 1800;
-      } else if (deleting && j === 0) {
-        deleting = false;
-        i = (i + 1) % lines.length;
-        wait = 350;
-      }
-      timer = setTimeout(step, wait);
-    };
-    timer = setTimeout(step, 900);
-    return () => clearTimeout(timer);
-  }, [lines]);
-  return text;
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
 }
-
-/** Mouse position → CSS vars for the spotlight. */
-function spotlight(e) {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty("--x", `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty("--y", `${e.clientY - r.top}px`);
-}
-
-// Gentle breathing for the orb (no microphone on this page).
-const breathe = () => {
-  const t = performance.now() / 1000;
-  return 0.12 + 0.1 * Math.sin(t * 1.6) * Math.sin(t * 0.7) ** 2;
-};
-
-const delay = (ms) => ({ animationDelay: `${ms}ms` });
 
 // ---------- pieces ----------
 
-function Sparkline({ points, id }) {
-  const w = 120;
-  const h = 36;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - 4 - ((p - min) / (max - min || 1)) * (h - 8)]);
-  const d = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+function Sidebar() {
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-28" aria-hidden="true">
-      <defs>
-        <linearGradient id={`fill-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id={`line-${id}`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#22d3ee" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L${w} ${h} L0 ${h} Z`} fill={`url(#fill-${id})`} />
-      <path d={d} fill="none" stroke={`url(#line-${id})`} strokeWidth="2" strokeLinecap="round" className={s.draw} />
+    <aside className="di-glass sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-y-0 border-l-0 lg:flex">
+      <div className="flex h-14 items-center gap-2.5 border-b border-white/[0.06] px-4">
+        <span className="grid size-7 place-items-center rounded-md bg-emerald-500 text-[13px] font-bold text-[#062b1f]">A</span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="truncate text-[13px] font-semibold">ATLAS SkillTech</p>
+          <p className="text-[11px] text-[var(--faint)]">IntelligenceOS</p>
+        </div>
+        <svg viewBox="0 0 24 24" className="size-4 text-[var(--faint)]" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="m8 9 4-4 4 4M8 15l4 4 4-4" />
+        </svg>
+      </div>
+
+      <div className="px-3 pt-3">
+        <button type="button" className="di-hover flex w-full items-center gap-2 rounded-lg border border-white/[0.07] px-2.5 py-1.5 text-[13px] text-[var(--muted)]">
+          <SearchIcon />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="rounded border border-white/10 px-1 font-mono text-[10px] text-[var(--faint)]">⌘K</kbd>
+        </button>
+      </div>
+
+      <nav className="di-scroll flex-1 overflow-y-auto px-3 py-3">
+        {NAV.map((g) => (
+          <div key={g.section || "main"} className={g.section ? "mt-5" : ""}>
+            {g.section && <p className="px-2.5 pb-1 text-[11px] font-medium text-[var(--faint)]">{g.section}</p>}
+            <ul className="space-y-px">
+              {g.items.map((n) => {
+                const cls = cn(
+                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
+                  n.active ? "bg-white/[0.07] font-medium text-white" : "text-[var(--muted)] hover:bg-white/[0.04] hover:text-white",
+                );
+                const body = (
+                  <>
+                    <Icon name={n.icon} className={cn("size-4", n.active ? "text-emerald-400" : "")} />
+                    <span className="flex-1">{n.label}</span>
+                    {n.count != null && <span className="text-[11px] tabular-nums text-[var(--faint)]">{n.count}</span>}
+                    {n.badge && <span className="rounded bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-300">{n.badge}</span>}
+                  </>
+                );
+                return (
+                  <li key={n.label}>
+                    {n.href ? (
+                      <Link href={n.href} className={cls}>
+                        {body}
+                      </Link>
+                    ) : (
+                      <a href="#" onClick={(e) => e.preventDefault()} className={cls}>
+                        {body}
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+
+      <div className="border-t border-white/[0.06] p-3">
+        <div className="rounded-lg border border-white/[0.06] p-3">
+          <div className="flex items-center justify-between text-[12px]">
+            <span className="text-[var(--muted)]">AI budget · Nov</span>
+            <span className="tabular-nums">62%</span>
+          </div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+            <div className="di-grow h-full w-[62%] rounded-full bg-emerald-500" style={anim(400)} />
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--faint)]">$186 of $300 used</p>
+        </div>
+        <div className="mt-3 flex items-center gap-2.5 px-1">
+          <span className="grid size-7 place-items-center rounded-full bg-slate-700 text-[11px] font-semibold">AE</span>
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-[12px] font-medium">ATLAS Employee</p>
+            <p className="text-[11px] text-[var(--faint)]">Admin</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
     </svg>
   );
 }
 
-function StatCard({ stat, index }) {
-  const value = useCountUp(stat.value, { decimals: stat.decimals || 0, delay: 300 + index * 120 });
+function RangeTabs({ value, onChange }) {
+  const idx = RANGES.findIndex((r) => r.id === value);
   return (
-    <div onMouseMove={spotlight} className={cn(s.glass, s.spot, s.reveal, "rounded-2xl p-5")} style={delay(250 + index * 90)}>
-      <div className="flex items-center justify-between">
-        <span className="grid size-9 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/20">
-          <Icon name={stat.icon} className="size-[18px]" />
-        </span>
-        <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">{stat.delta}</span>
-      </div>
-      <div className="mt-4 flex items-end justify-between gap-2">
-        <div>
-          <p className="text-3xl font-semibold tracking-tight text-white tabular-nums">
-            {value}
-            <span className="text-lg text-white/60">{stat.suffix}</span>
-          </p>
-          <p className="mt-1 text-xs text-white/50">{stat.label}</p>
-        </div>
-        <Sparkline points={stat.points} id={index} />
-      </div>
-    </div>
-  );
-}
-
-const STATUS_STYLE = {
-  running: { dot: "text-cyan-300", label: "Running", chip: "bg-cyan-400/10 text-cyan-200 ring-cyan-400/25" },
-  active: { dot: "text-emerald-400", label: "Active", chip: "bg-emerald-400/10 text-emerald-200 ring-emerald-400/25" },
-  paused: { dot: "text-amber-300", label: "Paused", chip: "bg-amber-400/10 text-amber-200 ring-amber-400/25" },
-};
-
-function AgentCard({ agent, index }) {
-  const st = STATUS_STYLE[agent.status];
-  return (
-    <div onMouseMove={spotlight} className={cn(s.glass, s.spot, s.reveal, "group rounded-2xl p-5")} style={delay(500 + index * 100)}>
-      <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/25 to-cyan-400/10 text-emerald-200 ring-1 ring-white/10 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110">
-          <Icon name="bot" className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
-            <span className={cn("ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1", st.chip)}>
-              <span className={cn("size-1.5 rounded-full bg-current", st.dot, agent.status !== "paused" && s.pulseDot)} />
-              {st.label}
-            </span>
-          </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/50">{agent.desc}</p>
-        </div>
-      </div>
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/5">
-        <div
-          className={cn(s.bar, "relative h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400")}
-          style={{ width: `${agent.progress}%`, ...delay(700 + index * 120) }}
+    <div role="tablist" aria-label="Time range" className="relative grid grid-cols-3 rounded-lg border border-white/[0.07] bg-white/[0.02] p-0.5 text-[12px]">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-md bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-300 ease-[cubic-bezier(.2,.7,.2,1)]"
+        style={{ transform: `translateX(${idx * 100}%)` }}
+      />
+      {RANGES.map((r) => (
+        <button
+          key={r.id}
+          type="button"
+          role="tab"
+          aria-selected={r.id === value}
+          onClick={() => onChange(r.id)}
+          className={cn("relative px-3 py-1 font-medium transition-colors", r.id === value ? "text-white" : "text-[var(--muted)] hover:text-white")}
         >
-          {agent.status === "running" && <span className={cn(s.shimmerBar, "absolute inset-0")} />}
-        </div>
-      </div>
-      <div className="mt-3 flex items-center gap-2 text-[11px] text-white/45">
-        <Icon name="clock" className="size-3.5" />
-        <span>{agent.next}</span>
-        <span className="ml-auto flex gap-1">
-          {agent.tools.map((t) => (
-            <span key={t} className="rounded-md bg-white/5 px-1.5 py-0.5 text-white/60 ring-1 ring-white/10">
-              {t}
-            </span>
-          ))}
-        </span>
-      </div>
+          {r.label}
+        </button>
+      ))}
     </div>
   );
 }
 
-const TONE = {
-  ok: "bg-emerald-400/15 text-emerald-300",
-  info: "bg-cyan-400/15 text-cyan-300",
-  warn: "bg-amber-400/15 text-amber-300",
-};
+function Spark({ data, up }) {
+  const w = 72;
+  const h = 24;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - 2 - ((v - min) / (max - min || 1)) * (h - 4)]);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-6 w-[72px]" aria-hidden="true">
+      <path d={smoothPath(pts)} fill="none" stroke={up ? "#34d399" : "#fb7185"} strokeWidth="1.5" strokeLinecap="round" opacity="0.9" />
+    </svg>
+  );
+}
 
-function LiveFeed() {
-  const [items, setItems] = useState(() => EVENTS.slice(0, 4).map((e, i) => ({ ...e, id: i, ago: `${(i + 1) * 3} min ago` })));
-  const next = useRef(4);
+function Kpi({ label, value, decimals = 0, suffix = "", delta, deltaSuffix = "%", spark, hint, i }) {
+  const v = useTween(value);
+  const dv = useTween(delta);
+  const up = delta >= 0;
+  return (
+    <div className="di-in flex flex-col justify-between gap-3 bg-[#0c121e] p-4 sm:p-5" style={anim(80 + i * 50)}>
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] text-[var(--muted)]">{label}</p>
+        <Spark data={spark} up={up} />
+      </div>
+      <div className="flex items-baseline gap-2">
+        <p className="text-[26px] font-semibold leading-none tracking-tight tabular-nums">
+          {fmt(v, decimals)}
+          {suffix && <span className="ml-0.5 text-[15px] font-medium text-[var(--muted)]">{suffix}</span>}
+        </p>
+        <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums", up ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300")}>
+          {up ? "+" : "−"}
+          {fmt(Math.abs(dv), deltaSuffix === "" ? 0 : 1)}
+          {deltaSuffix}
+        </span>
+      </div>
+      <p className="text-[11px] text-[var(--faint)]">{hint}</p>
+    </div>
+  );
+}
+
+const N = 30; // chart points after resampling (lets ranges morph)
+
+function RunsChart({ range }) {
+  const r = RANGES.find((x) => x.id === range);
+  const raw = SERIES[range];
+  const target = useMemo(() => [...resample(raw.ok, N), ...resample(raw.failed, N)], [raw]);
+  const vals = useTween(target, 700);
+  const ok = vals.slice(0, N);
+  const failed = vals.slice(N);
+  const [boxRef, width] = useWidth();
+  const [hover, setHover] = useState(null);
+
+  const H = 220;
+  const padL = 44;
+  const padR = 12;
+  const padT = 12;
+  const padB = 26;
+  const W = Math.max(width, 300);
+  const max = Math.max(...raw.ok) * 1.15;
+  const nice = Math.pow(10, Math.floor(Math.log10(max)));
+  const top = Math.ceil(max / nice) * nice;
+  const x = (i) => padL + (i / (N - 1)) * (W - padL - padR);
+  const y = (v) => padT + (1 - v / top) * (H - padT - padB);
+  const okPts = ok.map((v, i) => [x(i), y(v)]);
+  const failPts = failed.map((v, i) => [x(i), y(v * 8)]); // failures are tiny; shown on a ×8 scale (labelled)
+  const line = smoothPath(okPts);
+  const area = `${line} L${x(N - 1)},${H - padB} L${x(0)},${H - padB} Z`;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * top);
+
+  // Hover maps to the real (un-resampled) point of this range.
+  const real = hover == null ? null : Math.round((hover / (N - 1)) * (r.points - 1));
+  const hx = real == null ? 0 : x((real / (r.points - 1)) * (N - 1));
+
+  const onMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const i = Math.round(((px - padL) / (W - padL - padR)) * (N - 1));
+    setHover(Math.max(0, Math.min(N - 1, i)));
+  };
+
+  const labelEvery = Math.ceil(r.points / 7);
+
+  return (
+    <div ref={boxRef} className="relative w-full select-none">
+      <svg width={W} height={H} className="block" onMouseMove={onMove} onMouseLeave={() => setHover(null)} role="img" aria-label="Runs over time">
+        <defs>
+          <linearGradient id="di-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,0.06)" strokeDasharray={t ? "3 4" : undefined} />
+            <text x={padL - 10} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#5d6778" className="tabular-nums">
+              {t >= 1000 ? `${fmt(t / 1000, t % 1000 ? 1 : 0)}k` : fmt(t)}
+            </text>
+          </g>
+        ))}
+        {Array.from({ length: r.points }, (_, i) =>
+          i % labelEvery === 0 || i === r.points - 1 ? (
+            <text key={i} x={x((i / (r.points - 1)) * (N - 1))} y={H - 6} textAnchor="middle" fontSize="11" fill="#5d6778">
+              {r.label0(i)}
+            </text>
+          ) : null,
+        )}
+        <path d={area} fill="url(#di-area)" />
+        <path d={line} fill="none" stroke="#10b981" strokeWidth="2" pathLength="1" className="di-draw" />
+        <path d={smoothPath(failPts)} fill="none" stroke="#fb7185" strokeWidth="1.25" strokeDasharray="3 3" opacity="0.7" />
+        {real != null && (
+          <g>
+            <line x1={hx} x2={hx} y1={padT} y2={H - padB} stroke="rgba(255,255,255,0.18)" />
+            <circle cx={hx} cy={y(raw.ok[real])} r="4" fill="#0a0f1a" stroke="#10b981" strokeWidth="2" />
+          </g>
+        )}
+      </svg>
+      {real != null && (
+        <div
+          className="di-glass pointer-events-none absolute top-2 z-10 rounded-lg px-3 py-2 text-[12px] shadow-xl"
+          style={{ left: Math.min(Math.max(hx + 12, 0), W - 160) }}
+        >
+          <p className="text-[var(--muted)]">{r.label0(real)}</p>
+          <p className="mt-1 flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-400" /> Succeeded <span className="ml-auto pl-4 font-medium tabular-nums">{fmt(raw.ok[real])}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-rose-400" /> Failed <span className="ml-auto pl-4 font-medium tabular-nums">{fmt(raw.failed[real])}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const s = STATUS[status];
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 text-[12px]", s.text)}>
+      <span className={cn("size-1.5 rounded-full", s.dot, status === "running" && "di-live text-sky-400")} />
+      {s.label}
+    </span>
+  );
+}
+
+function RunsTable() {
+  const [runs, setRuns] = useState(INITIAL_RUNS);
+  const nextId = useRef(10);
   useEffect(() => {
+    const rnd = seeded(99);
     const t = setInterval(() => {
-      const e = EVENTS[next.current % EVENTS.length];
-      const id = next.current++;
-      setItems((list) => [{ ...e, id, ago: "just now", fresh: true }, ...list.map((x) => ({ ...x, fresh: false }))].slice(0, 5));
-    }, 3200);
+      const id = nextId.current++;
+      setRuns((list) => {
+        const settled = list.map((r) =>
+          r.status === "running" ? { ...r, status: "succeeded", duration: `${20 + Math.round(rnd() * 50)}s`, fresh: false } : { ...r, fresh: false },
+        );
+        const run = {
+          id,
+          agent: AGENTS[Math.floor(rnd() * AGENTS.length)],
+          trigger: TRIGGERS[Math.floor(rnd() * TRIGGERS.length)],
+          status: STATUSES[Math.floor(rnd() * STATUSES.length)],
+          duration: "—",
+          started: "just now",
+          fresh: true,
+        };
+        if (run.status !== "running") run.duration = `${8 + Math.round(rnd() * 60)}s`;
+        return [run, ...settled.map((r) => (r.started === "just now" ? { ...r, started: "1 min ago" } : r))].slice(0, 7);
+      });
+    }, 5000);
     return () => clearInterval(t);
   }, []);
+
   return (
-    <ul className="space-y-2">
-      {items.map((e) => (
-        <li key={e.id} className={cn("flex items-center gap-3 overflow-hidden rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/5", e.fresh && s.feedIn)}>
-          <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", TONE[e.tone])}>
-            <Icon name={e.icon} className="size-4" />
-          </span>
-          <p className="min-w-0 flex-1 truncate text-[13px] text-white/80">{e.text}</p>
-          <span className="shrink-0 text-[11px] text-white/35">{e.ago}</span>
+    <div className="di-scroll overflow-x-auto">
+      <table className="w-full min-w-[620px] text-left text-[13px]">
+        <thead>
+          <tr className="border-b border-white/[0.06] text-[11px] font-medium text-[var(--faint)]">
+            <th className="px-5 py-2.5 font-medium">Agent</th>
+            <th className="px-3 py-2.5 font-medium">Trigger</th>
+            <th className="px-3 py-2.5 font-medium">Status</th>
+            <th className="px-3 py-2.5 text-right font-medium">Duration</th>
+            <th className="px-5 py-2.5 text-right font-medium">Started</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.map((r) => (
+            <tr key={r.id} className={cn("border-b border-white/[0.04] transition-colors last:border-0 hover:bg-white/[0.025]", r.fresh && "di-row-in")}>
+              <td className="px-5 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-6 place-items-center rounded-md bg-white/[0.05] text-[var(--muted)]">
+                    <Icon name="bot" className="size-3.5" />
+                  </span>
+                  <span className="font-medium">{r.agent}</span>
+                </div>
+              </td>
+              <td className="px-3 py-2.5 text-[var(--muted)]">{r.trigger}</td>
+              <td className="px-3 py-2.5">
+                <StatusBadge status={r.status} />
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-[var(--muted)]">
+                {r.status === "running" ? (
+                  <span className="ml-auto inline-block h-1 w-12 overflow-hidden rounded-full bg-sky-400/20 align-middle">
+                    <span className="di-run block h-full w-full" />
+                  </span>
+                ) : (
+                  r.duration
+                )}
+              </td>
+              <td className="px-5 py-2.5 text-right text-[var(--muted)]">{r.started}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const breathe = () => {
+  const t = performance.now() / 1000;
+  return 0.06 + 0.05 * Math.sin(t * 1.4) ** 2;
+};
+
+function AgentAPanel() {
+  return (
+    <div className="di-panel di-in flex flex-col overflow-hidden" style={anim(260)}>
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3.5">
+        <div>
+          <p className="text-[13px] font-semibold">Agent A</p>
+          <p className="text-[11px] text-[var(--faint)]">Voice & chat assistant</p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+          <span className="di-live size-1.5 rounded-full bg-emerald-400 text-emerald-400" />
+          Online
+        </span>
+      </div>
+      <div className="flex items-center gap-4 px-5 pt-4">
+        <div className="relative size-20 shrink-0 opacity-80">
+          <ParticleOrb state="idle" getLevel={breathe} className="pointer-events-none absolute inset-[-20%] size-[140%]" />
+        </div>
+        <p className="text-[12px] leading-relaxed text-[var(--muted)]">
+          Ask in Hindi, English or Hinglish. Answers use your connected systems — read-only.
+        </p>
+      </div>
+      <div className="px-5 pt-4">
+        <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-black/20 py-1.5 pl-3 pr-1.5 transition-colors focus-within:border-emerald-500/50">
+          <input placeholder="Ask Agent A…" className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-[var(--faint)] outline-none" />
+          <Link href="/voice" aria-label="Talk to Agent A" className="grid size-7 place-items-center rounded-md text-[var(--muted)] transition-colors hover:bg-white/[0.06] hover:text-white">
+            <Icon name="mic" className="size-4" />
+          </Link>
+        </div>
+      </div>
+      <ul className="mt-3 flex-1 px-2 pb-3">
+        {["Aaj kitni admissions pending hain?", "Fee defaulters this week, by programme", "Which agents failed today and why?"].map((q) => (
+          <li key={q}>
+            <button type="button" className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12.5px] text-[var(--muted)] transition-colors hover:bg-white/[0.04] hover:text-white">
+              <Icon name="sparkles" className="size-3.5 shrink-0 text-[var(--faint)] group-hover:text-emerald-400" />
+              <span className="flex-1 truncate">{q}</span>
+              <span className="translate-x-[-4px] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100">→</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TopAgents() {
+  const max = TOP_AGENTS[0].runs;
+  return (
+    <ul className="space-y-3.5 px-5 py-4">
+      {TOP_AGENTS.map((a, i) => (
+        <li key={a.name}>
+          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+            <span className="truncate font-medium">{a.name}</span>
+            <span className="shrink-0 tabular-nums text-[var(--muted)]">{fmt(a.runs)}</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-3">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+              <div className="di-grow h-full rounded-full bg-emerald-500/80" style={{ width: `${(a.runs / max) * 100}%`, ...anim(400 + i * 70) }} />
+            </div>
+            <span className="w-24 shrink-0 truncate text-right text-[11px] text-[var(--faint)]">{a.owner}</span>
+          </div>
         </li>
       ))}
     </ul>
   );
 }
 
+function PanelHeader({ title, sub, right }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-3.5">
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold">{title}</p>
+        {sub && <p className="text-[11px] text-[var(--faint)]">{sub}</p>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
 // ---------- page ----------
 
 export default function DesignIntelligence() {
-  const typed = useTypewriter(PROMPTS);
-  const [greeting, setGreeting] = useState("Hello");
-  useEffect(() => {
-    const h = new Date().getHours();
-    queueMicrotask(() => setGreeting(h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"));
-  }, []);
+  const [range, setRange] = useState("7d");
+  const k = KPIS[range];
+  const s = SERIES[range];
+  const rangeLabel = RANGES.find((r) => r.id === range).label;
 
   return (
-    <div className={cn(s.root, "relative min-h-screen overflow-x-hidden")}>
-      <div className={s.aurora} aria-hidden="true">
-        <div className={cn(s.blob, s.blob1)} />
-        <div className={cn(s.blob, s.blob2)} />
-        <div className={cn(s.blob, s.blob3)} />
-      </div>
-      <div className={s.grid} aria-hidden="true" />
+    <div className="di-root flex min-h-screen">
+      <Sidebar />
 
-      <div className="flex min-h-screen gap-4 p-3 sm:p-4">
-        {/* Sidebar */}
-        <aside className={cn(s.glass, s.reveal, "sticky top-4 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-3xl p-4 lg:flex")} style={delay(0)}>
-          <div className="flex items-center gap-2.5 px-1">
-            <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-[15px] font-black text-[#052e1f] shadow-[0_0_24px_rgba(16,185,129,0.6)]">
-              A
-            </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold text-white">ATLAS</p>
-              <p className="text-[11px] text-white/45">IntelligenceOS</p>
-            </div>
-          </div>
-
-          <button type="button" className={cn(s.button, "mt-5 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-[#052e1f]")}>
-            <Icon name="plus" className="size-4" /> New agent
-          </button>
-
-          <nav className="mt-5 space-y-1">
-            {NAV.map((n) => (
-              <a
-                key={n.label}
-                href="#"
-                onClick={(e) => e.preventDefault()}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] transition-colors duration-300",
-                  n.active ? cn(s.navActive, "font-semibold text-white") : "text-white/55 hover:bg-white/5 hover:text-white",
-                )}
-              >
-                <Icon name={n.icon} className="size-[18px]" />
-                {n.label}
-              </a>
-            ))}
+      <div className="min-w-0 flex-1">
+        <header className="di-glass sticky top-0 z-20 flex h-14 items-center gap-3 border-x-0 border-t-0 px-4 sm:px-6">
+          <span className="grid size-7 place-items-center rounded-md bg-emerald-500 text-[13px] font-bold text-[#062b1f] lg:hidden">A</span>
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+            <span className="hidden text-[var(--muted)] sm:inline">ATLAS SkillTech</span>
+            <span className="hidden text-[var(--faint)] sm:inline">/</span>
+            <span className="font-medium">Overview</span>
           </nav>
-
-          <div className="mt-auto rounded-2xl bg-gradient-to-br from-emerald-400/15 to-cyan-400/5 p-4 ring-1 ring-white/10">
-            <p className="text-xs font-semibold text-white">Talk to Agent A</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-white/50">Hindi, English, Hinglish — just speak.</p>
-            <Link href="/voice" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-white/15">
-              <Icon name="mic" className="size-3.5" /> Open voice
-            </Link>
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" className="di-hover hidden rounded-lg border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)] hover:text-white sm:block">
+              Export
+            </button>
+            <button type="button" className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[12px] font-semibold text-[#062b1f] transition-colors hover:bg-emerald-400">
+              <Icon name="plus" className="size-3.5" />
+              New agent
+            </button>
           </div>
-          <div className="mt-3 flex items-center gap-2.5 rounded-2xl px-1 pt-2">
-            <span className="grid size-8 place-items-center rounded-full bg-white/10 text-xs font-semibold">AE</span>
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-xs font-medium text-white">ATLAS Employee</p>
-              <p className="text-[11px] text-white/40">Admin</p>
-            </div>
-          </div>
-        </aside>
+        </header>
 
-        {/* Main */}
-        <main className="min-w-0 flex-1 space-y-4">
-          {/* Top bar */}
-          <header className={cn(s.glass, s.reveal, "flex items-center gap-3 rounded-2xl px-4 py-3")} style={delay(80)}>
-            <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-sm font-black text-[#052e1f] lg:hidden">A</span>
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-[13px] text-white/40 ring-1 ring-white/10 transition focus-within:ring-emerald-400/50 sm:max-w-md">
-              <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20 20-3.5-3.5" />
-              </svg>
-              <input placeholder="Search agents, runs, connectors…" className="min-w-0 flex-1 bg-transparent text-white placeholder:text-white/40 outline-none" />
-              <kbd className="hidden rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-white/50 sm:block">⌘K</kbd>
-            </div>
-            <span className="ml-auto hidden items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-200 ring-1 ring-emerald-400/20 sm:inline-flex">
-              <span className={cn("size-1.5 rounded-full bg-emerald-400 text-emerald-400", s.pulseDot)} />
-              OpenAI connected
-            </span>
-          </header>
-
-          {/* Hero */}
-          <section className={cn(s.glass, s.ring, s.reveal, "overflow-hidden rounded-3xl")} style={delay(160)}>
-            <div className="grid items-center gap-2 p-5 sm:p-8 md:grid-cols-[1.2fr_1fr]">
-              <div className="min-w-0">
-                <p className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-[11px] font-medium text-white/60 ring-1 ring-white/10">
-                  <Icon name="sparkles" className="size-3.5 text-emerald-300" />
-                  Design Intelligence · preview
-                </p>
-                <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-white sm:text-5xl">
-                  {greeting}. <br />
-                  <span className={s.gradientText}>What should Agent A do today?</span>
-                </h1>
-                <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/55">
-                  Describe a task in plain words — Agent A plans it, connects the right systems and runs it for you, on schedule.
-                </p>
-
-                <div className="mt-6 flex items-center gap-2 rounded-2xl bg-black/20 p-2 pl-4 ring-1 ring-white/10 backdrop-blur transition focus-within:ring-emerald-400/50">
-                  <p className="min-w-0 flex-1 truncate text-[15px] text-white/85">
-                    {typed}
-                    <span className={s.caret} />
-                  </p>
-                  <Link href="/voice" aria-label="Talk to Agent A" className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white">
-                    <Icon name="mic" className="size-[18px]" />
-                  </Link>
-                  <button type="button" aria-label="Send" className={cn(s.button, "grid size-10 shrink-0 place-items-center rounded-xl text-[#052e1f]")}>
-                    <Icon name="arrowUp" className="size-5" />
-                  </button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {["Daily lead report", "Pending admissions", "Fee reminders", "Weekly summary"].map((c, i) => (
-                    <span
-                      key={c}
-                      className={cn(s.reveal, "cursor-default rounded-full bg-white/5 px-3 py-1 text-xs text-white/60 ring-1 ring-white/10 transition hover:bg-emerald-400/10 hover:text-emerald-200 hover:ring-emerald-400/30")}
-                      style={delay(700 + i * 80)}
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className={cn(s.float, "relative mx-auto aspect-square w-full max-w-[260px] md:max-w-[360px]")}>
-                <ParticleOrb state="listening" getLevel={breathe} className="pointer-events-none absolute inset-[-14%] size-[128%]" />
-                <span className="absolute bottom-[6%] left-1/2 -translate-x-1/2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-medium text-emerald-200 ring-1 ring-white/10 backdrop-blur">
-                  Agent A · listening
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* Stats */}
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {STATS.map((st, i) => (
-              <StatCard key={st.label} stat={st} index={i} />
-            ))}
-          </section>
-
-          {/* Agents + feed */}
-          <section className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+        <main className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 sm:px-6 lg:py-8">
+          <div className="di-in flex flex-wrap items-end justify-between gap-4" style={anim(0)}>
             <div>
-              <div className={cn(s.reveal, "mb-3 flex items-center justify-between px-1")} style={delay(450)}>
-                <h2 className="text-sm font-semibold text-white">Your agents</h2>
-                <span className="text-xs text-white/40">4 of 24</span>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                {AGENTS.map((a, i) => (
-                  <AgentCard key={a.name} agent={a} index={i} />
-                ))}
+              <h1 className="text-[22px] font-semibold tracking-tight">Overview</h1>
+              <p className="mt-1 text-[13px] text-[var(--muted)]">How your agents performed across ATLAS systems.</p>
+            </div>
+            <RangeTabs value={range} onChange={setRange} />
+          </div>
+
+          {/* KPIs */}
+          <section className="grid gap-px overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.07] sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi i={0} label="Agent runs" value={k.runs} delta={k.d[0]} spark={s.ok} hint={`vs previous ${rangeLabel}`} />
+            <Kpi i={1} label="Success rate" value={k.success} decimals={1} suffix="%" delta={k.d[1]} deltaSuffix=" pts" spark={s.ok.map((v, i) => v - s.failed[i] * 20)} hint="Runs finished without error" />
+            <Kpi i={2} label="Active agents" value={k.agents} delta={k.d[2]} deltaSuffix="" spark={[18, 19, 19, 20, 21, 21, 22, 24]} hint="Across 9 connected systems" />
+            <Kpi i={3} label="Hours saved" value={k.saved} suffix="h" delta={k.d[3]} spark={s.ok} hint="Estimated from manual task time" />
+          </section>
+
+          {/* Chart + Agent A */}
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="di-panel di-in min-w-0" style={anim(200)}>
+              <PanelHeader
+                title="Runs"
+                sub={`Succeeded and failed runs · ${rangeLabel}`}
+                right={
+                  <div className="hidden items-center gap-4 text-[11px] text-[var(--muted)] sm:flex">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-0.5 w-3 rounded bg-emerald-500" /> Succeeded
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-0 w-3 border-t border-dashed border-rose-400" /> Failed (×8)
+                    </span>
+                  </div>
+                }
+              />
+              <div className="px-2 pb-2 pt-3 sm:px-3">
+                <RunsChart range={range} />
               </div>
             </div>
-            <div className={cn(s.glass, s.reveal, "rounded-2xl p-5")} style={delay(600)}>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Live activity</h2>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
-                  <span className={cn("size-1.5 rounded-full bg-emerald-400 text-emerald-400", s.pulseDot)} />
-                  Live
-                </span>
-              </div>
-              <LiveFeed />
+            <AgentAPanel />
+          </section>
+
+          {/* Runs table + top agents */}
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="di-panel di-in min-w-0 overflow-hidden" style={anim(320)}>
+              <PanelHeader
+                title="Recent runs"
+                sub="Updates live"
+                right={
+                  <a href="#" onClick={(e) => e.preventDefault()} className="text-[12px] font-medium text-[var(--muted)] transition-colors hover:text-white">
+                    View all →
+                  </a>
+                }
+              />
+              <RunsTable />
+            </div>
+            <div className="di-panel di-in" style={anim(380)}>
+              <PanelHeader title="Most active agents" sub={`By runs · ${rangeLabel}`} />
+              <TopAgents />
             </div>
           </section>
 
-          {/* Connectors marquee */}
-          <section className={cn(s.glass, s.reveal, "rounded-2xl py-4")} style={delay(750)}>
-            <p className="mb-3 px-5 text-xs font-medium uppercase tracking-wider text-white/40">Connected systems</p>
-            <div className={cn(s.marqueeWrap, "overflow-hidden")}>
-              <div className={s.marquee}>
-                {[...CONNECTORS, ...CONNECTORS].map((c, i) => (
-                  <span key={i} className="inline-flex items-center gap-2 rounded-xl bg-white/[0.04] px-4 py-2 text-[13px] text-white/70 ring-1 ring-white/10">
-                    <Icon name="plug" className="size-4 text-emerald-300" />
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <p className="pb-4 text-center text-[11px] text-white/30">Design preview with sample data · ATLAS IntelligenceOS</p>
+          <p className="pb-2 pt-2 text-center text-[11px] text-[var(--faint)]">Design preview · sample data</p>
         </main>
       </div>
     </div>
