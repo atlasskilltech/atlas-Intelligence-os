@@ -10,7 +10,11 @@ const STYLE =
   "Speak as a warm, friendly and confident university assistant. Natural pace, clear pronunciation. " +
   "Pronounce Hindi and other Indian languages with a natural Indian accent.";
 
-/** POST { text, voice? } → audio/mpeg */
+/**
+ * POST { text, voice? } → audio/mpeg
+ * Spoken by the provider chosen in Model Settings → Voice (OpenAI or ElevenLabs).
+ * Headers: X-Voice-Provider (who actually spoke), X-Voice-Fallback: 1 when ElevenLabs failed.
+ */
 export async function POST(request) {
   try {
     const body = await readJsonBody(request, 40_000);
@@ -23,7 +27,13 @@ export async function POST(request) {
       { purpose: "voice", actorId: actor.id ?? null },
     );
     return new Response(res.audio, {
-      headers: { "Content-Type": "audio/mpeg", "Content-Length": String(res.audio.length), "Cache-Control": "no-store" },
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Length": String(res.audio.length),
+        "Cache-Control": "no-store",
+        "X-Voice-Provider": res.provider,
+        ...(res.fallback ? { "X-Voice-Fallback": "1" } : {}),
+      },
     });
   } catch (err) {
     return fail(err);

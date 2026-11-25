@@ -10,6 +10,11 @@ export function getOpenAIKey() {
   return clean(process.env.OPENAI_API_KEY);
 }
 
+/** ElevenLabs API key (optional; only used for the voice assistant's speech). */
+export function getElevenLabsKey() {
+  return clean(process.env.ELEVENLABS_API_KEY);
+}
+
 export function getAIEnv() {
   return {
     openaiConfigured: Boolean(getOpenAIKey()),
@@ -21,6 +26,10 @@ export function getAIEnv() {
     sttModel: clean(process.env.OPENAI_STT_MODEL) || "gpt-4o-mini-transcribe",
     ttsModel: clean(process.env.OPENAI_TTS_MODEL) || "gpt-4o-mini-tts",
     ttsVoice: clean(process.env.OPENAI_TTS_VOICE) || "nova",
+    // Optional ElevenLabs text-to-speech (switch in Model Settings → Voice).
+    elevenlabsConfigured: Boolean(getElevenLabsKey()),
+    elevenlabsVoiceId: clean(process.env.ELEVENLABS_VOICE_ID) || "21m00Tcm4TlvDq8gL7JA",
+    elevenlabsModel: clean(process.env.ELEVENLABS_MODEL) || "eleven_multilingual_v2",
   };
 }
 
@@ -140,6 +149,7 @@ export function registerSecret(value) {
 export function getSecretValues() {
   return [
     getOpenAIKey(),
+    getElevenLabsKey(),
     getEncryptionKey(),
     getDbConfig()?.password,
     getGoogleAuth()?.clientSecret,

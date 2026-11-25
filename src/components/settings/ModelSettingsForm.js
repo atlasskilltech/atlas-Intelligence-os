@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
+import ElevenLabsCredits from "./ElevenLabsCredits";
 
 async function api(path, options) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -110,6 +111,30 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
               </div>
             </CardBody>
 
+            <CardHeader
+              title="Voice assistant"
+              description="Who speaks the replies on the Voice page. Listening (speech-to-text) always uses OpenAI."
+              className="border-t"
+            />
+            <CardBody className="space-y-3">
+              <Field
+                label="Voice (text-to-speech)"
+                htmlFor="voiceProvider"
+                error={errors.voiceProvider}
+                hint="If ElevenLabs fails or its credits run out, that reply is spoken with OpenAI automatically."
+              >
+                <Select id="voiceProvider" value={form.voiceProvider || "openai"} onChange={set("voiceProvider")} invalid={!!errors.voiceProvider}>
+                  <option value="openai">OpenAI — low cost, pay per use</option>
+                  <option value="elevenlabs">ElevenLabs — more natural voice, uses credits</option>
+                </Select>
+              </Field>
+              {form.voiceProvider === "elevenlabs" && !status.elevenlabsConfigured && (
+                <Alert tone="warning" title="ElevenLabs key missing">
+                  Add <code className="font-mono">ELEVENLABS_API_KEY</code> on the server. Until then replies are spoken with OpenAI.
+                </Alert>
+              )}
+            </CardBody>
+
             <CardHeader title="Safety limits" description="Applied to every AI request." className="border-t" />
             <CardBody className="grid gap-5 sm:grid-cols-3">
               <Field label="Max output tokens" htmlFor="maxOutputTokens" error={errors.maxOutputTokens} hint={`${limits.maxOutputTokens.min}–${limits.maxOutputTokens.max}`}>
@@ -170,6 +195,7 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
       </div>
 
       <div className="space-y-6">
+        <ElevenLabsCredits configured={status.elevenlabsConfigured} active={form.voiceProvider === "elevenlabs"} />
         <Card>
           <CardHeader title="Connection" />
           <CardBody className="space-y-4">

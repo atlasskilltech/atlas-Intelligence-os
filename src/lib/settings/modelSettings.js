@@ -11,6 +11,9 @@ const MODEL_RE = /^[A-Za-z0-9._:\/-]{1,100}$/;
 
 export const FALLBACK_MODELS = { defaultModel: "gpt-5.4-mini", plannerModel: "gpt-5.5" };
 
+/** Who speaks the voice assistant's replies. OpenAI is always the fallback. */
+export const VOICE_PROVIDERS = ["openai", "elevenlabs"];
+
 export const LIMITS = {
   maxOutputTokens: { min: 256, max: 32_000 },
   requestTimeoutSec: { min: 10, max: 300 },
@@ -27,6 +30,7 @@ function defaults() {
     requestTimeoutSec: 60,
     maxRetries: 3,
     pricingOverrides: {},
+    voiceProvider: "openai",
   };
 }
 
@@ -51,6 +55,10 @@ export function validateModelSettings(patch) {
     const n = Number(patch[key]);
     if (!Number.isInteger(n) || n < min || n > max) errors[key] = `Must be a whole number from ${min} to ${max}.`;
     else value[key] = n;
+  }
+  if (patch.voiceProvider !== undefined) {
+    if (!VOICE_PROVIDERS.includes(patch.voiceProvider)) errors.voiceProvider = "Choose OpenAI or ElevenLabs.";
+    else value.voiceProvider = patch.voiceProvider;
   }
   if (patch.pricingOverrides !== undefined) {
     const p = patch.pricingOverrides;
