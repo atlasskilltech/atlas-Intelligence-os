@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnectors";
 import AgentRowActions from "@/components/agents/AgentRowActions";
+import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import { StatusBadge } from "@/components/agents/AgentStatus";
 import Button from "@/components/ui/Button";
 import { fmtDateTime } from "@/components/ui/format";
@@ -25,13 +26,6 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-/** Does the agent use this connector? Unlocked agents use every connected project. */
-function usesConnector(a, id, projects) {
-  if (!usesProjects(a.tools)) return false;
-  if (a.connectors.length) return a.connectors.includes(id);
-  return projects.some((p) => p.id === id && p.usable);
-}
-
 function listHref(status, connector) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
@@ -48,13 +42,10 @@ export default async function AgentsPage({ searchParams }) {
   const [records, projects] = await Promise.all([listAgents(await getPageActor()), projectStatusList()]);
   const everything = records.map(summarize);
 
-  // Connector filter options: every project, plus ids agents still point to after a project was removed.
-  const names = new Map(projects.map((p) => [p.id, p.name]));
-  for (const a of everything) for (const id of a.connectors) if (!names.has(id)) names.set(id, `${id} (removed)`);
-  const connectorOptions = [...names].map(([id, name]) => ({ id, name }));
-  const connector = typeof rawConnector === "string" && names.has(rawConnector) ? rawConnector : null;
+  const { options, names, pick } = connectorOptions(projects, everything);
+  const connector = pick(rawConnector);
 
-  const all = connector ? everything.filter((a) => usesConnector(a, connector, projects)) : everything;
+  const all = connector ? everything.filter((a) => matchesConnector({ ...a, usesProjects: usesProjects(a.tools) }, connector, projects)) : everything;
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
@@ -106,27 +97,7 @@ export default async function AgentsPage({ searchParams }) {
             ))}
           </nav>
 
-          {connectorOptions.length > 0 && (
-            <nav aria-label="Filter by connector" className="mb-4 flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="mr-1 inline-flex items-center gap-1 font-medium text-slate-500">
-                <Icon name="plug" className="size-3.5" />
-                Connector:
-              </span>
-              {[{ id: null, name: "Any" }, ...connectorOptions].map((c) => (
-                <Link
-                  key={c.id || "any"}
-                  href={listHref(status, c.id)}
-                  aria-current={connector === c.id ? "page" : undefined}
-                  className={cn(
-                    "max-w-[220px] truncate rounded-full px-2.5 py-1 ring-1 ring-inset",
-                    connector === c.id ? "bg-brand-50 font-medium text-brand-700 ring-brand-500/40" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
-                  )}
-                >
-                  {c.name}
-                </Link>
-              ))}
-            </nav>
-          )}
+          <ConnectorFilter className="mb-4" options={options} current={connector} hrefFor={(id) => listHref(status, id)} />
 
           {agents.length === 0 ? (
             <EmptyState
