@@ -275,7 +275,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-ink">Recent runs</h2>
           {runs.length > 0 && (
-            <Link href="/runs" className="text-sm font-medium text-brand-600 hover:underline">
+            <Link href={`/runs?agent=${encodeURIComponent(rec.id)}`} className="text-sm font-medium text-brand-600 hover:underline">
               All runs
             </Link>
           )}

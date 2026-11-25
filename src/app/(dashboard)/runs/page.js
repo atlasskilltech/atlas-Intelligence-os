@@ -2,11 +2,13 @@ import Link from "next/link";
 import { connection } from "next/server";
 import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import RunTable from "@/components/runs/RunTable";
+import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import Button from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
+import { listAgents } from "@/lib/agents/agentRepo";
 import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
 
@@ -22,9 +24,10 @@ const FILTERS = [
 
 const SHOW_MAX = 200;
 
-function listHref({ status, connector, called }) {
+function listHref({ status, agent, connector, called }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
+  if (agent) q.set("agent", agent);
   if (connector) q.set("connector", connector);
   if (called) q.set("called", called);
   const qs = q.toString();
@@ -33,15 +36,23 @@ function listHref({ status, connector, called }) {
 
 export default async function RunsPage({ searchParams }) {
   await connection();
-  const { status: raw, connector: rawConnector, called: rawCalled } = await searchParams;
+  const { status: raw, agent: rawAgent, connector: rawConnector, called: rawCalled } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
   // Filter before trimming to SHOW_MAX, so older matching runs still show up.
   const actor = await getPageActor();
-  const [everything, found, projects] = await Promise.all([
+  const [everything, found, projects, agents] = await Promise.all([
     listRuns(actor, { limit: 1000 }), // filter options stay the same whatever the status filter
     status === "all" ? null : listRuns(actor, { status, limit: 1000 }),
     projectStatusList(),
+    listAgents(actor),
   ]);
+
+  // Agent options: every agent with runs (current name; deleted agents keep their last run's name).
+  const agentNames = new Map(agents.map((a) => [a.id, a.config.name]));
+  const agentOptions = [...new Map(everything.map((r) => [r.agentId, agentNames.get(r.agentId) || `${r.agentName} (deleted)`]))]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const agent = typeof rawAgent === "string" && agentOptions.some((o) => o.id === rawAgent) ? rawAgent : null;
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
 
@@ -51,17 +62,19 @@ export default async function RunsPage({ searchParams }) {
   const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
   const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
 
-  const filters = { status, connector, called };
+  const filters = { status, agent, connector, called };
   const hrefWith = (patch) => listHref({ ...filters, ...patch });
   const pool = found ?? everything;
   const runs = pool
+    .filter((r) => !agent || r.agentId === agent)
     .filter((r) => !connector || matchesConnector(r, connector, projects))
     .filter((r) => !called || (r.projectCalls || []).some((c) => c.project === called))
     .slice(0, SHOW_MAX);
 
+  const agentName = agent && agentOptions.find((o) => o.id === agent).name;
   const emptyTitle =
-    connector || called
-      ? `No ${status === "all" ? "" : "matching "}runs${connector ? ` with ${names.get(connector)}` : ""}${called ? ` that called ${calledName(called)}` : ""}`
+    agent || connector || called
+      ? `No ${status === "all" ? "" : "matching "}runs${agent ? ` of ${agentName}` : ""}${connector ? ` with ${names.get(connector)}` : ""}${called ? ` that called ${calledName(called)}` : ""}`
       : status === "all"
         ? "No runs yet"
         : "No runs match this filter";
@@ -85,6 +98,15 @@ export default async function RunsPage({ searchParams }) {
         ))}
       </nav>
       <div className="mb-4 space-y-2">
+        {agentOptions.length > 1 && (
+          <LinkSelect
+            id="filter-agent"
+            label="Agent"
+            icon="bot"
+            value={agent || ""}
+            options={[{ id: "", name: "All agents" }, ...agentOptions].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ agent: o.id || null }) }))}
+          />
+        )}
         <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
         <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
       </div>
@@ -93,7 +115,7 @@ export default async function RunsPage({ searchParams }) {
           icon="history"
           title={emptyTitle}
           description={connector || called ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
-          action={status === "all" && !connector && !called && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
+          action={status === "all" && !agent && !connector && !called && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
         />
       ) : (
         <RunTable runs={runs} projects={projects} />
