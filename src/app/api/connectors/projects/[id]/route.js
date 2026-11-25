@@ -1,4 +1,5 @@
 import { clearUserManifestCache } from "@/lib/connectors/projects/projectConnector";
+import { pushSnapshot } from "@/lib/connectors/projects/agentPush";
 import { dropMirror, registerEvents } from "@/lib/connectors/projects/projectEvents";
 import { deleteProject, getProject, publicProject, updateProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
@@ -24,7 +25,8 @@ export async function PUT(request, { params }) {
     const p = await updateProject((await getActor()), id, body);
     // A new key: register the event callback with it.
     if (body.key && p.manifest?.events) await registerEvents(id).catch(() => null);
-    return ok({ project: publicProject(body.key && p.manifest?.events ? await getProject(id) : p) });
+    if (body.key && p.manifest?.intosAgents) await pushSnapshot(id).catch(() => null);
+    return ok({ project: publicProject(body.key && (p.manifest?.events || p.manifest?.intosAgents) ? await getProject(id) : p) });
   } catch (err) {
     return fail(err);
   }

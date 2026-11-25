@@ -20,6 +20,7 @@ import {
 import { redact } from "../security/redact.js";
 import { validateArgs } from "../tools/argsValidator.js";
 import { EXECUTORS } from "../connectors/index.js";
+import { pushAgentById } from "../connectors/projects/agentPush.js";
 import { PLAN_TOOL_NAME, fromFunctionName, hasExternalEffect, planToolDefinition, resolveTools, toolDefinitions } from "../tools/registry.js";
 import { runStartMessage, runSystemPrompt } from "./prompt.js";
 
@@ -214,6 +215,8 @@ async function loop(runId, deps) {
     run.error = error;
     await logEvent(run, { type: `run_${status}`, level, message: event || error || "Run finished", durationMs: run.activeMs });
     await save();
+    // §2c: projects that list this agent see its last run. Best effort, never throws.
+    if (run.mode === "live") await pushAgentById(run.agentId);
     if (run.mode === "live" || status !== "succeeded") {
       await safeNotify(deps, run, {
         level: status === "succeeded" ? "success" : "error",

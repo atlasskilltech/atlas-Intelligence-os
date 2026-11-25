@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { createAgent, listAgents, summarize } from "@/lib/agents/agentRepo";
+import { pushAgentChange } from "@/lib/connectors/projects/agentPush";
 import { getActor } from "@/lib/context";
 import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 
@@ -19,6 +21,7 @@ export async function POST(request) {
     const body = await readJsonBody(request, 100_000);
     if (!body.agent || typeof body.agent !== "object") throw new BadRequest("Missing agent.");
     const rec = await createAgent((await getActor()), body.agent, { activate: body.activate === true });
+    after(() => pushAgentChange(rec)); // §2c: projects this agent uses list it
     return ok({ agent: rec }, 201);
   } catch (err) {
     return fail(err);

@@ -258,7 +258,7 @@ export async function updateProject(actor, id, { name, enabled, key, delegated }
 /** Bookkeeping fields only (events registration). Never the key or the manifest. */
 export async function patchProject(id, patch) {
   const allowed = {};
-  for (const k of ["events", "eventsBox"]) if (k in patch) allowed[k] = patch[k];
+  for (const k of ["events", "eventsBox", "agentPush"]) if (k in patch) allowed[k] = patch[k];
   return mutate(id, (cur) => ({ ...cur, ...allowed }));
 }
 

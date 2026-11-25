@@ -1,3 +1,4 @@
+import { pushSnapshot } from "@/lib/connectors/projects/agentPush";
 import { registerEvents } from "@/lib/connectors/projects/projectEvents";
 import { connectProject, getProject, listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
@@ -21,7 +22,9 @@ export async function POST(request) {
     const rec = await connectProject((await getActor()), { name: body.name, baseUrl: body.baseUrl, key: body.key, delegated: body.delegated === true });
     // Two-way projects: register our event callback (best effort; outcome on the project).
     if (rec.manifest?.events) await registerEvents(rec.id).catch(() => null);
-    return ok({ project: publicProject(rec.manifest?.events ? await getProject(rec.id) : rec) }, 201);
+    // Projects that list our agents (§2c) get them now.
+    if (rec.manifest?.intosAgents) await pushSnapshot(rec.id).catch(() => null);
+    return ok({ project: publicProject(rec.manifest?.events || rec.manifest?.intosAgents ? await getProject(rec.id) : rec) }, 201);
   } catch (err) {
     return fail(err);
   }
