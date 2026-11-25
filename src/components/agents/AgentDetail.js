@@ -274,10 +274,15 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
       <section className="mt-8">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-ink">Recent runs</h2>
-          {runs.length > 0 && (
-            <Link href={`/runs?agent=${encodeURIComponent(rec.id)}`} className="text-sm font-medium text-brand-600 hover:underline">
-              All runs
-            </Link>
+          {(runs.length > 0 || runFilters.connector || runFilters.called) && (
+            <div className="flex items-center gap-4">
+              <Link href={`/logs?agent=${encodeURIComponent(rec.id)}`} className="text-sm font-medium text-brand-600 hover:underline">
+                Logs
+              </Link>
+              <Link href={`/runs?agent=${encodeURIComponent(rec.id)}`} className="text-sm font-medium text-brand-600 hover:underline">
+                All runs
+              </Link>
+            </div>
           )}
         </div>
         {(runFilters.connectorChoices?.length > 0 || runFilters.calledChoices?.length > 0) && (
