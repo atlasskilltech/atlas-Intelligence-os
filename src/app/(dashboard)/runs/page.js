@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import RunTable from "@/components/runs/RunTable";
+import { agentFilterOptions } from "@/components/runs/agentFilter";
 import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
@@ -47,12 +48,8 @@ export default async function RunsPage({ searchParams }) {
     listAgents(actor),
   ]);
 
-  // Agent options: every agent with runs (current name; deleted agents keep their last run's name).
-  const agentNames = new Map(agents.map((a) => [a.id, a.config.name]));
-  const agentOptions = [...new Map(everything.map((r) => [r.agentId, agentNames.get(r.agentId) || `${r.agentName} (deleted)`]))]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const agent = typeof rawAgent === "string" && agentOptions.some((o) => o.id === rawAgent) ? rawAgent : null;
+  const { options: agentOptions, pick: pickAgent, nameOf: agentNameOf } = agentFilterOptions(agents, everything);
+  const agent = pickAgent(rawAgent);
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
 
@@ -71,7 +68,7 @@ export default async function RunsPage({ searchParams }) {
     .filter((r) => !called || (r.projectCalls || []).some((c) => c.project === called))
     .slice(0, SHOW_MAX);
 
-  const agentName = agent && agentOptions.find((o) => o.id === agent).name;
+  const agentName = agent && agentNameOf(agent);
   const emptyTitle =
     agent || connector || called
       ? `No ${status === "all" ? "" : "matching "}runs${agent ? ` of ${agentName}` : ""}${connector ? ` with ${names.get(connector)}` : ""}${called ? ` that called ${calledName(called)}` : ""}`

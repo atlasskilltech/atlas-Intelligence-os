@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { agentFilterOptions } from "@/components/runs/agentFilter";
+import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import { fmtDateTime } from "@/components/ui/format";
 import { getPageActor } from "@/lib/context";
-import { listEvents } from "@/lib/runs/runRepo";
+import { listAgents } from "@/lib/agents/agentRepo";
+import { listEvents, listRuns } from "@/lib/runs/runRepo";
 
 export const metadata = { title: "Execution Logs" };
 
@@ -16,11 +19,24 @@ const LEVELS = [
 ];
 const DOT = { info: "bg-slate-300", warning: "bg-amber-500", error: "bg-red-500" };
 
+function logsHref({ level, agent }) {
+  const q = new URLSearchParams();
+  if (level !== "all") q.set("level", level);
+  if (agent) q.set("agent", agent);
+  const qs = q.toString();
+  return qs ? `/logs?${qs}` : "/logs";
+}
+
 export default async function LogsPage({ searchParams }) {
   await connection();
-  const { level: raw } = await searchParams;
+  const { level: raw, agent: rawAgent } = await searchParams;
   const level = LEVELS.some((l) => l.id === raw) ? raw : "all";
-  const events = await listEvents((await getPageActor()), { limit: 300, level: level === "all" ? undefined : level });
+  const actor = await getPageActor();
+  const [agents, runs] = await Promise.all([listAgents(actor), listRuns(actor, { limit: 1000 })]);
+  const { options: agentOptions, pick, nameOf } = agentFilterOptions(agents, runs);
+  const agent = pick(rawAgent);
+  const events = await listEvents(actor, { limit: 300, level: level === "all" ? undefined : level, agentId: agent || undefined });
+  const hrefWith = (patch) => logsHref({ level, agent, ...patch });
 
   return (
     <>
@@ -32,7 +48,7 @@ export default async function LogsPage({ searchParams }) {
         {LEVELS.map((l) => (
           <Link
             key={l.id}
-            href={l.id === "all" ? "/logs" : `/logs?level=${l.id}`}
+            href={hrefWith({ level: l.id })}
             aria-current={level === l.id ? "page" : undefined}
             className={cn(
               "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
@@ -42,12 +58,26 @@ export default async function LogsPage({ searchParams }) {
             {l.label}
           </Link>
         ))}
-        <Link href={level === "all" ? "/logs" : `/logs?level=${level}`} className="ml-auto text-sm font-medium text-brand-600 hover:underline">
+        <Link href={hrefWith({})} className="ml-auto text-sm font-medium text-brand-600 hover:underline">
           Refresh
         </Link>
       </nav>
+      {agentOptions.length > 1 && (
+        <LinkSelect
+          id="logs-agent"
+          className="mb-4"
+          label="Agent"
+          icon="bot"
+          value={agent || ""}
+          options={[{ id: "", name: "All agents" }, ...agentOptions].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ agent: o.id || null }) }))}
+        />
+      )}
       {events.length === 0 ? (
-        <EmptyState icon="terminal" title="No log entries" description="Logs appear here as soon as an agent runs." />
+        <EmptyState
+          icon="terminal"
+          title={agent ? `No log entries for ${nameOf(agent)}` : "No log entries"}
+          description={agent || level !== "all" ? "Try another filter." : "Logs appear here as soon as an agent runs."}
+        />
       ) : (
         <ol className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
           {events.map((e, i) => (

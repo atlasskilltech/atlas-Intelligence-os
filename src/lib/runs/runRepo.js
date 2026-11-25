@@ -174,7 +174,7 @@ export async function runStats(actor) {
 }
 
 /** Most recent events across runs, newest first. */
-export async function listEvents(actor, { limit = 300, level, runId } = {}) {
+export async function listEvents(actor, { limit = 300, level, runId, agentId } = {}) {
   const all = await readJsonLines(EVENTS);
   const out = [];
   for (let i = all.length - 1; i >= 0 && out.length < limit; i--) {
@@ -182,6 +182,7 @@ export async function listEvents(actor, { limit = 300, level, runId } = {}) {
     if (actor.role !== "admin" && e.ownerId !== actor.id) continue;
     if (level && e.level !== level) continue;
     if (runId && e.runId !== runId) continue;
+    if (agentId && e.agentId !== agentId) continue;
     out.push(e);
   }
   return out;
