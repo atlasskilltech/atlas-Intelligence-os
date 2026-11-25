@@ -13,6 +13,9 @@ import { Alert, Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import { getTool } from "@/lib/catalog/toolCatalog";
 import { RiskBadge } from "@/components/agents/ToolBadges";
+import StepsFlow from "@/components/agents/StepsFlow";
+import { describeTrigger } from "@/lib/agents/schedule";
+import { endStatusFromRun, stepStatusesFromRun } from "@/lib/runs/stepStatus";
 import ReportView from "./ReportView";
 import { ModeBadge, RUN_STATUS, RunStatusBadge } from "./RunStatus";
 
@@ -207,7 +210,7 @@ export default function RunView({ initial }) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           {run.status === "waiting_approval" && run.pendingApproval && <ApprovalCard run={run} onDecided={setRun} />}
 
           {run.output.links?.length > 0 && <NextSteps links={run.output.links} />}
@@ -225,6 +228,22 @@ export default function RunView({ initial }) {
                     <ReportView report={report} />
                   </div>
                 )}
+              </CardBody>
+            </Card>
+          )}
+
+          {run.config?.steps?.length > 0 && (
+            <Card>
+              <CardHeader title="Plan" description="The agent's steps. Tool steps show what happened in this run." />
+              <CardBody>
+                <StepsFlow
+                  readOnly
+                  steps={run.config.steps}
+                  triggerLabel={describeTrigger(run.config.trigger)}
+                  preApproved={run.config.permissions?.preApproved ?? []}
+                  statuses={stepStatusesFromRun(run)}
+                  endStatus={endStatusFromRun(run)}
+                />
               </CardBody>
             </Card>
           )}

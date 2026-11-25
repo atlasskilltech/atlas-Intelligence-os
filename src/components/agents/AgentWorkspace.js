@@ -12,6 +12,7 @@ import { LIMITS, canPreApprove, draftErrors, normalizeAgentConfig } from "@/lib/
 import { describeTrigger } from "@/lib/agents/schedule";
 import { RISK_LEVELS, getTool, isToolAvailable } from "@/lib/catalog/toolCatalog";
 import StepsEditor, { newStepKey } from "./StepsEditor";
+import StepsFlow from "./StepsFlow";
 import { ApprovalBadge, AvailabilityBadge, RiskBadge } from "./ToolBadges";
 import TriggerEditor from "./TriggerEditor";
 
@@ -199,6 +200,27 @@ function PermissionsEditor({ draft, derived, set }) {
   );
 }
 
+function ViewToggle({ value, onChange }) {
+  return (
+    <div role="group" aria-label="Plan view" className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
+      {[
+        ["flow", "Flow"],
+        ["list", "List"],
+      ].map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={value === id}
+          onClick={() => onChange(id)}
+          className={cn("rounded-md px-3 py-1", value === id ? "bg-surface text-ink shadow-xs" : "text-slate-500 hover:text-ink")}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function limitErrors(limits) {
   if (!limits) return null;
   const ms = Number(limits.maxSteps);
@@ -231,6 +253,7 @@ export default function AgentWorkspace({
 }) {
   const [refining, setRefining] = useState(false);
   const [refineText, setRefineText] = useState("");
+  const [planView, setPlanView] = useState("flow");
   const refineRef = useRef(null);
 
   const derived = useMemo(() => normalizeAgentConfig(draft).config, [draft]);
@@ -263,7 +286,7 @@ export default function AgentWorkspace({
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <Card>
             <CardBody className="space-y-4">
               <Field label="Agent name" htmlFor="name" error={errors.name}>
@@ -282,10 +305,23 @@ export default function AgentWorkspace({
           </Card>
 
           <Card>
-            <CardHeader title="Execution plan" description="The steps the agent follows, in order." />
+            <CardHeader
+              title="Execution plan"
+              description="The steps the agent follows, in order."
+              action={<ViewToggle value={planView} onChange={setPlanView} />}
+            />
             <CardBody>
               {errors.steps && <p className="mb-3 text-sm text-red-600">{errors.steps}</p>}
-              <StepsEditor steps={draft.steps} onChange={(steps) => set({ steps })} preApproved={derived.permissions.preApproved} />
+              {planView === "flow" ? (
+                <StepsFlow
+                  steps={draft.steps}
+                  onChange={(steps) => set({ steps })}
+                  preApproved={derived.permissions.preApproved}
+                  triggerLabel={describeTrigger(derived.trigger)}
+                />
+              ) : (
+                <StepsEditor steps={draft.steps} onChange={(steps) => set({ steps })} preApproved={derived.permissions.preApproved} />
+              )}
             </CardBody>
           </Card>
 
