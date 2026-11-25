@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import AgentDetail from "@/components/agents/AgentDetail";
+import { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import { AgentNotFound, getAgent } from "@/lib/agents/agentRepo";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
@@ -26,11 +27,13 @@ export default async function AgentPage({ params, searchParams }) {
   const { saved } = await searchParams;
   const rec = await load(id);
   if (!rec) notFound();
-  const [runs, projects] = await Promise.all([
-    listRuns((await getPageActor()), { agentId: id, limit: 10 }),
+  const [recentRuns, projects] = await Promise.all([
+    listRuns(await getPageActor(), { agentId: id, limit: 1000 }),
     projectStatusList(),
   ]);
+  const runs = recentRuns.slice(0, 10);
+  const projectCalls = sumProjectCalls(recentRuns);
   const s = rec.config.trigger?.type === "schedule" ? rec.config.trigger.schedule : null;
   const schedule = s ? await scheduleInfo(id, s) : null;
-  return <AgentDetail initial={rec} runs={runs} schedule={schedule} projects={projects} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
+  return <AgentDetail initial={rec} runs={runs} schedule={schedule} projects={projects} projectCalls={projectCalls} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
 }

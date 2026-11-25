@@ -4,7 +4,7 @@ import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnecto
 import AgentRowActions from "@/components/agents/AgentRowActions";
 import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import { StatusBadge } from "@/components/agents/AgentStatus";
-import ProjectCalls from "@/components/runs/ProjectCalls";
+import ProjectCalls, { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import Button from "@/components/ui/Button";
 import { fmtDateTime } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
@@ -50,18 +50,13 @@ export default async function AgentsPage({ searchParams }) {
   const connector = pick(rawConnector);
 
   // Projects each agent's runs actually called (from the run history), with call totals.
-  const calledBy = new Map(); // agentId → Map(project id → { project, ok, failed, simulated })
+  const runsByAgent = new Map();
   for (const r of recentRuns) {
-    for (const c of r.projectCalls || []) {
-      if (!calledBy.has(r.agentId)) calledBy.set(r.agentId, new Map());
-      const byProject = calledBy.get(r.agentId);
-      const t = byProject.get(c.project) || { project: c.project, ok: 0, failed: 0, simulated: 0 };
-      t.ok += c.ok || 0;
-      t.failed += c.failed || 0;
-      t.simulated += c.simulated || 0;
-      byProject.set(c.project, t);
-    }
+    if (!r.projectCalls?.length) continue;
+    if (!runsByAgent.has(r.agentId)) runsByAgent.set(r.agentId, []);
+    runsByAgent.get(r.agentId).push(r);
   }
+  const calledBy = new Map([...runsByAgent].map(([id, list]) => [id, new Map(sumProjectCalls(list).map((c) => [c.project, c]))]));
   const callsOf = (agentId) => [...(calledBy.get(agentId)?.values() || [])];
   const agentIds = new Set(everything.map((a) => a.id));
   const calledIds = [...new Set([...calledBy].filter(([id]) => agentIds.has(id)).flatMap(([, m]) => [...m.keys()]))];

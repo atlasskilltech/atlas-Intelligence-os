@@ -1,6 +1,24 @@
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
+/**
+ * Adds up project calls across runs: [{ project, ok, failed, simulated }] per project.
+ * `runs` are run summaries (each with `projectCalls`).
+ */
+export function sumProjectCalls(runs = []) {
+  const byProject = new Map();
+  for (const r of runs) {
+    for (const c of r.projectCalls || []) {
+      const t = byProject.get(c.project) || { project: c.project, ok: 0, failed: 0, simulated: 0 };
+      t.ok += c.ok || 0;
+      t.failed += c.failed || 0;
+      t.simulated += c.simulated || 0;
+      byProject.set(c.project, t);
+    }
+  }
+  return [...byProject.values()];
+}
+
 const total = (c) => (c.ok || 0) + (c.failed || 0) + (c.simulated || 0);
 
 function parts(c) {
@@ -16,7 +34,7 @@ function parts(c) {
  * `calls` = [{ project, ok, failed, simulated, actions? }]; `projects` = [{ id, name }] for names.
  * Compact: one chip per project (history list). Otherwise: one row per project with its actions (run page).
  */
-export default function ProjectCalls({ calls = [], projects = [], compact = false, className }) {
+export default function ProjectCalls({ calls = [], projects = [], compact = false, showLabel = true, className }) {
   if (!calls.length) return null;
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const nameOf = (id) => names.get(id) || id;
@@ -24,7 +42,7 @@ export default function ProjectCalls({ calls = [], projects = [], compact = fals
   if (compact) {
     return (
       <div className={cn("flex flex-wrap items-center gap-1.5 text-xs", className)}>
-        <span className="text-slate-400">Called</span>
+        {showLabel && <span className="text-slate-400">Called</span>}
         {calls.map((c) => (
           <span
             key={c.project}

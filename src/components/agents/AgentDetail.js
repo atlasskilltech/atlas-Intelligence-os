@@ -10,6 +10,7 @@ import Icon from "@/components/ui/Icon";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Textarea } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
+import ProjectCalls from "@/components/runs/ProjectCalls";
 import RunTable from "@/components/runs/RunTable";
 import AgentWorkspace, { agentApi, downloadAgentJson, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
 import AgentConnectors, { usesProjects } from "./AgentConnectors";
@@ -24,7 +25,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [] }) {
+export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [], projectCalls = [] }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -176,6 +177,12 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-slate-500">Connectors:</span>
               <AgentConnectors ids={rec.config.connectors?.projects || []} projects={projects} />
+            </div>
+          )}
+          {projectCalls.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2" title="Projects this agent's runs actually called">
+              <span className="text-xs font-medium text-slate-500">Called:</span>
+              <ProjectCalls compact showLabel={false} calls={projectCalls} projects={projects} />
             </div>
           )}
         </div>
