@@ -22,6 +22,7 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
       listModels: fail,
       transcribe: fail,
       speak: fail,
+      createRealtimeSecret: fail,
     };
   }
 
@@ -103,6 +104,19 @@ export function createOpenAIProvider({ apiKey, baseURL, fetch } = {}) {
         if (instructions && !/^tts-1/.test(model)) body.instructions = instructions;
         const res = await client.audio.speech.create(body, { timeout: timeoutMs ?? 60_000 });
         return { audio: Buffer.from(await res.arrayBuffer()), model, usage: { inputTokens: 0, outputTokens: 0 } };
+      } catch (err) {
+        throw toAIError(err);
+      }
+    },
+
+    /** Short-lived client secret (ek_…) the browser uses to open a Realtime (WebRTC) session. */
+    async createRealtimeSecret({ session, ttlSec = 120, timeoutMs }) {
+      try {
+        const res = await client.realtime.clientSecrets.create(
+          { expires_after: { anchor: "created_at", seconds: ttlSec }, session },
+          { timeout: timeoutMs ?? 20_000 },
+        );
+        return { value: res.value, expiresAt: res.expires_at, model: res.session?.model || session.model };
       } catch (err) {
         throw toAIError(err);
       }

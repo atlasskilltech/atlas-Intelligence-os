@@ -5,7 +5,7 @@ import { BadRequest, fail, readJsonBody } from "@/lib/http/respond";
 export const maxDuration = 60;
 
 const TEXT_MAX = 4000;
-const VOICES = new Set(["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"]);
+const VOICES = new Set(["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"]);
 const STYLE =
   "Speak as a warm, friendly and confident university assistant. Natural pace, clear pronunciation. " +
   "Pronounce Hindi and other Indian languages with a natural Indian accent.";

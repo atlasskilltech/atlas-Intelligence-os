@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { answerQuestion, cleanHistory, cleanProjectIds } from "../src/lib/assistant/assistant.js";
+import { answerQuestion, buildAssistantSetup, cleanHistory, cleanProjectIds, runAssistantTool } from "../src/lib/assistant/assistant.js";
 
 const PARAMS = { type: "object", properties: { project: { type: "string" }, action: { type: "string" }, params: { type: "object" } } };
 
@@ -120,4 +120,25 @@ test("without voice the prompt has no voice rules", async () => {
   await answerQuestion({ message: "hello" }, deps);
   assert.doesNotMatch(calls.model[0].opts.messages[0].content, /VOICE MODE/);
   assert.equal(calls.model[0].meta.purpose, "chat");
+});
+
+test("realtime voice setup: live-talk rules, Agent A name, read + build_agent tools", async () => {
+  const { deps } = fakeDeps([]);
+  const { system, tools, allowed } = await buildAssistantSetup({ projectIds: ["crm"], voice: { realtime: true } }, deps);
+  assert.match(system, /Agent A/);
+  assert.match(system, /talking live/);
+  assert.deepEqual(tools.map((t) => t.name), ["atlas_project__read", "build_agent"]);
+  assert.ok(allowed.has("crm"));
+});
+
+test("realtime tool calls run read-only lookups and refuse other tools or projects", async () => {
+  const { deps, calls } = fakeDeps([]);
+  const out = await runAssistantTool({ name: "atlas_project__read", arguments: { project: "crm", action: "pending_requests" } }, { allowed: new Set(["crm"]) }, deps);
+  assert.match(out, /"count":7/);
+  assert.match(out, /untrusted="true"/);
+  const other = await runAssistantTool({ name: "atlas_project__read", arguments: { project: "hr", action: "x" } }, { allowed: new Set(["crm"]) }, deps);
+  assert.match(other, /not one of the connectors/);
+  const write = await runAssistantTool({ name: "send_email", arguments: {} }, {}, deps);
+  assert.match(write, /Only read-only lookups/);
+  assert.equal(calls.read.length, 1);
 });

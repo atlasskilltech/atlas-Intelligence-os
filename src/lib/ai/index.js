@@ -136,6 +136,53 @@ export function synthesizeSpeech({ text, voice, instructions }, meta = {}) {
   return callAudio("speak", { text, voice: voice || env.ttsVoice, instructions }, env.ttsModel, meta);
 }
 
+const REALTIME_MODELS = ["gpt-realtime-2.1", "gpt-realtime-2", "gpt-realtime-1.5", "gpt-realtime"];
+
+/**
+ * Creates a Realtime session for the browser. Tries OPENAI_REALTIME_MODEL, or the
+ * newest known models in order, so an account without the newest one still works.
+ * Returns { value, expiresAt, model, callsUrl }.
+ */
+export async function createRealtimeSession(session) {
+  const env = getAIEnv();
+  if (env.openaiBaseURL) {
+    throw new AIError("bad_request", "Realtime voice needs api.openai.com (OPENAI_BASE_URL is set).", { provider: "openai" });
+  }
+  const provider = getProvider();
+  const models = env.realtimeModel ? [env.realtimeModel] : REALTIME_MODELS;
+  let lastErr;
+  for (const model of models) {
+    const body = { ...session, model };
+    if (/^gpt-realtime-2/.test(model)) body.reasoning = { effort: "low" }; // fast replies
+    try {
+      const res = await withRetry(() => provider.createRealtimeSecret({ session: body }), { maxRetries: 1 });
+      return { ...res, callsUrl: "https://api.openai.com/v1/realtime/calls" };
+    } catch (err) {
+      lastErr = err instanceof AIError ? err : new AIError("server", err?.message);
+      if (!["model_not_found", "bad_request", "permission"].includes(lastErr.type)) break;
+      console.error(`[ai] realtime model ${model} unavailable (${lastErr.type}):`, redact(lastErr.detail, getSecretValues()));
+    }
+  }
+  throw lastErr;
+}
+
+/** Usage the browser reports at the end of each Realtime response (tokens only). */
+export async function recordRealtimeUsage({ model, inputTokens, outputTokens }, meta = {}) {
+  const n = (v) => (Number.isFinite(v) && v >= 0 ? Math.min(Math.round(v), 1_000_000) : 0);
+  await safeRecordUsage({
+    provider: "openai",
+    model: String(model || "realtime").slice(0, 80),
+    purpose: "voice",
+    actorId: meta.actorId ?? null,
+    ok: true,
+    inputTokens: n(inputTokens),
+    outputTokens: n(outputTokens),
+    costUsd: null,
+    retries: 0,
+    latencyMs: 0,
+  });
+}
+
 /** Lists models the API key can use, filtered to chat-capable GPT/o-series models. */
 export async function listAvailableModels() {
   const ids = await withRetry(() => getProvider().listModels(), { maxRetries: 2 });

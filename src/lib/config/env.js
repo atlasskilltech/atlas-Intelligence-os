@@ -18,9 +18,11 @@ export function getAIEnv() {
     defaultModel: clean(process.env.OPENAI_DEFAULT_MODEL),
     plannerModel: clean(process.env.OPENAI_PLANNER_MODEL),
     // Voice assistant: speech-to-text and text-to-speech models / voice.
-    sttModel: clean(process.env.OPENAI_STT_MODEL) || "gpt-4o-mini-transcribe",
+    sttModel: clean(process.env.OPENAI_STT_MODEL) || "gpt-4o-transcribe",
     ttsModel: clean(process.env.OPENAI_TTS_MODEL) || "gpt-4o-mini-tts",
-    ttsVoice: clean(process.env.OPENAI_TTS_VOICE) || "nova",
+    ttsVoice: clean(process.env.OPENAI_TTS_VOICE) || "marin",
+    // Realtime speech-to-speech (WebRTC). Empty = try the newest known models in order.
+    realtimeModel: clean(process.env.OPENAI_REALTIME_MODEL),
   };
 }
 
