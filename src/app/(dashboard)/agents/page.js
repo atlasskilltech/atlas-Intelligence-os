@@ -4,6 +4,7 @@ import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnecto
 import AgentRowActions from "@/components/agents/AgentRowActions";
 import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import { StatusBadge } from "@/components/agents/AgentStatus";
+import ProjectCalls from "@/components/runs/ProjectCalls";
 import Button from "@/components/ui/Button";
 import { fmtDateTime } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
@@ -48,16 +49,22 @@ export default async function AgentsPage({ searchParams }) {
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
 
-  // Projects each agent's runs actually called (from the run history).
-  const calledBy = new Map(); // agentId → Set(project ids)
+  // Projects each agent's runs actually called (from the run history), with call totals.
+  const calledBy = new Map(); // agentId → Map(project id → { project, ok, failed, simulated })
   for (const r of recentRuns) {
     for (const c of r.projectCalls || []) {
-      if (!calledBy.has(r.agentId)) calledBy.set(r.agentId, new Set());
-      calledBy.get(r.agentId).add(c.project);
+      if (!calledBy.has(r.agentId)) calledBy.set(r.agentId, new Map());
+      const byProject = calledBy.get(r.agentId);
+      const t = byProject.get(c.project) || { project: c.project, ok: 0, failed: 0, simulated: 0 };
+      t.ok += c.ok || 0;
+      t.failed += c.failed || 0;
+      t.simulated += c.simulated || 0;
+      byProject.set(c.project, t);
     }
   }
+  const callsOf = (agentId) => [...(calledBy.get(agentId)?.values() || [])];
   const agentIds = new Set(everything.map((a) => a.id));
-  const calledIds = [...new Set([...calledBy].filter(([id]) => agentIds.has(id)).flatMap(([, set]) => [...set]))];
+  const calledIds = [...new Set([...calledBy].filter(([id]) => agentIds.has(id)).flatMap(([, m]) => [...m.keys()]))];
   const calledName = (id) => projects.find((p) => p.id === id)?.name || `${id} (removed)`;
   const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
   const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
@@ -148,7 +155,12 @@ export default async function AgentsPage({ searchParams }) {
                       <StatusBadge status={a.status} />
                     </div>
                     {a.description && <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{a.description}</p>}
-                    {usesProjects(a.tools) && <AgentConnectors compact className="mt-1.5" ids={a.connectors} projects={projects} />}
+                    {(usesProjects(a.tools) || calledBy.has(a.id)) && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        {usesProjects(a.tools) && <AgentConnectors compact ids={a.connectors} projects={projects} />}
+                        <ProjectCalls compact calls={callsOf(a.id)} projects={projects} />
+                      </div>
+                    )}
                     <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1">
                         <Icon name="clock" className="size-3.5" />
