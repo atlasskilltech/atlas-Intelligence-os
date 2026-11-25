@@ -53,6 +53,8 @@ const manifestSchema = z.object({
   // its callback so the project's agent events reach it. Optional; anything
   // malformed here is ignored rather than refusing the whole manifest.
   events: z.unknown().optional(),
+  // §2c: where IntelligenceOS pushes its own agents that use this project.
+  intosAgents: z.unknown().optional(),
 });
 
 const eventsSchema = z.object({
@@ -66,6 +68,16 @@ export function parseEvents(raw) {
   if (!r.success) return null;
   if (/[{}]/.test(r.data.register) || r.data.register.split("/").some((x) => x === "." || x === "..")) return null;
   return { register: r.data.register, types: (r.data.types || []).filter((t) => /^[a-z][a-z0-9_.]{0,59}$/.test(t)) };
+}
+
+const intosAgentsSchema = z.object({ push: z.string().max(200).regex(PATH_RE) });
+
+/** { push } or null — like `events.register`, a plain relative path (§2c). */
+export function parseIntosAgents(raw) {
+  const r = intosAgentsSchema.safeParse(raw);
+  if (!r.success) return null;
+  if (/[{}]/.test(r.data.push) || r.data.push.split("/").some((x) => x === "." || x === "..")) return null;
+  return { push: r.data.push };
 }
 
 export class ManifestError extends Error {}
@@ -84,6 +96,7 @@ export function parseManifest(doc) {
   }
   const { project, key, actions: raw } = top.data;
   const events = parseEvents(top.data.events);
+  const intosAgents = parseIntosAgents(top.data.intosAgents);
   const actions = [];
   const skipped = [];
   const seen = new Set();
@@ -130,7 +143,7 @@ export function parseManifest(doc) {
     seen.add(a.id);
     actions.push({ ...a, risk: a.method === "POST" ? "write" : a.risk });
   }
-  return { project, key, actions, skipped, ...(events ? { events } : {}) };
+  return { project, key, actions, skipped, ...(events ? { events } : {}), ...(intosAgents ? { intosAgents } : {}) };
 }
 
 /**

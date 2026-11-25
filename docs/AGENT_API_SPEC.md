@@ -103,8 +103,58 @@ Their manifest adds:
   project's own `list_agents`, `activate_agent`, `deactivate_agent` and `run_agent` actions, so the
   key's scopes still decide what is possible. "Refresh from <project>" rebuilds the list from
   `list_agents` if events were missed.
+- What a project implements for this: §2b.1.
 - Connect form presets: **ATLAS Career Services** and **ATLAS CRM** fill the name and the
   `/api/intos/v1` URL; the key is generated on that portal's IntelligenceOS Connector settings page.
+
+### 2b.1 What a project implements for 2b (ATLAS Procurement, ATLAS Dashboard)
+
+- **`POST /connect`** (any valid key; no `X-IntelligenceOS-User` needed). Body
+  `{ callbackUrl, webhookSecret, platformName }`. `callbackUrl` must be `https://` (plain `http://`
+  only for `localhost` / `127.0.0.1`), at most 500 characters; `webhookSecret` 16–200 characters.
+  The project stores both **per key** (a later call replaces them), answers `{ "ok": true }`, and
+  then (in the background) sends one `agents.snapshot` event.
+- **Actions** in the manifest:
+  - `list_agents`: `GET /agents` (risk `read`), answering `{ "agents": [Agent] }`. Listed for every key.
+  - `activate_agent`, `deactivate_agent`, `run_agent`: `POST /agents/{agentId}/activate | deactivate | run`,
+    with one path param `agentId`. Listed **only** when the key has the project's "manage agents" scope.
+    Each answers `{ "agent": Agent, "warnings"?: [string] }`. `run_agent` also answers
+    `"run": { "status": "completed" | "failed", "error"? }` and an optional `"answer"` (short text).
+- **Agent object**: `{ id, kind, name, description, active, status, source: "project", scheduleText,
+  owner: { name, email } | null, lastRunAt, lastStatus, nextRunAt, capabilities: { activate, deactivate, run } }`.
+  `id` matches `^[A-Za-z0-9_\-:.]{1,80}$`.
+- **Events**: on every change to one of its agents the project POSTs to every registered
+  `callbackUrl`: body `{ id: <uuid>, event, platform: <project name>, origin: "project",
+  occurredAt: <ISO time>, data }`, headers `Content-Type: application/json`,
+  `x-atlas-signature: sha256=<hex HMAC-SHA256(webhookSecret, raw body)>`, `x-atlas-timestamp: <occurredAt>`.
+  Fire and forget (10 s timeout). A failed delivery never breaks the project's own flow.
+
+## 2c. IntelligenceOS agents shown inside the project (optional)
+
+The other direction: a project can list the IntelligenceOS agents that use it. The manifest adds:
+
+```json
+"intosAgents": { "push": "/intos-agents" }
+```
+
+- IntelligenceOS POSTs to `<baseUrl><push>` with the project key (`Authorization: Bearer`, no
+  `X-IntelligenceOS-User`). Body:
+  - `{ "event": "agents.snapshot", "occurredAt", "platformName", "agents": [IntosAgent] }`: replaces
+    every stored IntelligenceOS agent **for this key**. Sent on connect, on every "Re-check access"
+    and by "Send agents now" on the project page.
+  - `{ "event": "agent.upserted", "occurredAt", "platformName", "agent": IntosAgent }`: created,
+    edited, activated, paused, resumed or ran.
+  - `{ "event": "agent.deleted", "occurredAt", "platformName", "agentId": "ag_…" }`: deleted, or it no
+    longer uses this project.
+- **IntosAgent**: `{ id: "ag_<12 hex>", name, description, status: "draft" | "active" | "paused",
+  trigger: "manual" | "schedule" | "webhook", scheduleText, owner: { name, email } | null,
+  writes: boolean (it may change data in the project), lastRunAt, lastStatus, updatedAt, url }`.
+  Strings are bounded (name 150, description 500, url 500). `url` opens the agent in IntelligenceOS.
+- An agent is pushed to a project when it uses an ATLAS-project tool (`atlas_project.read` /
+  `atlas_project.write`) and its "Projects" list is empty (= all) or names that project.
+- The project answers `{ "ok": true, "stored": <n> }`, keeps the rows in its own table keyed by
+  (key, agent id), and shows them read-only to its administrators ("IntelligenceOS agents").
+  Pushes are best effort; the last outcome is shown on the IntelligenceOS project page.
 
 ## 3. `GET /manifest`
 

@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Field, Input, Select } from "@/components/ui/Field";
 import Icon from "@/components/ui/Icon";
 import { Alert, Spinner } from "@/components/ui/States";
+import IntosAgentsPush from "./IntosAgentsPush";
 import ProjectAgents from "./ProjectAgents";
 import { ProjectAvatar, ProjectStatus, api, counts } from "./ProjectsSection";
 
@@ -156,6 +157,7 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
             </CardBody>
           </Card>
           {p.manifest.events && <ProjectAgents key={`${p.id}:${p.events?.at || ""}`} project={p} isAdmin={isAdmin} />}
+          {p.manifest.intosAgents && <IntosAgentsPush project={p} isAdmin={isAdmin} onProject={setP} />}
           {isAdmin && reads.length > 0 && <ActionTester project={p} actions={reads} />}
         </div>
 
