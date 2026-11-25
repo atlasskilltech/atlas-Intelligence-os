@@ -26,7 +26,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [], projectCalls = [], called = null }) {
+export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [], projectCalls = [], runFilters = {} }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -157,6 +157,16 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
       </Button>
     );
 
+  // Link for the runs-list filters, keeping the other one.
+  const runsHref = (patch) => {
+    const f = { connector: runFilters.connector, called: runFilters.called, ...patch };
+    const q = new URLSearchParams();
+    if (f.connector) q.set("connector", f.connector);
+    if (f.called) q.set("called", f.called);
+    const qs = q.toString();
+    return qs ? `/agents/${rec.id}?${qs}` : `/agents/${rec.id}`;
+  };
+
   return (
     <div>
       <div className="mb-2">
@@ -270,26 +280,31 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
             </Link>
           )}
         </div>
-        {projectCalls.length > 0 && (
-          <ConnectorFilter
-            className="mb-3"
-            label="Called"
-            icon="check"
-            scroll={false}
-            options={projectCalls
-              .map((c) => ({ id: c.project, name: projects.find((p) => p.id === c.project)?.name || `${c.project} (removed)` }))
-              .sort((a, b) => a.name.localeCompare(b.name))}
-            current={called}
-            hrefFor={(id) => (id ? `/agents/${rec.id}?called=${encodeURIComponent(id)}` : `/agents/${rec.id}`)}
-          />
+        {(runFilters.connectorChoices?.length > 0 || runFilters.calledChoices?.length > 0) && (
+          <div className="mb-3 space-y-2">
+            <ConnectorFilter
+              scroll={false}
+              options={runFilters.connectorChoices || []}
+              current={runFilters.connector}
+              hrefFor={(id) => runsHref({ connector: id })}
+            />
+            <ConnectorFilter
+              label="Called"
+              icon="check"
+              scroll={false}
+              options={runFilters.calledChoices || []}
+              current={runFilters.called}
+              hrefFor={(id) => runsHref({ called: id })}
+            />
+          </div>
         )}
         {runs.length ? (
           <RunTable runs={runs} showAgent={false} projects={projects} />
         ) : (
           <Card>
             <CardBody className="text-sm text-slate-500">
-              {called
-                ? "None of this agent's recent runs called that project."
+              {runFilters.connector || runFilters.called
+                ? "None of this agent's recent runs match these filters."
                 : "No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run."}
             </CardBody>
           </Card>

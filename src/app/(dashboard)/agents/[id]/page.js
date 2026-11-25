@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import AgentDetail from "@/components/agents/AgentDetail";
+import { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import { AgentNotFound, getAgent } from "@/lib/agents/agentRepo";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }) {
 
 export default async function AgentPage({ params, searchParams }) {
   const { id } = await params;
-  const { saved, called: rawCalled } = await searchParams;
+  const { saved, called: rawCalled, connector: rawConnector } = await searchParams;
   const rec = await load(id);
   if (!rec) notFound();
   const [recentRuns, projects] = await Promise.all([
@@ -32,10 +33,22 @@ export default async function AgentPage({ params, searchParams }) {
     projectStatusList(),
   ]);
   const projectCalls = sumProjectCalls(recentRuns);
-  // ?called=<project>: only runs that called that project (searched across recent runs, then the latest 10 shown).
-  const called = typeof rawCalled === "string" && projectCalls.some((c) => c.project === rawCalled) ? rawCalled : null;
-  const runs = (called ? recentRuns.filter((r) => r.projectCalls?.some((c) => c.project === called)) : recentRuns).slice(0, 10);
+  const nameOf = (pid) => projects.find((p) => p.id === pid)?.name || `${pid} (removed)`;
+
+  // Runs-list filters (searched across recent runs, then the latest 10 shown):
+  //   ?connector=<project>  runs that were allowed to use it
+  //   ?called=<project>     runs that actually called it
+  const { options: allConnectors, pick } = connectorOptions(projects, recentRuns);
+  const connectorChoices = allConnectors.filter((o) => recentRuns.some((r) => matchesConnector(r, o.id, projects)));
+  const connector = connectorChoices.some((o) => o.id === pick(rawConnector)) ? pick(rawConnector) : null;
+  const calledChoices = projectCalls.map((c) => ({ id: c.project, name: nameOf(c.project) })).sort((a, b) => a.name.localeCompare(b.name));
+  const called = typeof rawCalled === "string" && calledChoices.some((o) => o.id === rawCalled) ? rawCalled : null;
+  const runs = recentRuns
+    .filter((r) => !connector || matchesConnector(r, connector, projects))
+    .filter((r) => !called || r.projectCalls?.some((c) => c.project === called))
+    .slice(0, 10);
+  const runFilters = { connector, called, connectorChoices, calledChoices };
   const s = rec.config.trigger?.type === "schedule" ? rec.config.trigger.schedule : null;
   const schedule = s ? await scheduleInfo(id, s) : null;
-  return <AgentDetail initial={rec} runs={runs} schedule={schedule} projects={projects} projectCalls={projectCalls} called={called} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
+  return <AgentDetail initial={rec} runs={runs} schedule={schedule} projects={projects} projectCalls={projectCalls} runFilters={runFilters} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
 }
