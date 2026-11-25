@@ -1,3 +1,4 @@
+import { clearUserManifestCache } from "@/lib/connectors/projects/projectConnector";
 import { deleteProject, getProject, publicProject, updateProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
 import { fail, ok, readJsonBody } from "@/lib/http/respond";
@@ -18,6 +19,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const body = await readJsonBody(request);
+    clearUserManifestCache();
     return ok({ project: publicProject(await updateProject((await getActor()), id, body)) });
   } catch (err) {
     return fail(err);

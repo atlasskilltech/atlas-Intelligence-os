@@ -1,3 +1,4 @@
+import { clearUserManifestCache } from "@/lib/connectors/projects/projectConnector";
 import { publicProject, syncProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
 import { fail, ok } from "@/lib/http/respond";
@@ -8,6 +9,7 @@ export const maxDuration = 60;
 export async function POST(_request, { params }) {
   try {
     const { id } = await params;
+    clearUserManifestCache();
     return ok({ project: publicProject(await syncProject((await getActor()), id)) });
   } catch (err) {
     return fail(err);

@@ -67,18 +67,35 @@ function cleanKey(key) {
   return k;
 }
 
-/** Asks the project what this key allows. Throws ProjectError with a plain-language reason. */
-export async function fetchManifest(baseUrl, key) {
+/** Header carrying the agent owner's email to projects that act as the signed-in user (spec v1.1). */
+export const USER_HEADER = "X-IntelligenceOS-User";
+
+/**
+ * Asks the project what this key allows — or, with `userEmail` (delegated
+ * projects), what this key allows FOR THAT USER. Throws ProjectError with a
+ * plain-language reason; a per-user refusal has `userRefused: true`.
+ */
+export async function fetchManifest(baseUrl, key, { userEmail } = {}) {
   registerSecret(key);
   let res;
   try {
     res = await safeFetch(`${baseUrl}/manifest`, {
-      headers: { Authorization: `Bearer ${key}`, Accept: "application/json", "User-Agent": USER_AGENT },
+      headers: {
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+        ...(userEmail ? { [USER_HEADER]: userEmail } : {}),
+      },
       timeoutMs: 15_000,
       maxBytes: 500_000,
     });
   } catch (err) {
     throw new ProjectError(`Could not reach the project: ${err.message}`, 400, { baseUrl: err.message });
+  }
+  if (res.status === 403 && userEmail) {
+    const body = parseBody(res);
+    const why = typeof body?.error === "string" ? body.error.slice(0, 300) : "this user is not allowed";
+    throw Object.assign(new ProjectError(`The project refused ${userEmail}: ${why}`, 403), { userRefused: true });
   }
   if (res.status === 401 || res.status === 403) {
     throw new ProjectError("The project rejected this key. Check it was copied fully and has not been revoked or expired.", 400, {
@@ -139,7 +156,7 @@ async function mutate(id, fn) {
   });
 }
 
-export async function connectProject(actor, { name, baseUrl, key }) {
+export async function connectProject(actor, { name, baseUrl, key, delegated = false }) {
   requireAdmin(actor);
   const fields = {};
   const attempt = (f) => {
@@ -169,6 +186,7 @@ export async function connectProject(actor, { name, baseUrl, key }) {
       name: n,
       baseUrl: url,
       enabled: true,
+      delegated: delegated === true,
       keyBox,
       keyLast4: k.slice(-4),
       manifest,
@@ -206,7 +224,7 @@ export async function syncProject(actor, id) {
 }
 
 /** Rename, enable/disable, or replace the key (the new key is checked first). */
-export async function updateProject(actor, id, { name, enabled, key } = {}) {
+export async function updateProject(actor, id, { name, enabled, key, delegated } = {}) {
   requireAdmin(actor);
   const p = await getProject(id);
   let keyPatch = {};
@@ -222,6 +240,7 @@ export async function updateProject(actor, id, { name, enabled, key } = {}) {
     ...keyPatch,
     ...(n ? { name: n } : {}),
     ...(typeof enabled === "boolean" ? { enabled } : {}),
+    ...(typeof delegated === "boolean" ? { delegated } : {}),
     updatedAt: new Date().toISOString(),
     updatedBy: actor.id,
   }));

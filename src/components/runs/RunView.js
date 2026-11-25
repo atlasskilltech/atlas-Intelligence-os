@@ -210,6 +210,8 @@ export default function RunView({ initial }) {
         <div className="space-y-6 lg:col-span-2">
           {run.status === "waiting_approval" && run.pendingApproval && <ApprovalCard run={run} onDecided={setRun} />}
 
+          {run.output.links?.length > 0 && <NextSteps links={run.output.links} />}
+
           {(run.output.summary || report) && (
             <Card>
               <CardHeader title="Result" />
@@ -302,5 +304,35 @@ export default function RunView({ initial }) {
         The agent stops after its current step. Anything it already did is not undone.
       </ConfirmDialog>
     </div>
+  );
+}
+
+/** Draft / confirm links returned by connected projects: nothing is final until the owner opens them. */
+function NextSteps({ links }) {
+  return (
+    <Card className="ring-2 ring-amber-400/40">
+      <CardHeader
+        title="Finish in the other app"
+        description="Nothing has been submitted or approved yet. Open each link, check it, and complete it there."
+      />
+      <CardBody className="space-y-3">
+        {links.map((l) => (
+          <div key={l.url} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
+            <div className="min-w-0 text-sm">
+              <p className="font-medium text-ink">
+                {l.kind === "confirm" ? "Waiting for your confirmation" : "Draft ready for you to check and submit"}
+              </p>
+              <p className="text-xs text-slate-500">
+                {l.projectName} · {fmtDateTime(l.createdAt)}
+                {l.kind === "confirm" && " · confirmation links expire after a short time"}
+              </p>
+            </div>
+            <Button href={l.url} target="_blank" rel="noopener noreferrer" size="sm" variant={l.kind === "confirm" ? "primary" : "secondary"}>
+              {l.kind === "confirm" ? `Confirm in ${l.projectName}` : `Open draft in ${l.projectName}`} ↗
+            </Button>
+          </div>
+        ))}
+      </CardBody>
+    </Card>
   );
 }

@@ -1,4 +1,5 @@
 import { normalizeAgentConfig } from "@/lib/agents/agentConfig";
+import { getActor } from "@/lib/context";
 import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 import { PROMPT_MAX, PROMPT_MIN, generateAgent, refineAgent } from "@/lib/planner/planner";
 
@@ -21,17 +22,19 @@ function checkText(value, label) {
 export async function POST(request) {
   try {
     const body = await readJsonBody(request, 100_000);
+    const actor = await getActor();
+    const who = { userEmail: actor.email || null, actorId: actor.id };
 
     if (body.agent !== undefined) {
       const instruction = checkText(body.instruction, "Change request");
       if (!body.agent || typeof body.agent !== "object") throw new BadRequest("Invalid agent draft.");
       // Never trust a client-supplied draft: re-normalise it before sending it to the model.
       const { config } = normalizeAgentConfig(body.agent);
-      return ok(await refineAgent(config, instruction));
+      return ok(await refineAgent(config, instruction, who));
     }
 
     const prompt = checkText(body.prompt, "Task description");
-    return ok(await generateAgent(prompt));
+    return ok(await generateAgent(prompt, who));
   } catch (err) {
     return fail(err);
   }

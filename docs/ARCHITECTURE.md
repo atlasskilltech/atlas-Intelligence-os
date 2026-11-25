@@ -132,7 +132,13 @@ agent ─► atlas_project.read / .write { project, action, params }
      └► callAction: action in manifest? right tool? params valid? ─► safeFetch with the key
 ```
 
-Contract: `docs/AGENT_API_SPEC.md`. Reference add-on: `examples/agent-api-node/`. The project
+Contract: `docs/AGENT_API_SPEC.md`. Reference add-on: `examples/agent-api-node/`.
+
+**Acting as the user (v1.1):** a project connected with `delegated: true` receives
+`X-IntelligenceOS-User: <agent owner's email>` on every call. IntelligenceOS fetches that user's
+manifest (cached 10 min) so the planner and the run only offer what the owner may do there; the
+project re-checks every call. Responses with `draft_url` / `confirm_url` (own https site only)
+become buttons on the run page, because the person finishes the action inside the project. The project
 decides what a key may do; IntelligenceOS adds its own rules (approval for writes, no deletes).
 
 ATLAS internal apps are connected in this order of preference:

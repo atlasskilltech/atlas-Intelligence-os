@@ -120,3 +120,14 @@ export async function signInWithGoogle({ email, name = "", picture = "", sub = "
   );
   return getUserById(res.insertId);
 }
+
+/** Email of the user behind an actor id ("u_<id>"), or null (local user, unknown, or no database). */
+export async function emailForActorId(actorId) {
+  const m = /^u_(\d+)$/.exec(String(actorId || ""));
+  if (!m) return null;
+  try {
+    return (await getUserById(Number(m[1])))?.email || null;
+  } catch {
+    return null;
+  }
+}

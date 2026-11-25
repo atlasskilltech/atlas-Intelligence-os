@@ -1,4 +1,4 @@
-# ATLAS Agent API — v1 (`atlas-agent-api/1`)
+# ATLAS Agent API — v1.1 (`atlas-agent-api/1`)
 
 How any ATLAS project (CRM, ERP, LMS…), **in any language or framework**, lets IntelligenceOS
 agents use it with a key. A working reference is in `examples/agent-api-node/`
@@ -42,6 +42,42 @@ agents use it with a key. A working reference is in `examples/agent-api-node/`
 | 403 | Key is valid but not allowed to do this action |
 | 404 | Unknown action or record |
 | 429 | Too many requests |
+
+## 2a. Acting as the user (v1.1, optional)
+
+For projects with their own users and permissions (e.g. Procurement), the IntelligenceOS admin ticks
+**"This project acts as the signed-in user"** when connecting. IntelligenceOS then sends one more
+header on every request:
+
+```
+X-IntelligenceOS-User: <email of the agent's OWNER>
+```
+
+- On action calls and on the per-user manifest. For scheduled/background runs it is still the agent's
+  owner, never the person who pressed Run.
+- `GET /manifest` **without** the header (the admin connecting) → everything the key allows.
+  **With** the header → only what that user may do (key scopes ∩ the user's own permissions).
+  IntelligenceOS caches a user's manifest for 10 minutes and shows the planner only those actions.
+- Unknown, inactive or not-permitted user → `403 { "error": "plain-language reason" }`. IntelligenceOS
+  shows that reason to the user and does **not** mark the project as broken. `401` still means the key
+  itself is bad (the project is then marked "Needs attention").
+- Match users by email, case-insensitively. Emails must be the same in both apps.
+- Security: the key lets its holder name any user, so keep it in IntelligenceOS only, restrict it by
+  IP (the IntelligenceOS server), give it an expiry and revoke it if in doubt. Signing the header with
+  the same key would not add protection, because whoever has the key could sign too.
+
+### Links that finish the work in the project
+
+A write action may prepare something for a person to finish in the project instead of doing it
+directly. Return one of these (at the top level or nested up to 3 levels):
+
+| Field | Meaning | Shown in IntelligenceOS as |
+|---|---|---|
+| `draft_url` | A draft the person checks and submits | "Open draft in <project>" |
+| `confirm_url` | An action the person confirms | "Confirm in <project>" |
+
+Only `https` links on the project's own host are shown (anything else is ignored). The owner also
+gets a dashboard notification. Short-lived confirm links are fine; the run page says they expire.
 
 ## 3. `GET /manifest`
 
@@ -93,6 +129,8 @@ agents use it with a key. A working reference is in `examples/agent-api-node/`
 - `destructive` actions are never imported.
 - The key is stored encrypted, never shown again (only its last 4 characters) and never sent to the AI.
 - If the project answers 401, the connection is marked "Needs attention" and agents stop using it.
+- With "acts as the signed-in user" on, every call carries `X-IntelligenceOS-User`; a 403 is shown to
+  that user only.
 
 ## 5. Checklist for a project team
 

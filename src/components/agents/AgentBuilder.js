@@ -243,7 +243,7 @@ export default function AgentBuilder({ initialPrompt = "" }) {
               {saving === "draft" ? "Saving…" : "Save as draft"}
             </Button>
             <p className="text-center text-xs text-slate-500">
-              {blocking ? "Fix the highlighted fields to save." : "Active agents can run · test runs arrive in Milestone 5"}
+              {blocking ? "Fix the highlighted fields to save." : "After saving, use Run test to try it safely"}
             </p>
             <div className="flex gap-2 pt-1">
               <Button variant="ghost" size="sm" className="flex-1" onClick={() => downloadAgentJson(toPayload(draft))}>

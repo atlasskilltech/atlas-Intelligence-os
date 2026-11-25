@@ -70,13 +70,14 @@ async function writeIndex(run) {
   });
 }
 
-export async function createRun({ agent, actor, mode, trigger, input }) {
+export async function createRun({ agent, actor, mode, trigger, input, ownerEmail = null }) {
   const now = new Date().toISOString();
   const run = {
     id: `run_${randomBytes(6).toString("hex")}`,
     agentId: agent.id,
     agentName: agent.config.name,
     ownerId: agent.ownerId,
+    ownerEmail, // projects that act as the signed-in user receive this
     startedBy: actor.id,
     mode,
     trigger,
@@ -89,7 +90,7 @@ export async function createRun({ agent, actor, mode, trigger, input }) {
     activeMs: 0,
     config: agent.config, // snapshot: edits made during the run don't change it
     stats: { modelCalls: 0, actions: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, priced: true },
-    output: { summary: "", reports: [], limitReached: false },
+    output: { summary: "", reports: [], links: [], limitReached: false },
     pendingApproval: null,
     approvals: [],
     messages: [],

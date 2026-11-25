@@ -119,6 +119,7 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <Badge tone="brand">{p.manifest.key.access || "Custom access"}</Badge>
                     <Badge>{c.read} read</Badge>
+                    {p.delegated && <Badge tone="neutral">Acts as user</Badge>}
                     {c.write > 0 && <Badge tone="warning">{c.write} change data</Badge>}
                   </div>
                   {p.status !== "connected" && p.lastError && <p className="mt-3 text-xs text-red-600">{p.lastError}</p>}
@@ -137,7 +138,7 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
 }
 
 function ConnectForm({ onCancel, onConnected }) {
-  const [form, setForm] = useState({ name: "", baseUrl: "https://", key: "" });
+  const [form, setForm] = useState({ name: "", baseUrl: "https://", key: "", delegated: false });
   const [errors, setErrors] = useState({});
   const [state, setState] = useState({ state: "idle" });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -186,6 +187,21 @@ function ConnectForm({ onCancel, onConnected }) {
               onChange={set("key")}
             />
           </Field>
+          <label className="flex items-start gap-2.5 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-brand-500"
+              checked={form.delegated}
+              onChange={(e) => setForm((f) => ({ ...f, delegated: e.target.checked }))}
+            />
+            <span>
+              <span className="font-medium text-ink">This project acts as the signed-in user</span>
+              <span className="block text-xs text-slate-500">
+                Every call sends the agent owner&apos;s email, and the project allows only what that person may do there. Use it
+                when the project supports it (for example ATLAS Procurement). Emails must be the same in both apps.
+              </span>
+            </span>
+          </label>
           {state.state === "error" && (
             <Alert tone="error" title="Not connected">
               {state.message}

@@ -15,6 +15,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 7 | ATLAS project connections (key-based) | ✅ |
 | 8 | ~~Website, Gmail, Calendar connectors~~ — dropped, not needed | ❌ |
 | 7.1 | Users, roles & Google sign-in (MySQL) | ✅ |
+| 7.2 | Agent API v1.1: projects that act as the signed-in user | ✅ |
 | 9 | Scheduling, background execution, error recovery | ⬜ |
 | 10 | Dashboard data, history, usage, security & tests | ⬜ |
 | 11 | Production readiness & DB/auth plan | ⬜ |
@@ -156,3 +157,15 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 - [x] Without database + Google settings the app still runs open as one local admin (development)
 - [x] Tests: 73 with a test database, 68 without (9 new: cookies, env names, redirects, Google token checks, table prefix, invite-only, roles, last admin, ADMIN_EMAILS); browser flow with MariaDB
 - [ ] Move agents, runs and connections from JSON files to MySQL (Milestone 11)
+
+## Milestone 7.2 — Agent API v1.1: acting as the signed-in user ✅
+
+For projects with their own users and permissions (first: ATLAS Procurement).
+
+- [x] I1 Spec v1.1 (`docs/AGENT_API_SPEC.md`): `X-IntelligenceOS-User` = the agent OWNER's email; per-user manifest; per-user 403; `draft_url` / `confirm_url`
+- [x] I2 "This project acts as the signed-in user" (`delegated`) at connect time, switchable on the project page; every call sends the owner's email; a per-user 403 is shown to that user and never marks the project as broken; no email → clear refusal (never falls back to whoever pressed Run)
+- [x] I3 Per-user actions: the manifest is fetched with the user's email (cached 10 min, cleared on re-check / key change); the planner and the run's tool list show only that user's actions
+- [x] I4 Only the owner or an admin can approve a paused step (tested); draft/confirm links become "Open draft in …" / "Confirm in …" buttons, logged, and the owner is notified; only https links on the project's own site are accepted
+- [x] Runs store the owner's email (`ownerEmail`); older runs look it up
+- [x] Tests: 79 with a test database (+6: per-user manifests, cache, refusals, header, link filtering, engine end-to-end incl. approval by the owner only); browser flow against a mock procurement API
+- [ ] Scheduled runs (Milestone 9) — needed for "every morning" procurement agents

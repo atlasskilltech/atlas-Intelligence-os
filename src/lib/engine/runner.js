@@ -5,6 +5,7 @@ import { getTool } from "../catalog/toolCatalog.js";
 import { callModel as realCallModel } from "../ai/index.js";
 import { getSecretValues } from "../config/env.js";
 import { addNotification } from "../notifications/notificationRepo.js";
+import { emailForActorId } from "../users/userRepo.js";
 import {
   ACTIVE_STATUSES,
   RunConflict,
@@ -72,7 +73,9 @@ export async function startRun(actor, agentId, { mode = "test", input = "", trig
   if ((await listRuns(actor, { agentId, status: "active" })).length) {
     throw new RunConflict("This agent already has a run in progress. Wait for it to finish or cancel it.");
   }
-  return createRun({ agent, actor, mode, trigger, input: String(input || "").trim().slice(0, 2000) });
+  // Projects that act as the signed-in user need the OWNER's email (not whoever pressed Run).
+  const ownerEmail = agent.ownerId === actor.id ? actor.email || null : await emailForActorId(agent.ownerId);
+  return createRun({ agent, actor, mode, trigger, ownerEmail, input: String(input || "").trim().slice(0, 2000) });
 }
 
 /** Cancel a queued, running or waiting run. A running step finishes, then the run stops. */
@@ -173,7 +176,9 @@ async function loop(runId, deps) {
 
   const config = run.config;
   // Tools that can run now: connected AND set up (e.g. an API has been added).
-  const resolved = await resolveTools(config.tools, deps.executors);
+  if (run.ownerEmail === undefined) run.ownerEmail = await emailForActorId(run.ownerId); // runs created before v1.1
+  run.output.links ??= [];
+  const resolved = await resolveTools(config.tools, deps.executors, { ownerEmail: run.ownerEmail });
   const executable = (id) => resolved.ready.has(id);
   const tools = toolDefinitions(config.tools, deps.executors, resolved);
   const budgetMs = config.limits.timeoutMinutes * 60_000;
@@ -380,12 +385,22 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
   const executor = deps.executors[toolId];
   const started = Date.now();
   const ctx = {
-    run: { id: run.id, agentId: run.agentId, agentName: run.agentName, ownerId: run.ownerId, mode: run.mode },
+    run: { id: run.id, agentId: run.agentId, agentName: run.agentName, ownerId: run.ownerId, ownerEmail: run.ownerEmail ?? null, mode: run.mode },
     addReport: async (report) => {
       run.output.reports.push({ ...report, createdAt: new Date().toISOString() });
       if (run.output.reports.length > 10) run.output.reports.shift();
     },
     notify: async ({ message, level }) => safeNotify(deps, run, { message, level }),
+    // A project returned a draft / confirm link: show it as a button and tell the owner.
+    addLink: async (link) => {
+      run.output.links ??= [];
+      if (run.output.links.some((l) => l.url === link.url)) return;
+      run.output.links.push({ ...link, toolId, createdAt: new Date().toISOString() });
+      if (run.output.links.length > 20) run.output.links.shift();
+      const what = link.kind === "confirm" ? "needs your confirmation" : "has a draft ready for you to check and submit";
+      await logEvent(run, { type: "link_ready", message: `${link.projectName} ${what}`, toolId });
+      await safeNotify(deps, run, { level: "warning", message: `"${run.agentName}": ${link.projectName} ${what}. Open the run to continue.` });
+    },
   };
   try {
     if (!executor) throw new Error("This tool is not connected yet.");

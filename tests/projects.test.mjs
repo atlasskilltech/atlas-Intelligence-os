@@ -126,7 +126,7 @@ test("calling actions: data comes back, read/write kept apart, key never leaks",
   assert.equal(r.data.total, 2);
   assert.equal(api.log.at(-1).agent, "Lead bot", "the project can see which agent called");
   assert.ok(!JSON.stringify(r).includes(ro.key));
-  await assert.rejects(conn.callAction({ projectId: "atlas_crm", actionId: "add_lead_note", tool: "write", params: { id: "L101", note: "x" } }), /not allowed for ATLAS CRM/);
+  await assert.rejects(conn.callAction({ projectId: "atlas_crm", actionId: "add_lead_note", tool: "write", params: { id: "L101", note: "x" } }), /not allowed in ATLAS CRM/);
   await assert.rejects(conn.callAction({ projectId: "atlas_crm", actionId: "get_lead", tool: "read", params: {} }), /Missing required parameter "id"/);
   await assert.rejects(conn.callAction({ projectId: "nope", actionId: "x", tool: "read" }), /Unknown project/);
 });

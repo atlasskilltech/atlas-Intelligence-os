@@ -43,6 +43,12 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
   }
 
   const sync = () => act("sync", () => api(`/api/connectors/projects/${p.id}/sync`, { method: "POST" }), "Access re-checked with the project.");
+  const toggleDelegated = () =>
+    act(
+      "toggle",
+      () => api(`/api/connectors/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ delegated: !p.delegated }) }),
+      p.delegated ? "Calls no longer send the user's email." : "Calls now act as the agent's owner.",
+    );
   const toggle = () =>
     act(
       "toggle",
@@ -113,7 +119,11 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
           <Card>
             <CardHeader
               title="What this key allows"
-              description={`${c.read} read action${c.read === 1 ? "" : "s"} and ${c.write} that change${c.write === 1 ? "s" : ""} data. Agents can use nothing else in this project.`}
+              description={
+                p.delegated
+                  ? `Up to ${c.read} read action${c.read === 1 ? "" : "s"} and ${c.write} that change${c.write === 1 ? "s" : ""} data. Each person gets only the ones ${p.name} allows them.`
+                  : `${c.read} read action${c.read === 1 ? "" : "s"} and ${c.write} that change${c.write === 1 ? "s" : ""} data. Agents can use nothing else in this project.`
+              }
             />
             <CardBody className="space-y-6">
               <ActionGroup
@@ -156,6 +166,7 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
                 ["Key", <span key="k" className="font-mono">{p.keyHint}</span>],
                 ["Key name", p.manifest.key.name || "—"],
                 ["Access level", p.manifest.key.access || "Custom"],
+                ["Acts as", p.delegated ? "The agent's owner" : "The project key"],
                 ["Key expires", p.manifest.key.expiresAt ? when(p.manifest.key.expiresAt) : "Never"],
                 ["Last checked", when(p.syncedAt)],
                 ["Connected", when(p.createdAt)],
@@ -168,8 +179,15 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
               ))}
             </dl>
             <p className="mt-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
-              To change what agents may do, edit or create the key in {p.name}, then click “Re-check access” (or “Replace key”).
+              {p.delegated
+                ? `Each call sends the agent owner's email; ${p.name} applies that person's own permissions. Emails must match in both apps.`
+                : `To change what agents may do, edit or create the key in ${p.name}, then click “Re-check access” (or “Replace key”).`}
             </p>
+            {isAdmin && (
+              <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={toggleDelegated} disabled={!!busy}>
+                {p.delegated ? "Stop acting as the user" : "Act as the signed-in user"}
+              </Button>
+            )}
           </CardBody>
         </Card>
       </div>

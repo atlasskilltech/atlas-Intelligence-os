@@ -18,18 +18,21 @@ const PLANNER_CALL = {
   reasoningEffort: "low",
 };
 
-/** Connected ATLAS projects, so the planner can name real actions (best-effort). */
-async function projectContext() {
+/**
+ * Connected ATLAS projects, so the planner can name real actions (best-effort).
+ * Projects that act as the signed-in user list only what THIS user may do there.
+ */
+async function projectContext(userEmail) {
   try {
-    const [read, write] = await Promise.all([describeProjects("read"), describeProjects("write")]);
+    const [read, write] = await Promise.all([describeProjects("read", { userEmail }), describeProjects("write", { userEmail })]);
     return [read && `READ (atlas_project.read):\n${read}`, write && `CHANGE DATA (atlas_project.write):\n${write}`].filter(Boolean).join("\n\n");
   } catch {
     return "";
   }
 }
 
-async function plan(userContent, { prompt, agentId, keep }) {
-  const projects = await projectContext();
+async function plan(userContent, { prompt, agentId, keep, userEmail = null, actorId = null }) {
+  const projects = await projectContext(userEmail);
   const result = await callModel(
     "generateStructured",
     {
@@ -41,7 +44,7 @@ async function plan(userContent, { prompt, agentId, keep }) {
         { role: "user", content: userContent },
       ],
     },
-    { purpose: "planner", agentId, maxRetries: 1 },
+    { purpose: "planner", agentId, actorId, maxRetries: 1 },
   );
 
   // `keep` carries the employee's own settings the model never sees as editable
@@ -59,12 +62,14 @@ async function plan(userContent, { prompt, agentId, keep }) {
   };
 }
 
-export function generateAgent(prompt) {
-  return plan(plannerUserPrompt(prompt), { prompt });
+/** `who` = { userEmail, actorId } of the employee planning the agent. */
+export function generateAgent(prompt, who = {}) {
+  return plan(plannerUserPrompt(prompt), { prompt, ...who });
 }
 
-export function refineAgent(currentAgent, instruction) {
+export function refineAgent(currentAgent, instruction, who = {}) {
   return plan(refineUserPrompt(currentAgent, instruction), {
+    ...who,
     prompt: currentAgent.source?.prompt || "",
     keep: { permissions: { preApproved: currentAgent.permissions?.preApproved || [] }, limits: currentAgent.limits },
   });

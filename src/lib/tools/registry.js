@@ -20,19 +20,20 @@ export const hasExternalEffect = (toolId) => RISK_LEVELS[getTool(toolId)?.risk]?
 
 /**
  * Which of the agent's tools can run right now: an executor exists and, if it
- * has an isReady() check (e.g. "an API has been added"), that check passes.
- * Also collects run-time description extras. Never throws.
+ * has an isReady() check (e.g. "a project is connected"), that check passes.
+ * Also collects run-time description extras. `ctx` = { ownerEmail } so
+ * connectors can tailor both to the agent's owner. Never throws.
  */
-export async function resolveTools(toolIds, executors = EXECUTORS) {
+export async function resolveTools(toolIds, executors = EXECUTORS, ctx = {}) {
   const ready = new Set();
   const extra = {};
   for (const id of toolIds) {
     const ex = executors[id];
     if (!ex) continue;
     try {
-      if (ex.isReady && !(await ex.isReady())) continue;
+      if (ex.isReady && !(await ex.isReady(ctx))) continue;
       ready.add(id);
-      if (ex.describe) extra[id] = String((await ex.describe()) || "").slice(0, 6000);
+      if (ex.describe) extra[id] = String((await ex.describe(ctx)) || "").slice(0, 6000);
     } catch (err) {
       console.error(`[tools] readiness check failed for ${id}:`, err?.message);
     }

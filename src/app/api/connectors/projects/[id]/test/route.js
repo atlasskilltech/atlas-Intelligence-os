@@ -10,7 +10,8 @@ const PREVIEW_MAX = 8_000;
 export async function POST(request, { params }) {
   try {
     const { id } = await params;
-    if ((await getActor()).role !== "admin") throw new ProjectError("Only administrators can test projects.", 403);
+    const actor = await getActor();
+    if (actor.role !== "admin") throw new ProjectError("Only administrators can test projects.", 403);
     const body = await readJsonBody(request);
     const project = await getProject(id);
     const action = project.manifest.actions.find((a) => a.id === body.action);
@@ -20,7 +21,7 @@ export async function POST(request, { params }) {
       Object.entries(body.params && typeof body.params === "object" ? body.params : {}).filter(([, v]) => v !== "" && v != null),
     );
     try {
-      const r = await callAction({ projectId: id, actionId: action.id, tool: "read", params: values, allowDisabled: true });
+      const r = await callAction({ projectId: id, actionId: action.id, tool: "read", params: values, userEmail: actor.email || null, allowDisabled: true });
       const text = typeof r.data === "string" ? r.data : JSON.stringify(r.data, null, 2);
       return ok({
         result: {
