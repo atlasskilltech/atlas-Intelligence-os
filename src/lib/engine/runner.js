@@ -131,6 +131,7 @@ export async function reconcileStale(runId, now = Date.now()) {
     r.error = expired
       ? "The approval request expired after 7 days without an answer."
       : "Interrupted — the server stopped while this run was in progress. Start it again.";
+    r.retryable = !expired;
     r.pendingApproval = null;
     await logEvent(r, { type: "run_failed", level: "error", message: r.error });
   });
@@ -201,8 +202,10 @@ async function loop(runId, deps) {
     return stored;
   };
 
-  const finish = async (status, { error = null, event, level = "info" } = {}) => {
+  // `retryable`: a temporary problem (AI rate limit, timeout, network) — the scheduler may retry once.
+  const finish = async (status, { error = null, event, level = "info", retryable = false } = {}) => {
     run.status = status;
+    run.retryable = retryable;
     run.finishedAt = new Date().toISOString();
     run.activeMs = elapsed();
     run.error = error;
@@ -284,7 +287,7 @@ async function loop(runId, deps) {
           { purpose: "agent_run", agentId: run.agentId, runId: run.id, actorId: run.ownerId },
         );
       } catch (err) {
-        return await finish("failed", { error: `AI request failed: ${err?.message || "unknown error"}`, level: "error" });
+        return await finish("failed", { error: `AI request failed: ${err?.message || "unknown error"}`, level: "error", retryable: err?.retryable === true });
       }
 
       run.stats.modelCalls += 1;

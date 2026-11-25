@@ -209,13 +209,27 @@ events also go to `run-events.jsonl` (Execution Logs). Runs whose heartbeat is o
 Vercel: `after()` is limited to the route's `maxDuration` (300 s), so long runs need the
 always-on server. New connectors register executors in `tools/registry.js`.
 
+## Scheduler (Milestone 9)
+
+```
+next start ─► instrumentation.register() ─► startScheduler()  (Node runtime, one per process)
+every 30 s ─► tick(): active agents with trigger.schedule
+               new/edited schedule → plan nextRunAt only
+               now ≥ nextRunAt     → claim file (agent, time) → startRun(owner, live, "schedule") → executeRun
+                                     > 15 min late → "missed", owner notified, no back-fill
+               last run failed & retryable & 5–60 min ago → one retry ("schedule_retry")
+state: DATA_DIR/schedules.json · claims: DATA_DIR/schedule-claims/
+Vercel/no always-on process: GET /api/scheduler/tick (Bearer CRON_SECRET) runs the same tick()
+```
+
 ## Prototype persistence limits (no database)
 
 Data lives in JSON files under `DATA_DIR`:
 
 - Survives restarts, but in-flight runs are marked **interrupted**.
 - Schedules missed while the server was down are **not** back-filled.
-- **Single server instance only** — two instances would double-run schedules.
+- Run **one** server instance for scheduling. A second process won't double-run a schedule (claim
+  files), but it wastes work; set `SCHEDULER_ENABLED=false` on extra instances.
 - If the disk is ephemeral or wiped, data is lost.
 
 **Vercel (current deployment):** the filesystem is read-only except `/tmp`, so data is

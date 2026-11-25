@@ -3,6 +3,7 @@ import AgentDetail from "@/components/agents/AgentDetail";
 import { AgentNotFound, getAgent } from "@/lib/agents/agentRepo";
 import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
+import { scheduleInfo } from "@/lib/scheduler/scheduler";
 
 async function load(id) {
   try {
@@ -25,5 +26,7 @@ export default async function AgentPage({ params, searchParams }) {
   const rec = await load(id);
   if (!rec) notFound();
   const runs = await listRuns((await getPageActor()), { agentId: id, limit: 10 });
-  return <AgentDetail initial={rec} runs={runs} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
+  const s = rec.config.trigger?.type === "schedule" ? rec.config.trigger.schedule : null;
+  const schedule = s ? await scheduleInfo(id, s) : null;
+  return <AgentDetail initial={rec} runs={runs} schedule={schedule} justSaved={saved === "active" || saved === "draft" ? saved : null} />;
 }

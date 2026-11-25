@@ -16,7 +16,7 @@ Status: ✅ done · 🔄 in progress · ⬜ not started
 | 8 | ~~Website, Gmail, Calendar connectors~~ — dropped, not needed | ❌ |
 | 7.1 | Users, roles & Google sign-in (MySQL) | ✅ |
 | 7.2 | Agent API v1.1: projects that act as the signed-in user | ✅ |
-| 9 | Scheduling, background execution, error recovery | ⬜ |
+| 9 | Scheduling, background execution, error recovery | ✅ |
 | 10 | Dashboard data, history, usage, security & tests | ⬜ |
 | 11 | Production readiness & DB/auth plan | ⬜ |
 
@@ -168,4 +168,18 @@ For projects with their own users and permissions (first: ATLAS Procurement).
 - [x] I4 Only the owner or an admin can approve a paused step (tested); draft/confirm links become "Open draft in …" / "Confirm in …" buttons, logged, and the owner is notified; only https links on the project's own site are accepted
 - [x] Runs store the owner's email (`ownerEmail`); older runs look it up
 - [x] Tests: 79 with a test database (+6: per-user manifests, cache, refusals, header, link filtering, engine end-to-end incl. approval by the owner only); browser flow against a mock procurement API
-- [ ] Scheduled runs (Milestone 9) — needed for "every morning" procurement agents
+- [x] Scheduled runs → Milestone 9
+
+## Milestone 9 — Scheduler & error recovery ✅
+
+- [x] `src/instrumentation.js` starts the scheduler once per server start (Node runtime only; not during build, not on Vercel, off with `SCHEDULER_ENABLED=false`)
+- [x] Every 30 s: active agents with a schedule; due → LIVE run as the agent's OWNER (trigger "schedule"), so approvals and project permissions are the owner's
+- [x] Next-run maths in the schedule's own time zone (hourly/daily/weekly/monthly, DST-safe), `src/lib/scheduler/nextRun.js`
+- [x] New / re-activated / edited schedules: first pass only plans (no surprise run)
+- [x] Recovery: previous run still going → skipped with a reason; server down > 15 min → missed run skipped (owner notified), no back-fill; temporary failure (AI rate limit/timeout/network, server restart) → one automatic retry after 5 min; crashed runs marked interrupted at start-up
+- [x] No duplicates across processes: one claim file per (agent, time)
+- [x] Owner's account deleted → scheduled runs stop with a clear reason
+- [x] `GET /api/scheduler/tick` with `CRON_SECRET` for Vercel / external cron
+- [x] Agent page: next run, last scheduled run (with link) and whether a scheduler is running here
+- [x] Tests: 87 with a test database (+8: time zones/DST, first-pass planning, owner identity, no duplicates incl. two processes, missed runs, overlap, one retry only, paused/edited agents, retry flags); real server: a scheduled agent ran on time
+- [ ] Webhook trigger (another system starts an agent) — not built yet

@@ -8,7 +8,8 @@ import { SESSION_COOKIE, authConfigured, verifySession } from "@/lib/auth/token"
  * The role is NOT decided here — routes re-check the user in the database.
  */
 
-const PUBLIC = [/^\/login(\/|$)/, /^\/api\/auth\//];
+// /api/scheduler/tick has its own secret (CRON_SECRET).
+const PUBLIC = [/^\/login(\/|$)/, /^\/api\/auth\//, /^\/api\/scheduler\/tick$/];
 
 export function proxy(request) {
   if (!authConfigured()) return NextResponse.next();

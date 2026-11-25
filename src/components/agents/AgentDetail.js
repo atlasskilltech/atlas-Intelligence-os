@@ -23,7 +23,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved, runs = [] }) {
+export default function AgentDetail({ initial, justSaved, runs = [], schedule = null }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -207,6 +207,8 @@ export default function AgentDetail({ initial, justSaved, runs = [] }) {
         </Alert>
       )}
 
+      {schedule && <ScheduleStatus status={rec.status} schedule={schedule} />}
+
       <AgentWorkspace
         draft={draft}
         setDraft={(fn) => {
@@ -291,6 +293,61 @@ export default function AgentDetail({ initial, justSaved, runs = [] }) {
       >
         The agent and its configuration are removed permanently. This cannot be undone.
       </ConfirmDialog>
+    </div>
+  );
+}
+
+const LAST_RESULT = { started: "Started", skipped: "Skipped", missed: "Missed" };
+
+/** Next / last scheduled run, and a warning when no scheduler is running. */
+function ScheduleStatus({ status, schedule }) {
+  if (status !== "active") {
+    return (
+      <Alert tone="info" className="mb-4" title="Scheduled">
+        Scheduled runs start once the agent is active. {status === "paused" ? "Resume it to continue." : "Activate it to start."}
+      </Alert>
+    );
+  }
+  return (
+    <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-surface px-5 py-4 text-sm sm:grid-cols-3">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Next run</p>
+        <p className="mt-1 font-medium text-ink">
+          {fmtDateTime(schedule.nextRunAt)}
+          {schedule.estimated && <span className="ml-1 text-xs font-normal text-slate-500">(expected)</span>}
+        </p>
+      </div>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Last scheduled run</p>
+        <p className="mt-1 text-ink">
+          {schedule.lastFiredAt || schedule.lastResult ? (
+            <>
+              {LAST_RESULT[schedule.lastResult] || "—"}
+              {schedule.lastFiredAt && ` · ${fmtDateTime(schedule.lastFiredAt)}`}
+              {schedule.lastRunId && (
+                <Link href={`/runs/${schedule.lastRunId}`} className="ml-2 text-brand-600 hover:underline">
+                  View
+                </Link>
+              )}
+            </>
+          ) : (
+            "Not yet"
+          )}
+        </p>
+        {schedule.lastError && <p className="mt-1 text-xs text-amber-700">{schedule.lastError}</p>}
+      </div>
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Scheduler</p>
+        {schedule.schedulerRunning ? (
+          <p className="mt-1 flex items-center gap-2 text-emerald-700">
+            <span className="size-2 rounded-full bg-emerald-500" /> Running
+          </p>
+        ) : (
+          <p className="mt-1 text-amber-700">
+            Not running on this server — scheduled runs won&apos;t start. Use the always-on server, or a cron calling /api/scheduler/tick.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

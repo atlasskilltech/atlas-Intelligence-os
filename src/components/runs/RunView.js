@@ -249,7 +249,7 @@ export default function RunView({ initial }) {
                   ["AI calls", fmtInt(s.modelCalls)],
                   ["Tokens", fmtInt(s.inputTokens + s.outputTokens)],
                   ["Cost", s.priced ? fmtUsd(s.costUsd) : s.costUsd ? `${fmtUsd(s.costUsd)}+` : "Price not set"],
-                  ["Started by", run.trigger === "manual" ? "You (manual)" : run.trigger],
+                  ["Started by", { manual: "You (manual)", schedule: "Schedule", schedule_retry: "Schedule (automatic retry)" }[run.trigger] || run.trigger],
                   ["Finished", run.finishedAt ? fmtTime(run.finishedAt) : "—"],
                 ].map(([k, v]) => (
                   <div key={k}>

@@ -43,6 +43,13 @@ Login is required once the database and Google settings are present in the serve
 The first person to sign in becomes admin (or set `ADMIN_EMAILS`). Admins add other users on the
 **Users** page; only added emails can sign in. Roles: **admin** and **user**.
 
+## Scheduled agents
+
+On the always-on server (EC2 + PM2) the scheduler starts automatically with `npm run start` and
+checks every 30 seconds. Run **one** instance. Scheduled runs act as the agent's owner. On Vercel,
+set `CRON_SECRET` and have a cron call `GET /api/scheduler/tick` with
+`Authorization: Bearer <CRON_SECRET>`.
+
 ## Deploying on Vercel
 
 Set `OPENAI_API_KEY` (and optionally `OPENAI_DEFAULT_MODEL`, `OPENAI_PLANNER_MODEL`) in the
