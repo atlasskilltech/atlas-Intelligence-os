@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
 import ElevenLabsCredits from "./ElevenLabsCredits";
+import ElevenLabsVoices from "./ElevenLabsVoices";
 
 async function api(path, options) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -15,8 +16,9 @@ async function api(path, options) {
   return data;
 }
 
-export default function ModelSettingsForm({ initialSettings, status, limits, defaultPricing }) {
+export default function ModelSettingsForm({ initialSettings, status, limits, defaultPricing, elevenlabsModels = [], maxVoices = 10 }) {
   const [form, setForm] = useState(initialSettings);
+  const [saved, setSaved] = useState(initialSettings);
   const [errors, setErrors] = useState({});
   const [save, setSave] = useState({ state: "idle" });
   const [test, setTest] = useState({ state: "idle" });
@@ -35,6 +37,7 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
         body: JSON.stringify({ ...rest, pricingOverrides }),
       });
       setForm(data.settings);
+      setSaved(data.settings);
       setSave({ state: "saved" });
     } catch (err) {
       setErrors(err.fields || {});
@@ -128,6 +131,32 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
                   <option value="elevenlabs">ElevenLabs — more natural voice, uses credits</option>
                 </Select>
               </Field>
+              {form.voiceProvider === "elevenlabs" && (
+                <ElevenLabsVoices
+                  voices={form.elevenlabsVoices || []}
+                  activeId={form.elevenlabsVoiceId}
+                  max={maxVoices}
+                  error={errors.elevenlabsVoices || errors.elevenlabsVoiceId}
+                  onChange={({ voices, activeId }) => setForm((f) => ({ ...f, elevenlabsVoices: voices, elevenlabsVoiceId: activeId }))}
+                />
+              )}
+              {form.voiceProvider === "elevenlabs" && (
+                <div>
+                  <Field label="ElevenLabs model" htmlFor="elevenlabsModel" error={errors.elevenlabsModel} hint="Decides which languages can be spoken.">
+                    <Select id="elevenlabsModel" value={form.elevenlabsModel || ""} onChange={set("elevenlabsModel")} invalid={!!errors.elevenlabsModel}>
+                      {!elevenlabsModels.some((m) => m.id === form.elevenlabsModel) && form.elevenlabsModel && (
+                        <option value={form.elevenlabsModel}>{form.elevenlabsModel}</option>
+                      )}
+                      {elevenlabsModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+              )}
+              <VoiceTest dirty={["voiceProvider", "elevenlabsVoiceId", "elevenlabsModel", "elevenlabsVoices"].some((k) => JSON.stringify(form[k]) !== JSON.stringify(saved[k]))} />
               {form.voiceProvider === "elevenlabs" && !status.elevenlabsConfigured && (
                 <Alert tone="warning" title="ElevenLabs key missing">
                   Add <code className="font-mono">ELEVENLABS_API_KEY</code> on the server. Until then replies are spoken with OpenAI.
@@ -229,6 +258,56 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
           </CardBody>
         </Card>
       </div>
+    </div>
+  );
+}
+
+const SAMPLE = "Hello, welcome to ATLAS SkillTech University. नमस्ते, आपका स्वागत है। Aapka admission form submit ho gaya hai.";
+
+/** Plays a short Hindi + English sample with the SAVED voice settings. */
+function VoiceTest({ dirty }) {
+  const [t, setT] = useState({ state: "idle" });
+  async function run() {
+    setT({ state: "running" });
+    try {
+      const res = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: SAMPLE }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message || "Could not play the sample.");
+      }
+      const provider = res.headers.get("X-Voice-Provider") || "openai";
+      const fallback = res.headers.get("X-Voice-Fallback") === "1";
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play().catch(() => {});
+      setT({ state: "ok", provider, fallback });
+    } catch (err) {
+      setT({ state: "error", message: err.message });
+    }
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="secondary" size="sm" onClick={run} disabled={t.state === "running" || dirty}>
+          {t.state === "running" && <Spinner className="size-3.5" />}
+          Play sample voice
+        </Button>
+        <span className="text-xs text-slate-500">{dirty ? "Save settings first, then play the sample." : "Speaks a short English + Hindi + Hinglish line."}</span>
+      </div>
+      {t.state === "ok" && !t.fallback && (
+        <p className="text-xs text-emerald-700">Spoken by {t.provider === "elevenlabs" ? "ElevenLabs" : "OpenAI"}.</p>
+      )}
+      {t.state === "ok" && t.fallback && (
+        <Alert tone="warning" title="ElevenLabs did not work — OpenAI spoke instead">
+          Check the Voice ID, the model, and the ElevenLabs credits card. Free plans cannot use some Voice Library voices through the API.
+        </Alert>
+      )}
+      {t.state === "error" && <p className="text-xs text-red-600">{t.message}</p>}
     </div>
   );
 }

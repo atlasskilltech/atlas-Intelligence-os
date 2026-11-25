@@ -79,3 +79,31 @@ test("voiceProvider setting: default openai, accepts elevenlabs, rejects others"
   assert.equal(r.ok, true);
   assert.equal((await getModelSettings()).voiceProvider, "elevenlabs");
 });
+
+test("ElevenLabs voice ID and model are saved from Model Settings", async () => {
+  assert.equal(validateModelSettings({ elevenlabsVoiceId: "bad id!" }).ok, false);
+  assert.equal(validateModelSettings({ elevenlabsModel: "Eleven V3" }).ok, false);
+  const r = await updateModelSettings({ elevenlabsVoiceId: " pNInz6obpgDQGcFmaJgB ", elevenlabsModel: "eleven_v3" });
+  assert.equal(r.ok, true);
+  const s = await getModelSettings();
+  assert.equal(s.elevenlabsVoiceId, "pNInz6obpgDQGcFmaJgB");
+  assert.equal(s.elevenlabsModel, "eleven_v3");
+});
+
+test("several ElevenLabs voices can be saved and switched", async () => {
+  const voices = [
+    { id: "pNInz6obpgDQGcFmaJgB", name: "Aarush" },
+    { id: "XrExE9yKIg1WjnnlVkGX", name: "Bunty" },
+  ];
+  let r = await updateModelSettings({ elevenlabsVoices: voices, elevenlabsVoiceId: "XrExE9yKIg1WjnnlVkGX" });
+  assert.equal(r.ok, true);
+  assert.equal((await getModelSettings()).elevenlabsVoiceId, "XrExE9yKIg1WjnnlVkGX");
+  r = await updateModelSettings({ elevenlabsVoices: voices, elevenlabsVoiceId: "pNInz6obpgDQGcFmaJgB" });
+  assert.equal((await getModelSettings()).elevenlabsVoiceId, "pNInz6obpgDQGcFmaJgB");
+  assert.deepEqual((await getModelSettings()).elevenlabsVoices, voices);
+  // active voice must be one of the saved ones; duplicates and bad IDs are refused
+  assert.equal(validateModelSettings({ elevenlabsVoices: voices, elevenlabsVoiceId: "AAAAAAAAAAAAAAAAAAAA" }).ok, false);
+  assert.equal(validateModelSettings({ elevenlabsVoices: [voices[0], voices[0]] }).ok, false);
+  assert.equal(validateModelSettings({ elevenlabsVoices: [{ id: "x y", name: "Bad" }] }).ok, false);
+  assert.equal(validateModelSettings({ elevenlabsVoices: [{ id: "pNInz6obpgDQGcFmaJgB", name: "" }] }).ok, false);
+});

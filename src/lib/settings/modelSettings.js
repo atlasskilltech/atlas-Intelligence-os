@@ -14,6 +14,16 @@ export const FALLBACK_MODELS = { defaultModel: "gpt-5.4-mini", plannerModel: "gp
 /** Who speaks the voice assistant's replies. OpenAI is always the fallback. */
 export const VOICE_PROVIDERS = ["openai", "elevenlabs"];
 
+/** ElevenLabs models offered in Model Settings (any valid model id can also be typed). */
+export const ELEVENLABS_MODELS = [
+  { id: "eleven_flash_v2_5", label: "Flash v2.5 — fastest, fewer credits (Hindi, English, Tamil + 29 more)" },
+  { id: "eleven_multilingual_v2", label: "Multilingual v2 — natural quality (Hindi, English, Tamil + 26 more)" },
+  { id: "eleven_v3", label: "v3 — most languages incl. Marathi, Bengali, Gujarati (slower)" },
+];
+const VOICE_ID_RE = /^[A-Za-z0-9]{10,40}$/;
+export const MAX_ELEVENLABS_VOICES = 10;
+const ELEVEN_MODEL_RE = /^[a-z0-9_]{3,60}$/;
+
 export const LIMITS = {
   maxOutputTokens: { min: 256, max: 32_000 },
   requestTimeoutSec: { min: 10, max: 300 },
@@ -31,6 +41,10 @@ function defaults() {
     maxRetries: 3,
     pricingOverrides: {},
     voiceProvider: "openai",
+    // ElevenLabs voice + model: set in Model Settings; ELEVENLABS_VOICE_ID / ELEVENLABS_MODEL are only the initial values.
+    elevenlabsVoiceId: env.elevenlabsVoiceId, // the voice in use
+    elevenlabsVoices: [], // saved voices [{ id, name }] to switch between
+    elevenlabsModel: env.elevenlabsModel,
   };
 }
 
@@ -59,6 +73,44 @@ export function validateModelSettings(patch) {
   if (patch.voiceProvider !== undefined) {
     if (!VOICE_PROVIDERS.includes(patch.voiceProvider)) errors.voiceProvider = "Choose OpenAI or ElevenLabs.";
     else value.voiceProvider = patch.voiceProvider;
+  }
+  if (patch.elevenlabsVoiceId !== undefined) {
+    const v = typeof patch.elevenlabsVoiceId === "string" ? patch.elevenlabsVoiceId.trim() : "";
+    if (!VOICE_ID_RE.test(v)) errors.elevenlabsVoiceId = "Paste the Voice ID from ElevenLabs (letters and numbers, e.g. pNInz6obpgDQGcFmaJgB).";
+    else value.elevenlabsVoiceId = v;
+  }
+  if (patch.elevenlabsVoices !== undefined) {
+    const list = patch.elevenlabsVoices;
+    const out = [];
+    if (!Array.isArray(list) || list.length > MAX_ELEVENLABS_VOICES) errors.elevenlabsVoices = `Save up to ${MAX_ELEVENLABS_VOICES} voices.`;
+    else {
+      for (const v of list) {
+        const id = typeof v?.id === "string" ? v.id.trim() : "";
+        const name = typeof v?.name === "string" ? v.name.trim().replace(/\s+/g, " ") : "";
+        if (!VOICE_ID_RE.test(id)) {
+          errors.elevenlabsVoices = `"${id || "(empty)"}" is not a valid Voice ID.`;
+          break;
+        }
+        if (!name || name.length > 60) {
+          errors.elevenlabsVoices = "Give every voice a name (up to 60 characters).";
+          break;
+        }
+        if (out.some((o) => o.id === id)) {
+          errors.elevenlabsVoices = `Voice ID ${id} is added twice.`;
+          break;
+        }
+        out.push({ id, name });
+      }
+      value.elevenlabsVoices = out;
+    }
+  }
+  if (!errors.elevenlabsVoices && !errors.elevenlabsVoiceId && value.elevenlabsVoices?.length && value.elevenlabsVoiceId) {
+    if (!value.elevenlabsVoices.some((v) => v.id === value.elevenlabsVoiceId)) errors.elevenlabsVoiceId = "Choose one of the saved voices.";
+  }
+  if (patch.elevenlabsModel !== undefined) {
+    const v = typeof patch.elevenlabsModel === "string" ? patch.elevenlabsModel.trim() : "";
+    if (!ELEVEN_MODEL_RE.test(v)) errors.elevenlabsModel = "Choose an ElevenLabs model.";
+    else value.elevenlabsModel = v;
   }
   if (patch.pricingOverrides !== undefined) {
     const p = patch.pricingOverrides;

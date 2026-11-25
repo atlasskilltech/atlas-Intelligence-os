@@ -171,8 +171,8 @@ export async function synthesizeSpeech({ text, voice, instructions }, meta = {})
       try {
         const res = await callAudio(
           "speak",
-          { text, voiceId: env.elevenlabsVoiceId },
-          env.elevenlabsModel,
+          { text, voiceId: settings.elevenlabsVoiceId },
+          settings.elevenlabsModel,
           { ...meta, maxRetries: meta.maxRetries ?? 1 },
           getElevenLabsProvider(),
         );
