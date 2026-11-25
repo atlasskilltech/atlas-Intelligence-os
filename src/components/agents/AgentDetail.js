@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
 import RunTable from "@/components/runs/RunTable";
 import AgentWorkspace, { agentApi, downloadAgentJson, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
+import AgentConnectors, { usesProjects } from "./AgentConnectors";
 import { StatusBadge } from "./AgentStatus";
 
 const SAVED_MSG = {
@@ -23,7 +24,7 @@ const SAVED_MSG = {
 const fingerprint = (d) => JSON.stringify(toPayload(d));
 
 /** View / edit one saved agent: status actions, editing, AI refine, delete. */
-export default function AgentDetail({ initial, justSaved, runs = [], schedule = null }) {
+export default function AgentDetail({ initial, justSaved, runs = [], schedule = null, projects = [] }) {
   const router = useRouter();
   const [rec, setRec] = useState(initial);
   const [draft, setDraft] = useState(() => toDraft(initial.config));
@@ -171,6 +172,12 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
           <p className="mt-1 text-xs text-slate-500">
             Created {fmtDateTime(rec.createdAt)} · Last saved {fmtDateTime(rec.updatedAt)}
           </p>
+          {usesProjects(rec.config.tools) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">Connectors:</span>
+              <AgentConnectors ids={rec.config.connectors?.projects || []} projects={projects} />
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setRunMode("test")} disabled={!!busy || !!runBlocked} title={runBlocked || "Try the agent safely: changes and messages are simulated"}>
@@ -216,6 +223,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
           setDraft(fn);
         }}
         prompt={rec.config.source?.prompt}
+        projects={projects}
         warnings={warnings}
         meta={meta}
         onAIResult={(data) => {

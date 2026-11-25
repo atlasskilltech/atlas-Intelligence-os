@@ -11,6 +11,7 @@ import { cn } from "@/components/ui/cn";
 import { LIMITS, canPreApprove, draftErrors, normalizeAgentConfig } from "@/lib/agents/agentConfig";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { RISK_LEVELS, getTool, isToolAvailable } from "@/lib/catalog/toolCatalog";
+import AgentConnectors, { usesProjects } from "./AgentConnectors";
 import ConnectorPicker from "./ConnectorPicker";
 import StepsEditor, { newStepKey } from "./StepsEditor";
 import StepsFlow from "./StepsFlow";
@@ -251,6 +252,7 @@ export default function AgentWorkspace({
   serverErrors = {},
   actions,
   footnote,
+  projects = null, // [{ id, name, usable }] when known (agent page): shows connectors in the summary
 }) {
   const [refining, setRefining] = useState(false);
   const [refineText, setRefineText] = useState("");
@@ -334,7 +336,7 @@ export default function AgentWorkspace({
             </CardBody>
           </Card>
 
-          {derived.tools.some((id) => id.startsWith("atlas_project.")) && (
+          {usesProjects(derived.tools) && (
             <Card>
               <CardHeader
                 title="Connectors"
@@ -411,6 +413,12 @@ export default function AgentWorkspace({
                   </ul>
                 )}
               </div>
+              {projects && usesProjects(derived.tools) && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Connectors</p>
+                  <AgentConnectors className="mt-1.5" ids={derived.connectors.projects} projects={projects} />
+                </div>
+              )}
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Approvals</p>
                 {approvalTools.length === 0 ? (
