@@ -534,7 +534,7 @@ export default function VoiceAgent() {
             <Icon name="mic" className="size-4" />
           </span>
           <div className="leading-tight">
-            <p className="text-sm font-semibold">ATLAS Voice</p>
+            <p className="text-sm font-semibold">Agent A</p>
             <p className="text-[11px] text-white/50">{LANGUAGES.find((l) => l.code === language)?.label}</p>
           </div>
         </div>
