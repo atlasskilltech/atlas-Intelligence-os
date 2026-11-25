@@ -43,21 +43,13 @@ Login is required once the database and Google settings are present in the serve
 The first person to sign in becomes admin (or set `ADMIN_EMAILS`). Admins add other users on the
 **Users** page; only added emails can sign in. Roles: **admin** and **user**.
 
-## Voice Assistant (Agent A)
+## Voice Assistant
 
-Open **Voice Assistant** in the sidebar (or the **Voice** button on Home): tap the orb and talk in
-Hindi, English, Hinglish or any other language; Agent A answers out loud in the same language, using
-the same read-only connector lookups as Home.
-
-- **Realtime engine (default):** OpenAI Realtime speech-to-speech over WebRTC. It understands when you
-  have finished a thought (semantic VAD), you can interrupt by speaking, and replies start in about
-  half a second. The browser gets only a 2-minute client secret; connector lookups run on the server
-  (`/api/voice/realtime/tool`). Optional `OPENAI_REALTIME_MODEL`.
-- **Standard engine (fallback):** record → transcribe → answer → text-to-speech. Used automatically if
-  Realtime cannot start (e.g. `OPENAI_BASE_URL` is set). Optional `OPENAI_STT_MODEL`,
-  `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`.
-
-Needs only `OPENAI_API_KEY`. Browsers allow the microphone only on `https://` (or `localhost`).
+Open **Voice Assistant** in the sidebar (or the **Voice** button on Home) for a ChatGPT-style voice
+mode: tap the orb, speak in Hindi, English, Hinglish or any other language, and the assistant answers
+out loud in the same language. It uses the same read-only connector lookups as Home. Needs only
+`OPENAI_API_KEY`; optional `OPENAI_STT_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`. Browsers only
+allow the microphone on `https://` (or `localhost`).
 
 ## Scheduled agents
 

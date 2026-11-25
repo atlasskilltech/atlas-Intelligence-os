@@ -58,7 +58,7 @@ const BUILD_AGENT_TOOL = {
 };
 
 /** Extra rules when the answer will be spoken aloud by the voice assistant. */
-export function voiceRules(language, realtime = false) {
+export function voiceRules(language) {
   const lang = typeof language === "string" && /^[a-z]{2}$/.test(language) ? language : null;
   return [
     "VOICE MODE: your reply is converted to speech and played aloud, like a phone call with a helpful guide.",
@@ -69,13 +69,6 @@ export function voiceRules(language, realtime = false) {
       ? `Reply in the language with ISO code "${lang}", written in its native script (e.g. Hindi in Devanagari), even if the question mixes languages.`
       : "Reply in the SAME language the employee used (Hindi, English, Hinglish, Marathi, Tamil, or any other). If they mix Hindi and English, reply in the same natural mix. Write Hindi in Devanagari.",
     "If you did not understand or the message seems cut off, ask one short clarifying question.",
-    ...(realtime
-      ? [
-          "You are talking live. Sound like a real person: friendly, relaxed, natural pace, small acknowledgements ('haan', 'okay', 'sure') where natural. Use a natural Indian accent for Hindi and other Indian languages.",
-          "Before a data lookup, say a very short filler first (e.g. 'Ek second, check karti hoon' / 'One moment, let me check'), then call the tool.",
-          "If the employee interrupts you, stop and listen; do not repeat what you already said.",
-        ]
-      : []),
   ].join("\n");
 }
 
@@ -91,7 +84,7 @@ function systemPrompt({ projects, today, voice }) {
     projects
       ? `Connectors you may use:\n${projects}`
       : "No connector is selected or connected, so you cannot look up live data. Answer general questions only, and tell the employee to pick a connector for data questions.",
-    ...(voice ? [voiceRules(voice.language, voice.realtime)] : []),
+    ...(voice ? [voiceRules(voice.language)] : []),
   ].join("\n\n");
 }
 
@@ -103,14 +96,17 @@ const DEFAULT_DEPS = {
 };
 
 /**
- * The system prompt and tools of the assistant, shared by text chat and the realtime
- * voice session (which runs the same tools through runAssistantTool).
- * @returns {Promise<{ system: string, tools: object[], allowed: Set<string>|null }>}
+ * @param {object} input { message, history?, projectIds?, mode?: "auto"|"ask", actor, voice?: { language? } }
+ * @returns {Promise<{ route: "agent", reason } | { route: "answer", answer, sources, meta }>}
  */
-export async function buildAssistantSetup({ projectIds = null, mode = "auto", actor = {}, voice = null }, deps = DEFAULT_DEPS) {
+export async function answerQuestion(
+  { message, history = [], projectIds = null, mode = "auto", actor = {}, voice = null },
+  deps = DEFAULT_DEPS,
+) {
+  const userEmail = actor.email || null;
   let projects = "";
   try {
-    projects = await deps.describe({ userEmail: actor.email || null, onlyIds: projectIds });
+    projects = await deps.describe({ userEmail, onlyIds: projectIds });
   } catch (err) {
     console.error("[assistant] could not list connectors:", err?.message);
   }
@@ -127,50 +123,12 @@ export async function buildAssistantSetup({ projectIds = null, mode = "auto", ac
   if (mode !== "ask") tools.push(BUILD_AGENT_TOOL);
 
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
-  return { system: systemPrompt({ projects, today, voice }), tools, allowed: projectIds?.length ? new Set(projectIds) : null };
-}
-
-/**
- * Runs one read tool call and returns the text to give back to the model.
- * Only the read-only lookup is executable; anything else is refused.
- */
-export async function runAssistantTool(call, { actor = {}, allowed = null, sources = [] } = {}, deps = DEFAULT_DEPS) {
-  let payload;
-  if (call.name !== READ_FN) {
-    payload = { ok: false, error: `Unknown tool "${call.name}". Only read-only lookups are possible here.` };
-  } else {
-    const args = call.arguments || {};
-    try {
-      if (allowed && !allowed.has(args.project)) {
-        throw new Error(`Project "${args.project}" is not one of the connectors the employee selected.`);
-      }
-      const r = await deps.callRead({ projectId: args.project, actionId: args.action, params: args.params || {}, userEmail: actor.email || null });
-      sources.push({ project: r.project?.name || args.project, action: args.action });
-      payload = { ok: true, result: { status: r.status, data: r.data, ...(r.truncated ? { note: "Response was cut off." } : {}) } };
-    } catch (err) {
-      payload = { ok: false, error: safeText(err?.message || "Lookup failed") };
-    }
-  }
-  const body = clip(safeText(JSON.stringify(payload)), TOOL_RESULT_MAX);
-  return `<tool_result untrusted="true">\n${body}\n</tool_result>`;
-}
-
-export { BUILD_AGENT_FN, READ_FN };
-
-/**
- * @param {object} input { message, history?, projectIds?, mode?: "auto"|"ask", actor, voice?: { language? } }
- * @returns {Promise<{ route: "agent", reason } | { route: "answer", answer, sources, meta }>}
- */
-export async function answerQuestion(
-  { message, history = [], projectIds = null, mode = "auto", actor = {}, voice = null },
-  deps = DEFAULT_DEPS,
-) {
-  const { system, tools, allowed } = await buildAssistantSetup({ projectIds, mode, actor, voice }, deps);
   const messages = [
-    { role: "system", content: system },
+    { role: "system", content: systemPrompt({ projects, today, voice }) },
     ...cleanHistory(history),
     { role: "user", content: clip(String(message), MESSAGE_MAX) },
   ];
+  const allowed = projectIds?.length ? new Set(projectIds) : null;
   const sources = [];
   const meta = { modelCalls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, model: null };
 
@@ -200,8 +158,24 @@ export async function answerQuestion(
 
     messages.push({ role: "assistant", content: res.text || "", toolCalls: calls });
     for (const call of calls) {
-      const content = await runAssistantTool(call, { actor, allowed, sources }, deps);
-      messages.push({ role: "tool", toolCallId: call.id, content });
+      let payload;
+      if (call.name !== READ_FN) {
+        payload = { ok: false, error: `Unknown tool "${call.name}". Only read-only lookups are possible here.` };
+      } else {
+        const args = call.arguments || {};
+        try {
+          if (allowed && !allowed.has(args.project)) {
+            throw new Error(`Project "${args.project}" is not one of the connectors the employee selected.`);
+          }
+          const r = await deps.callRead({ projectId: args.project, actionId: args.action, params: args.params || {}, userEmail });
+          sources.push({ project: r.project?.name || args.project, action: args.action });
+          payload = { ok: true, result: { status: r.status, data: r.data, ...(r.truncated ? { note: "Response was cut off." } : {}) } };
+        } catch (err) {
+          payload = { ok: false, error: safeText(err?.message || "Lookup failed") };
+        }
+      }
+      const body = clip(safeText(JSON.stringify(payload)), TOOL_RESULT_MAX);
+      messages.push({ role: "tool", toolCallId: call.id, content: `<tool_result untrusted="true">\n${body}\n</tool_result>` });
     }
   }
 }

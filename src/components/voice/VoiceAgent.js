@@ -7,7 +7,6 @@ import { loadSelectedConnectors } from "@/components/agents/ConnectorPicker";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "./ParticleOrb";
-import { connectRealtime } from "./realtimeClient";
 
 /**
  * Voice assistant, in the style of ChatGPT's voice mode:
@@ -15,11 +14,7 @@ import { connectRealtime } from "./realtimeClient";
  * answers with the same assistant as Home (read-only connector lookups) → speaks the
  * answer → listens again. Hindi, English, Hinglish and other languages work.
  *
- * Two engines:
- * - "realtime" (default): OpenAI Realtime speech-to-speech over WebRTC — semantic
- *   turn detection, speak-to-interrupt, ~0.5 s replies. Routes: /api/voice/realtime(/tool,/usage).
- * - "classic" (fallback): record → /api/voice/transcribe → /api/chat → /api/voice/speak.
- * If realtime cannot start, classic is used automatically.
+ * Server routes: /api/voice/transcribe, /api/chat (voice: {...}), /api/voice/speak.
  */
 
 export const LANGUAGES = [
@@ -41,22 +36,14 @@ export const LANGUAGES = [
   { code: "ar", label: "العربية · Arabic" },
 ];
 
-// Voices available in both engines (Realtime and text-to-speech).
 export const VOICES = [
-  { id: "marin", label: "Marin (natural, warm)" },
-  { id: "cedar", label: "Cedar (natural, deep)" },
-  { id: "coral", label: "Coral (bright)" },
+  { id: "nova", label: "Nova (warm)" },
   { id: "shimmer", label: "Shimmer (soft)" },
+  { id: "coral", label: "Coral (bright)" },
   { id: "sage", label: "Sage (calm)" },
   { id: "alloy", label: "Alloy (neutral)" },
-  { id: "ash", label: "Ash (clear)" },
   { id: "echo", label: "Echo (deep)" },
-  { id: "verse", label: "Verse (expressive)" },
-];
-
-const ENGINES = [
-  { id: "realtime", label: "Realtime — most natural", hint: "Talks like a person: knows when you've finished, you can interrupt by speaking." },
-  { id: "classic", label: "Standard", hint: "Record → answer → speak. Cheaper; works where Realtime is unavailable." },
+  { id: "onyx", label: "Onyx (low)" },
 ];
 
 const STATUS = {
@@ -66,12 +53,11 @@ const STATUS = {
   thinking: "Thinking…",
   speaking: "Speaking — tap to interrupt",
   muted: "Microphone muted",
-  connecting: "Connecting…",
   error: "Something went wrong",
 };
 
 // Voice activity detection
-const SILENCE_MS = 1600; // pause that ends a sentence
+const SILENCE_MS = 1300; // pause that ends a sentence
 const MIN_SPEECH_MS = 250;
 const MAX_UTTERANCE_MS = 60_000;
 const IDLE_RESTART_MS = 20_000; // restart the recorder if nobody speaks, keeps files small
@@ -111,11 +97,7 @@ export default function VoiceAgent() {
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState("");
   const [language, setLanguage] = useState("");
-  const [voice, setVoice] = useState("marin");
-  const [engine, setEngine] = useState("realtime");
-  const [running, setRunning] = useState(null); // engine of the live conversation
-  const [notice, setNotice] = useState("");
-  const [agentPrompt, setAgentPrompt] = useState("");
+  const [voice, setVoice] = useState("nova");
 
   // Audio graph and loop state live in refs (they change every frame).
   const r = useRef({
@@ -133,15 +115,8 @@ export default function VoiceAgent() {
     phase: "idle",
     messages: [],
     language: "",
-    voice: "marin",
-    engine: "realtime",
+    voice: "nova",
     buf: null,
-    rt: null, // live Realtime connection
-    rtModel: "",
-    rtResponding: false,
-    rtNeedsResponse: false,
-    rtTools: 0, // tool lookups in flight
-    lastUserText: "",
   });
   const transcriptEnd = useRef(null);
 
@@ -157,7 +132,6 @@ export default function VoiceAgent() {
       queueMicrotask(() => {
         if (typeof saved.language === "string") setLanguage(saved.language);
         if (typeof saved.voice === "string" && VOICES.some((v) => v.id === saved.voice)) setVoice(saved.voice);
-        if (ENGINES.some((e) => e.id === saved.engine)) setEngine(saved.engine);
       });
     } catch {
       /* storage unavailable */
@@ -166,13 +140,12 @@ export default function VoiceAgent() {
   useEffect(() => {
     r.current.language = language;
     r.current.voice = voice;
-    r.current.engine = engine;
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ language, voice, engine }));
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ language, voice }));
     } catch {
       /* storage unavailable */
     }
-  }, [language, voice, engine]);
+  }, [language, voice]);
   useEffect(() => {
     r.current.messages = messages;
     transcriptEnd.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -181,7 +154,7 @@ export default function VoiceAgent() {
   // ---------- level for the orb ----------
   const getLevel = useCallback(() => {
     const s = r.current;
-    const an = s.phase === "speaking" ? (s.rt ? s.rt.getAnalyser() : s.outAnalyser) : s.phase === "listening" || s.phase === "hearing" ? s.micAnalyser : null;
+    const an = s.phase === "speaking" ? s.outAnalyser : s.phase === "listening" || s.phase === "hearing" ? s.micAnalyser : null;
     if (!an) return 0;
     if (!s.buf || s.buf.length !== an.fftSize) s.buf = new Float32Array(an.fftSize);
     return Math.min(1, rmsOf(an, s.buf) * 6);
@@ -418,198 +391,14 @@ export default function VoiceAgent() {
     listenRef.current = listen;
   }, [listen]);
 
-  // ---------- realtime engine ----------
-  /** Insert or update a transcript line by the Realtime item id. */
-  const upsert = useCallback((id, patch) => {
-    setMessages((ms) => {
-      const i = ms.findIndex((m) => m.id === id);
-      if (i === -1) return [...ms, { id, content: "", ...patch }];
-      const next = ms.slice();
-      next[i] = { ...next[i], ...(typeof patch === "function" ? patch(next[i]) : patch) };
-      return next;
-    });
-  }, []);
-
-  const runTool = useCallback(
-    async ({ call_id: callId, name, arguments: args }) => {
-      const s = r.current;
-      if (name === "build_agent") setAgentPrompt(s.lastUserText || "");
-      s.rtTools += 1;
-      setP("thinking");
-      let output;
-      try {
-        const res = await fetch("/api/voice/realtime/tool", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, arguments: args, projects: loadSelectedConnectors() }),
-        });
-        output = res.ok ? (await res.json()).output : JSON.stringify({ ok: false, error: (await apiError(res)).message });
-      } catch (err) {
-        output = JSON.stringify({ ok: false, error: err.message || "Lookup failed" });
-      }
-      s.rtTools = Math.max(0, s.rtTools - 1);
-      if (!s.rt) return;
-      s.rt.send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output } });
-      if (s.rtResponding) s.rtNeedsResponse = true;
-      else s.rt.send({ type: "response.create" });
-    },
-    [setP],
-  );
-
-  const onRealtimeEvent = useCallback(
-    (ev) => {
-      const s = r.current;
-      switch (ev.type) {
-        case "conversation.item.added":
-        case "conversation.item.created": {
-          const it = ev.item || {};
-          if (it.type !== "message") break;
-          if (it.role === "user") {
-            const typed = (it.content || []).find((c) => c.type === "input_text")?.text;
-            upsert(it.id, { role: "user", content: typed || "…", pending: !typed });
-            if (typed) s.lastUserText = typed;
-          } else if (it.role === "assistant") {
-            upsert(it.id, (m) => ({ role: "assistant", content: m?.content || "" }));
-          }
-          break;
-        }
-        case "conversation.item.input_audio_transcription.delta":
-          upsert(ev.item_id, (m) => ({ role: "user", content: (m?.pending ? "" : m?.content || "") + (ev.delta || ""), pending: false }));
-          break;
-        case "conversation.item.input_audio_transcription.completed": {
-          const text = String(ev.transcript || "").trim();
-          if (text) {
-            s.lastUserText = text;
-            upsert(ev.item_id, { role: "user", content: text, pending: false });
-          } else {
-            setMessages((ms) => ms.filter((m) => m.id !== ev.item_id));
-          }
-          break;
-        }
-        case "conversation.item.input_audio_transcription.failed":
-          setMessages((ms) => ms.filter((m) => m.id !== ev.item_id));
-          break;
-        case "input_audio_buffer.speech_started":
-          if (!s.muted) setP("hearing");
-          break;
-        case "input_audio_buffer.speech_stopped":
-          setP("thinking");
-          break;
-        case "response.created":
-          s.rtResponding = true;
-          if (s.phase !== "speaking") setP("thinking");
-          break;
-        case "response.output_audio_transcript.delta":
-        case "response.audio_transcript.delta":
-          upsert(ev.item_id, (m) => ({ role: "assistant", content: (m?.content || "") + (ev.delta || "") }));
-          break;
-        case "response.output_audio_transcript.done":
-        case "response.audio_transcript.done":
-          if (ev.transcript) upsert(ev.item_id, { role: "assistant", content: ev.transcript });
-          break;
-        case "output_audio_buffer.started":
-          setP("speaking");
-          break;
-        case "output_audio_buffer.stopped":
-        case "output_audio_buffer.cleared":
-          if (s.phase === "speaking") setP(s.muted ? "muted" : "listening");
-          break;
-        case "response.function_call_arguments.done":
-          runTool(ev);
-          break;
-        case "response.done": {
-          s.rtResponding = false;
-          const u = ev.response?.usage;
-          if (u) {
-            fetch("/api/voice/realtime/usage", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ model: s.rtModel, inputTokens: u.input_tokens, outputTokens: u.output_tokens }),
-            }).catch(() => {});
-          }
-          if (ev.response?.status === "failed") {
-            const msg = ev.response?.status_details?.error?.message;
-            if (msg) setError(msg);
-          }
-          if (s.rtNeedsResponse) {
-            s.rtNeedsResponse = false;
-            s.rt?.send({ type: "response.create" });
-          } else if (s.phase === "thinking" && !s.rtTools) {
-            setP(s.muted ? "muted" : "listening");
-          }
-          break;
-        }
-        case "error": {
-          const code = ev.error?.code || "";
-          if (/response_cancel_not_active|conversation_already_has_active_response/.test(code)) break;
-          console.warn("[voice] realtime error:", ev.error);
-          if (ev.error?.message) setError(ev.error.message);
-          break;
-        }
-        default:
-          break;
-      }
-    },
-    [runTool, setP, upsert],
-  );
-
-  const startRealtime = useCallback(async () => {
-    const s = r.current;
-    const res = await fetch("/api/voice/realtime", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projects: loadSelectedConnectors(), language: s.language || undefined, voice: s.voice }),
-    });
-    if (!res.ok) throw await apiError(res);
-    const { clientSecret, callsUrl, model } = await res.json();
-    s.rtModel = model;
-    s.rtResponding = false;
-    s.rtNeedsResponse = false;
-    s.rtTools = 0;
-    s.rt = await connectRealtime({
-      clientSecret,
-      callsUrl,
-      micStream: s.stream,
-      audioCtx: s.ctx,
-      onEvent: onRealtimeEvent,
-      onState: (state) => {
-        if ((state === "failed" || state === "disconnected") && r.current.rt) {
-          setError("Connection lost. Tap the orb to reconnect.");
-          endRef.current();
-        }
-      },
-    });
-  }, [onRealtimeEvent]);
-
-  const endRef = useRef(() => {});
-
   // ---------- controls ----------
   const start = useCallback(async () => {
     const s = r.current;
-    if (s.active || s.phase === "connecting") return;
     setError("");
-    setNotice("");
-    setAgentPrompt("");
     try {
       await ensureAudio();
-      s.stream.getAudioTracks().forEach((t) => (t.enabled = !s.muted));
-      if (s.engine === "realtime" && typeof RTCPeerConnection !== "undefined") {
-        setP("connecting");
-        try {
-          await startRealtime();
-          s.active = true;
-          setActive(true);
-          setRunning("realtime");
-          setP(s.muted ? "muted" : "listening");
-          return;
-        } catch (err) {
-          console.warn("[voice] realtime unavailable, using standard mode:", err?.message);
-          setNotice("Realtime voice is not available right now — using standard mode.");
-        }
-      }
       s.active = true;
       setActive(true);
-      setRunning("classic");
       listen();
     } catch (err) {
       const denied = err?.name === "NotAllowedError" || err?.name === "SecurityError";
@@ -620,15 +409,12 @@ export default function VoiceAgent() {
       );
       setP("error");
     }
-  }, [ensureAudio, listen, setP, startRealtime]);
+  }, [ensureAudio, listen, setP]);
 
   const end = useCallback(() => {
     const s = r.current;
     s.active = false;
     setActive(false);
-    setRunning(null);
-    s.rt?.close();
-    s.rt = null;
     s.abort?.abort();
     s.abort = null;
     stopRecorder();
@@ -639,38 +425,22 @@ export default function VoiceAgent() {
     setP("idle");
   }, [setP, stopPlayback, stopRecorder]);
 
-  useEffect(() => {
-    endRef.current = end;
-  }, [end]);
-
   /** Stop the assistant talking (or thinking) and listen right away. */
   const interrupt = useCallback(() => {
     const s = r.current;
-    if (s.rt) {
-      s.rt.send({ type: "response.cancel" });
-      s.rt.send({ type: "output_audio_buffer.clear" });
-      s.rtNeedsResponse = false;
-      setP(s.muted ? "muted" : "listening");
-      return;
-    }
     s.abort?.abort();
     s.abort = null;
     stopPlayback();
     if (s.active) listen();
-  }, [listen, setP, stopPlayback]);
+  }, [listen, stopPlayback]);
 
   const toggleMute = useCallback(() => {
     const s = r.current;
     s.muted = !s.muted;
     setMuted(s.muted);
     s.stream?.getAudioTracks().forEach((t) => (t.enabled = !s.muted));
-    if (s.rt) {
-      if (s.muted && (s.phase === "listening" || s.phase === "hearing")) setP("muted");
-      else if (!s.muted && s.phase === "muted") setP("listening");
-      return;
-    }
     if (s.phase === "listening" || s.phase === "hearing" || s.phase === "muted") listen();
-  }, [listen, setP]);
+  }, [listen]);
 
   const onOrb = useCallback(() => {
     const p = r.current.phase;
@@ -686,16 +456,6 @@ export default function VoiceAgent() {
       if (!text) return;
       setDraft("");
       const s = r.current;
-      if (s.rt) {
-        if (s.rtResponding) {
-          s.rt.send({ type: "response.cancel" });
-          s.rt.send({ type: "output_audio_buffer.clear" });
-        }
-        s.lastUserText = text;
-        s.rt.send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text }] } });
-        s.rt.send({ type: "response.create" });
-        return;
-      }
       s.abort?.abort();
       stopRecorder();
       stopPlayback();
@@ -742,7 +502,6 @@ export default function VoiceAgent() {
       s.abort?.abort();
       clearInterval(s.vadTimer);
       if (s.recorder && s.recorder.state !== "inactive") s.recorder.stop();
-      s.rt?.close();
       s.audioEl?.pause();
       s.stream?.getTracks().forEach((t) => t.stop());
       s.ctx?.close().catch(() => {});
@@ -755,17 +514,10 @@ export default function VoiceAgent() {
     router.push("/");
   };
 
-  const shown = messages.filter((m) => m.content && !m.pending);
-  const lastUser = [...shown].reverse().find((m) => m.role === "user");
-  const lastAssistant = shown.length && shown[shown.length - 1].role === "assistant" ? shown[shown.length - 1] : null;
-  const buildPrompt = agentPrompt || lastAssistant?.agentPrompt || "";
-  const orbState = phase === "hearing" ? "listening" : phase === "muted" ? "idle" : phase === "connecting" ? "thinking" : phase;
-  const statusText =
-    error && (phase === "error" || !active)
-      ? error
-      : phase === "speaking" && running === "realtime"
-        ? "Speaking — just talk to interrupt"
-        : STATUS[phase];
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const lastAssistant = messages.length && messages[messages.length - 1].role === "assistant" ? messages[messages.length - 1] : null;
+  const orbState = phase === "hearing" ? "listening" : phase === "muted" ? "idle" : phase;
+  const statusText = error && (phase === "error" || !active) ? error : STATUS[phase];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#030816] text-white">
@@ -812,21 +564,20 @@ export default function VoiceAgent() {
             )}
           >
             {(phase === "listening" || phase === "hearing") && <span className="size-2 animate-pulse rounded-full bg-brand-400" />}
-            {(phase === "thinking" || phase === "connecting") && <Dots />}
+            {phase === "thinking" && <Dots />}
             {statusText}
           </p>
-          {lastUser && active && phase === "thinking" && (
+          {lastUser && active && phase !== "speaking" && (
             <p className="mt-3 line-clamp-2 max-w-xl text-[15px] text-white/55">“{lastUser.content}”</p>
           )}
-          {lastAssistant && phase !== "thinking" && phase !== "hearing" && (
+          {lastAssistant && (phase === "speaking" || !active) && (
             <p className={cn("mt-3 line-clamp-4 max-w-xl text-base leading-relaxed", lastAssistant.error ? "text-red-200" : "text-white/85")}>
               {lastAssistant.content}
             </p>
           )}
-          {notice && <p className="mt-2 text-xs text-amber-200/80">{notice}</p>}
-          {buildPrompt && (
+          {lastAssistant?.agentPrompt && (
             <Link
-              href={`/agents/new?prompt=${encodeURIComponent(buildPrompt)}`}
+              href={`/agents/new?prompt=${encodeURIComponent(lastAssistant.agentPrompt)}`}
               onClick={end}
               className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-1.5 text-sm font-semibold text-navy-800 hover:bg-brand-400"
             >
@@ -891,25 +642,7 @@ export default function VoiceAgent() {
       {/* settings sheet */}
       {showSettings && (
         <Sheet title="Voice settings" onClose={() => setShowSettings(false)}>
-          <p className="block text-xs font-semibold uppercase tracking-wider text-white/50">Voice engine</p>
-          <div className="mt-1.5 space-y-2">
-            {ENGINES.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => setEngine(e.id)}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-left transition",
-                  engine === e.id ? "border-brand-400 bg-brand-500/15" : "border-white/10 hover:border-white/25",
-                )}
-              >
-                <span className="block text-sm text-white">{e.label}</span>
-                <span className="block text-xs text-white/50">{e.hint}</span>
-              </button>
-            ))}
-          </div>
-
-          <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-white/50">Language</label>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-white/50">Language</label>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -939,11 +672,6 @@ export default function VoiceAgent() {
               </button>
             ))}
           </div>
-          {active && (
-            <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
-              Changes apply the next time you start talking (end and start again).
-            </p>
-          )}
           <p className="mt-4 text-xs text-white/45">
             Tip: press <kbd className="rounded bg-white/10 px-1">Space</kbd> to start or interrupt, <kbd className="rounded bg-white/10 px-1">Esc</kbd> to end.
             Data questions use the connectors selected on Home.
@@ -954,12 +682,12 @@ export default function VoiceAgent() {
       {/* transcript sheet */}
       {showTranscript && (
         <Sheet title="Transcript" onClose={() => setShowTranscript(false)} wide>
-          {shown.length === 0 ? (
+          {messages.length === 0 ? (
             <p className="text-sm text-white/50">Your conversation will appear here.</p>
           ) : (
             <div className="space-y-3">
-              {shown.map((m, i) => (
-                <div key={m.id || i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+              {messages.map((m, i) => (
+                <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                   <p
                     className={cn(
                       "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
