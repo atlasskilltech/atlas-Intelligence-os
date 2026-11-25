@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import PromptComposer from "@/components/agents/PromptComposer";
 import { PROMPT_SUGGESTIONS } from "@/components/agents/suggestions";
+import HomeAssistant from "@/components/home/HomeAssistant";
 import { fmtDateTime, fmtInt, fmtUsd } from "@/components/ui/format";
 import { countAgents } from "@/lib/agents/agentRepo";
 import { getPageActor } from "@/lib/context";
@@ -43,15 +43,15 @@ export default async function HomePage() {
         <div className="mb-8 text-center">
           <p className="text-sm font-medium text-brand-600">{greeting()}</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            What would you like to automate?
+            Ask anything, or automate a task
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-            Describe a task in plain language. IntelligenceOS turns it into an AI agent with a step-by-step plan you
-            review before anything runs.
+            Ask a question like &ldquo;how many requests are pending?&rdquo; and get the answer straight away. Describe
+            recurring work and IntelligenceOS turns it into an agent you review before anything runs.
           </p>
         </div>
 
-        <PromptComposer autoFocus suggestions={PROMPT_SUGGESTIONS} />
+        <HomeAssistant suggestions={PROMPT_SUGGESTIONS} />
 
         <dl className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {stats.map((s) => (

@@ -10,7 +10,8 @@ const MAX = 4000;
 /**
  * ChatGPT/Claude-style prompt box. Enter submits, Shift+Enter adds a line.
  * - With `onSubmit`, calls it with the text.
- * - Otherwise navigates to /agents/new?prompt=… (used on the home page).
+ * - Otherwise navigates to /agents/new?prompt=….
+ * `toolbar` renders on the left of the bottom row (e.g. the connector picker).
  */
 export default function PromptComposer({
   defaultValue = "",
@@ -20,6 +21,7 @@ export default function PromptComposer({
   footer,
   suggestions = [],
   autoFocus = false,
+  toolbar = null,
 }) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue);
@@ -76,9 +78,13 @@ export default function PromptComposer({
           className="block max-h-[260px] w-full resize-none bg-transparent px-3 pt-2 pb-1 text-[15px] leading-6 text-ink placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
         />
         <div className="flex items-center justify-between gap-3 px-2 pb-1">
-          <p className="truncate text-xs text-slate-400">
-            {value.length > MAX * 0.9 ? `${value.length}/${MAX}` : "Enter to continue · Shift+Enter for a new line"}
-          </p>
+          {toolbar ? (
+            <div className="min-w-0 flex-1">{toolbar}</div>
+          ) : (
+            <p className="truncate text-xs text-slate-400">
+              {value.length > MAX * 0.9 ? `${value.length}/${MAX}` : "Enter to continue · Shift+Enter for a new line"}
+            </p>
+          )}
           <button
             type="submit"
             disabled={!canSend}

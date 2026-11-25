@@ -186,10 +186,12 @@ const paramText = (a) =>
  * descriptions and the planner. With `userEmail`, delegated projects list only
  * what that user may do.
  */
-export async function describeProjects(kind, { userEmail = null } = {}) {
+export async function describeProjects(kind, { userEmail = null, onlyIds = null } = {}) {
   const lines = [];
+  const only = Array.isArray(onlyIds) && onlyIds.length ? new Set(onlyIds) : null;
   for (const p of await listProjects()) {
     if (!usable(p)) continue;
+    if (only && !only.has(p.id)) continue;
     const { actions } = await actionsFor(p, userEmail);
     const acts = actions.filter(ofKind(kind));
     if (!acts.length) continue;

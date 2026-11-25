@@ -22,17 +22,23 @@ const PLANNER_CALL = {
  * Connected ATLAS projects, so the planner can name real actions (best-effort).
  * Projects that act as the signed-in user list only what THIS user may do there.
  */
-async function projectContext(userEmail) {
+async function projectContext(userEmail, onlyIds = null) {
   try {
-    const [read, write] = await Promise.all([describeProjects("read", { userEmail }), describeProjects("write", { userEmail })]);
+    const [read, write] = await Promise.all([
+      describeProjects("read", { userEmail, onlyIds }),
+      describeProjects("write", { userEmail, onlyIds }),
+    ]);
     return [read && `READ (atlas_project.read):\n${read}`, write && `CHANGE DATA (atlas_project.write):\n${write}`].filter(Boolean).join("\n\n");
   } catch {
     return "";
   }
 }
 
-async function plan(userContent, { prompt, agentId, keep, userEmail = null, actorId = null }) {
-  const projects = await projectContext(userEmail);
+async function plan(userContent, { prompt, agentId, keep, userEmail = null, actorId = null, projectIds = null }) {
+  let projects = await projectContext(userEmail, projectIds);
+  if (projectIds?.length && projects) {
+    projects = `The employee chose these connectors for this agent — use only them:\n\n${projects}`;
+  }
   const result = await callModel(
     "generateStructured",
     {
@@ -62,7 +68,7 @@ async function plan(userContent, { prompt, agentId, keep, userEmail = null, acto
   };
 }
 
-/** `who` = { userEmail, actorId } of the employee planning the agent. */
+/** `who` = { userEmail, actorId, projectIds? } — projectIds limits the planner to the connectors the employee picked. */
 export function generateAgent(prompt, who = {}) {
   return plan(plannerUserPrompt(prompt), { prompt, ...who });
 }

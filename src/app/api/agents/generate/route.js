@@ -1,5 +1,6 @@
 import { normalizeAgentConfig } from "@/lib/agents/agentConfig";
 import { getActor } from "@/lib/context";
+import { cleanProjectIds } from "@/lib/assistant/assistant";
 import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 import { PROMPT_MAX, PROMPT_MIN, generateAgent, refineAgent } from "@/lib/planner/planner";
 
@@ -15,7 +16,7 @@ function checkText(value, label) {
 }
 
 /**
- * POST { prompt }                 → generate a new agent draft
+ * POST { prompt, projects? }      → generate a new agent draft (projects = connector ids the employee picked)
  * POST { agent, instruction }     → revise an existing draft
  * Returns { agent, warnings, meta: { model, usage, costUsd, latencyMs } }.
  */
@@ -23,7 +24,7 @@ export async function POST(request) {
   try {
     const body = await readJsonBody(request, 100_000);
     const actor = await getActor();
-    const who = { userEmail: actor.email || null, actorId: actor.id };
+    const who = { userEmail: actor.email || null, actorId: actor.id, projectIds: cleanProjectIds(body.projects) };
 
     if (body.agent !== undefined) {
       const instruction = checkText(body.instruction, "Change request");

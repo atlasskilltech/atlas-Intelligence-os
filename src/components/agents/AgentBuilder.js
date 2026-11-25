@@ -9,6 +9,7 @@ import Icon from "@/components/ui/Icon";
 import { Alert, Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import AgentWorkspace, { agentApi, downloadAgentJson, postGenerate, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
+import ConnectorPicker, { loadSelectedConnectors } from "./ConnectorPicker";
 import PromptComposer from "./PromptComposer";
 import { PROMPT_SUGGESTIONS } from "./suggestions";
 
@@ -84,8 +85,9 @@ function Planning({ prompt }) {
 }
 
 // ---------- main ----------
-export default function AgentBuilder({ initialPrompt = "" }) {
+export default function AgentBuilder({ initialPrompt = "", initialProjects = [] }) {
   const router = useRouter();
+  const [projects, setProjects] = useState(initialProjects); // connectors picked for this agent
   const [phase, setPhase] = useState("describe"); // describe | generating | review
   const [prompt, setPrompt] = useState(initialPrompt);
   const [draft, setDraft] = useState(null);
@@ -98,12 +100,12 @@ export default function AgentBuilder({ initialPrompt = "" }) {
   const [serverErrors, setServerErrors] = useState({});
   const started = useRef(false);
 
-  async function generate(text) {
+  async function generate(text, picked = projects) {
     setPrompt(text);
     setError(null);
     setPhase("generating");
     try {
-      const data = await postGenerate({ prompt: text });
+      const data = await postGenerate({ prompt: text, ...(picked.length ? { projects: picked } : {}) });
       const d = toDraft(data.agent);
       setDraft(d);
       setMeta(data.meta);
@@ -125,9 +127,10 @@ export default function AgentBuilder({ initialPrompt = "" }) {
     queueMicrotask(() => {
       if (initialPrompt) {
         router.replace("/agents/new", { scroll: false }); // a refresh must not re-run the planner
-        generate(initialPrompt);
+        generate(initialPrompt, initialProjects);
         return;
       }
+      if (!initialProjects.length) setProjects(loadSelectedConnectors());
       const saved = loadSaved();
       if (saved?.draft) {
         setDraft(saved.draft);
@@ -198,7 +201,8 @@ export default function AgentBuilder({ initialPrompt = "" }) {
             key={prompt}
             defaultValue={prompt}
             autoFocus
-            onSubmit={generate}
+            onSubmit={(text) => generate(text)}
+            toolbar={<ConnectorPicker value={projects} onChange={setProjects} />}
             suggestions={PROMPT_SUGGESTIONS}
             footer={error && <Alert tone="error" title="Couldn't create the agent">{error}</Alert>}
           />
