@@ -22,19 +22,20 @@ const FILTERS = [
 
 const SHOW_MAX = 200;
 
-function listHref(status, connector) {
+function listHref({ status, connector, called }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
   if (connector) q.set("connector", connector);
+  if (called) q.set("called", called);
   const qs = q.toString();
   return qs ? `/runs?${qs}` : "/runs";
 }
 
 export default async function RunsPage({ searchParams }) {
   await connection();
-  const { status: raw, connector: rawConnector } = await searchParams;
+  const { status: raw, connector: rawConnector, called: rawCalled } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
-  // Filter by connector before trimming to SHOW_MAX, so older matching runs still show up.
+  // Filter before trimming to SHOW_MAX, so older matching runs still show up.
   const actor = await getPageActor();
   const [everything, found, projects] = await Promise.all([
     listRuns(actor, { limit: 1000 }), // filter options stay the same whatever the status filter
@@ -43,8 +44,27 @@ export default async function RunsPage({ searchParams }) {
   ]);
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
+
+  // "Called" options: projects that some run actually called.
+  const calledIds = [...new Set(everything.flatMap((r) => (r.projectCalls || []).map((c) => c.project)))];
+  const calledName = (id) => projects.find((p) => p.id === id)?.name || `${id} (removed)`;
+  const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
+  const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
+
+  const filters = { status, connector, called };
+  const hrefWith = (patch) => listHref({ ...filters, ...patch });
   const pool = found ?? everything;
-  const runs = (connector ? pool.filter((r) => matchesConnector(r, connector, projects)) : pool).slice(0, SHOW_MAX);
+  const runs = pool
+    .filter((r) => !connector || matchesConnector(r, connector, projects))
+    .filter((r) => !called || (r.projectCalls || []).some((c) => c.project === called))
+    .slice(0, SHOW_MAX);
+
+  const emptyTitle =
+    connector || called
+      ? `No ${status === "all" ? "" : "matching "}runs${connector ? ` with ${names.get(connector)}` : ""}${called ? ` that called ${calledName(called)}` : ""}`
+      : status === "all"
+        ? "No runs yet"
+        : "No runs match this filter";
 
   return (
     <>
@@ -53,7 +73,7 @@ export default async function RunsPage({ searchParams }) {
         {FILTERS.map((f) => (
           <Link
             key={f.id}
-            href={listHref(f.id, connector)}
+            href={hrefWith({ status: f.id })}
             aria-current={status === f.id ? "page" : undefined}
             className={cn(
               "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
@@ -64,13 +84,16 @@ export default async function RunsPage({ searchParams }) {
           </Link>
         ))}
       </nav>
-      <ConnectorFilter className="mb-4" options={options} current={connector} hrefFor={(id) => listHref(status, id)} />
+      <div className="mb-4 space-y-2">
+        <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
+        <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
+      </div>
       {runs.length === 0 ? (
         <EmptyState
           icon="history"
-          title={connector ? `No ${status === "all" ? "" : "matching "}runs with ${names.get(connector)}` : status === "all" ? "No runs yet" : "No runs match this filter"}
-          description={connector ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
-          action={status === "all" && !connector && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
+          title={emptyTitle}
+          description={connector || called ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
+          action={status === "all" && !connector && !called && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
         />
       ) : (
         <RunTable runs={runs} projects={projects} />

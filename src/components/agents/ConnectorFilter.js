@@ -29,13 +29,13 @@ export function connectorOptions(projects, items = []) {
 }
 
 /** "Connector: Any · CRM · ERP" chip row. `hrefFor(id | null)` builds each link. */
-export default function ConnectorFilter({ options, current, hrefFor, className }) {
+export default function ConnectorFilter({ options, current, hrefFor, className, label = "Connector", icon = "plug" }) {
   if (!options.length) return null;
   return (
-    <nav aria-label="Filter by connector" className={cn("flex flex-wrap items-center gap-1.5 text-xs", className)}>
+    <nav aria-label={`Filter by ${label.toLowerCase()}`} className={cn("flex flex-wrap items-center gap-1.5 text-xs", className)}>
       <span className="mr-1 inline-flex items-center gap-1 font-medium text-slate-500">
-        <Icon name="plug" className="size-3.5" />
-        Connector:
+        <Icon name={icon} className="size-3.5" />
+        {label}:
       </span>
       {[{ id: null, name: "Any" }, ...options].map((c) => (
         <Link
