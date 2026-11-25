@@ -23,6 +23,11 @@ school limits. An agent cannot be shared to give someone more access.
 3. Check that everyone's IntelligenceOS email is the **same** as their dashboard email, which is the faculty
    email for teachers.
 
+**Adding areas later:** on the dashboard, use **IntelligenceOS Keys → Edit areas** on the key and tick the new
+areas. For example, tick **Admissions (read)** and **All dashboard pages (read)** so Intelligence can answer
+questions about every menu page. Then click **Connectors → ATLAS Dashboard → Re-check access** here. Each user's
+list of actions refreshes within 10 minutes.
+
 ## 2. Agents
 
 | Chip | Who creates it | When it runs | They need on the dashboard | Key areas |
@@ -75,7 +80,7 @@ Agents never receive applicants' email or phone.
 |---|---|---|
 | "…is not a user or faculty member of the ATLAS Dashboard" | Emails differ between the two apps | Use the same email in both |
 | "Your ATLAS Dashboard access does not allow this (needs …)" | The owner lacks that dashboard permission | Grant it in Manage Access, or use another owner |
-| "This key does not allow …" | The area is not ticked on the key | Create a key with the area ticked, update the connector, revoke the old key |
+| "This key does not allow …", or the assistant says it only has e.g. `list_schools` | The area is not ticked on the key | Dashboard → IntelligenceOS Keys → **Edit areas**, then **Re-check access** here |
 | Planner says it cannot find a dashboard action | The connector or key does not offer it to you | As above; check **Connectors → ATLAS Dashboard → View access** |
 
 Not available yet: a ticket triage agent that replies to individual new tickets. The dashboard only gives
