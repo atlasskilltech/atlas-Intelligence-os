@@ -36,6 +36,19 @@ school limits. An agent cannot be shared to give someone more access.
 | Low-attendance email draft | Programme coordinator | Mondays 09:30 | attendance + `students.view` + `student_email.send` | Attendance, Draft low-attendance emails |
 | Timetable change helper | Timetable admin | Manual (describe the change in the run box) | `timetable.view` + `timetable.move` / `timetable.delete` | Timetable, Rooms, Draft timetable changes |
 | Weekly room usage | Infra head | Fridays 17:00 | `infra.view` | Rooms |
+| Admissions today | Admissions team (a question, not an agent) | Asked in the Home assistant | `admissions.view` | Admissions |
+| Weekly admissions report | Admissions head / Director | Mondays 09:00 | `admissions.view` | Admissions |
+| Admissions by school & degree | Admissions head | Daily 18:00 | `admissions.view` | Admissions |
+
+**Admissions questions:** anything on the dashboard's Admissions page can be asked directly in the Home assistant:
+- the funnel
+- any intake, school, program, degree or date range
+- state, city, Class XII / X school, gender, board, referral, lead source or channel
+- Class XII scores and the application trend
+- year-on-year comparison, and looking up an applicant by name or id
+
+For example: "How many B.Des applications from Maharashtra have paid so far this intake, versus last year?"
+Agents never receive applicants' email or phone.
 
 **School limits:** to keep an HOD's agents to their own school, add a limit under
 **IntelligenceOS Keys → School limits for agents** on the dashboard. Super admins are never limited.

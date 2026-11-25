@@ -54,6 +54,23 @@ export const PROMPT_SUGGESTIONS = [
       "Every Friday at 5:00 PM, use the ATLAS Dashboard room usage for each day from Monday to Friday this week to report, per building, how many rooms were used and idle each day, and list the 10 busiest rooms of the week. Create a report and notify me.",
   },
 
+  // ── ATLAS Dashboard: Admissions (/admissions/dashboard) ──
+  {
+    label: "Admissions today",
+    prompt:
+      "From the ATLAS Dashboard admissions: how many applications, paid applications and enrolments does the current intake have so far, and how does that compare with the same period last year?",
+  },
+  {
+    label: "Weekly admissions report",
+    prompt:
+      "Every Monday at 9:00 AM, use the ATLAS Dashboard admissions data for the current intake to report: the funnel (applications, paid, challenge completed, passed, enrolled, tuition fee paid, withdrawn) with the change versus the same period last year, last week's applications and paid applications, the top 10 states and cities, the degree-wise split and the top lead sources. Create a report and notify me.",
+  },
+  {
+    label: "Admissions by school & degree",
+    prompt:
+      "Every day at 6:00 PM, use the ATLAS Dashboard admissions data to list today's new applications and paid applications for the current intake by school and by degree, compare them with the same day last year, and notify me with a short summary.",
+  },
+
   // ── ATLAS CRM ──
   {
     label: "Daily admission lead report",
