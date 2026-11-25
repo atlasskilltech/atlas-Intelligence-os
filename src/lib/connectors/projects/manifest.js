@@ -49,7 +49,24 @@ const manifestSchema = z.object({
     })
     .default({}),
   actions: z.array(z.unknown()).max(MAX_ACTIONS),
+  // Two-way projects (ATLAS CRM, Career Services): where IntelligenceOS registers
+  // its callback so the project's agent events reach it. Optional; anything
+  // malformed here is ignored rather than refusing the whole manifest.
+  events: z.unknown().optional(),
 });
+
+const eventsSchema = z.object({
+  register: z.string().max(200).regex(PATH_RE),
+  types: z.array(z.string().max(60)).max(30).optional(),
+});
+
+/** { register, types } or null — the register path must be a plain relative path. */
+export function parseEvents(raw) {
+  const r = eventsSchema.safeParse(raw);
+  if (!r.success) return null;
+  if (/[{}]/.test(r.data.register) || r.data.register.split("/").some((x) => x === "." || x === "..")) return null;
+  return { register: r.data.register, types: (r.data.types || []).filter((t) => /^[a-z][a-z0-9_.]{0,59}$/.test(t)) };
+}
 
 export class ManifestError extends Error {}
 
@@ -66,6 +83,7 @@ export function parseManifest(doc) {
     throw new ManifestError(`The project's manifest is not valid (${where}: ${i.message}).`);
   }
   const { project, key, actions: raw } = top.data;
+  const events = parseEvents(top.data.events);
   const actions = [];
   const skipped = [];
   const seen = new Set();
@@ -112,7 +130,7 @@ export function parseManifest(doc) {
     seen.add(a.id);
     actions.push({ ...a, risk: a.method === "POST" ? "write" : a.risk });
   }
-  return { project, key, actions, skipped };
+  return { project, key, actions, skipped, ...(events ? { events } : {}) };
 }
 
 /**

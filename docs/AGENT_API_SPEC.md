@@ -79,6 +79,33 @@ directly. Return one of these (at the top level or nested up to 3 levels):
 Only `https` links on the project's own host are shown (anything else is ignored). The owner also
 gets a dashboard notification. Short-lived confirm links are fine; the run page says they expire.
 
+## 2b. Two-way sync of the project's own agents (optional)
+
+Projects that run agents of their own (ATLAS CRM: Aila missions and workflows; ATLAS Career
+Services: Uni-AI Agent routines and Placement CRM workflows) can keep IntelligenceOS in sync.
+Their manifest adds:
+
+```json
+"events": { "register": "/connect", "types": ["agent.created", "agent.activated", "agent.run.completed"] }
+```
+
+- After connecting (and on every "Re-check access" or key replacement) IntelligenceOS POSTs
+  `{ "callbackUrl", "webhookSecret", "platformName" }` to `<baseUrl><register>` with the key.
+  The callback is `<APP_URL>/api/connectors/projects/<id>/events`; `APP_URL` must be set.
+- The project POSTs events there: `{ id, event, platform, origin, occurredAt, data }` with
+  `x-atlas-signature: sha256=<hex HMAC-SHA256 of the raw body>` using that secret. Unsigned or
+  wrongly signed events are refused (401); events older than 15 minutes are refused; a repeated
+  `id` is ignored.
+- Events: `agent.created | updated | activated | deactivated | deleted` (`data.agent`),
+  `agent.run.completed` (`data.agent`, `data.run`, `data.answer`), `agents.snapshot`
+  (`data.agents[]`), `policy.updated`, `connector.ping`.
+- The project page shows the agents with Activate / Deactivate / Run buttons. They call the
+  project's own `list_agents`, `activate_agent`, `deactivate_agent` and `run_agent` actions, so the
+  key's scopes still decide what is possible. "Refresh from <project>" rebuilds the list from
+  `list_agents` if events were missed.
+- Connect form presets: **ATLAS Career Services** and **ATLAS CRM** fill the name and the
+  `/api/intos/v1` URL; the key is generated on that portal's IntelligenceOS Connector settings page.
+
 ## 3. `GET /manifest`
 
 ```json

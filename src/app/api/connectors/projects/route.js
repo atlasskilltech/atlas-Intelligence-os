@@ -1,4 +1,5 @@
-import { connectProject, listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
+import { registerEvents } from "@/lib/connectors/projects/projectEvents";
+import { connectProject, getProject, listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
 import { getActor } from "@/lib/context";
 import { fail, ok, readJsonBody } from "@/lib/http/respond";
 
@@ -18,7 +19,9 @@ export async function POST(request) {
   try {
     const body = await readJsonBody(request);
     const rec = await connectProject((await getActor()), { name: body.name, baseUrl: body.baseUrl, key: body.key, delegated: body.delegated === true });
-    return ok({ project: publicProject(rec) }, 201);
+    // Two-way projects: register our event callback (best effort; outcome on the project).
+    if (rec.manifest?.events) await registerEvents(rec.id).catch(() => null);
+    return ok({ project: publicProject(rec.manifest?.events ? await getProject(rec.id) : rec) }, 201);
   } catch (err) {
     return fail(err);
   }

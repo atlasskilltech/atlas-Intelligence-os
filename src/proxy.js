@@ -8,8 +8,9 @@ import { SESSION_COOKIE, authConfigured, verifySession } from "@/lib/auth/token"
  * The role is NOT decided here — routes re-check the user in the database.
  */
 
-// /api/scheduler/tick has its own secret (CRON_SECRET).
-const PUBLIC = [/^\/login(\/|$)/, /^\/api\/auth\//, /^\/api\/scheduler\/tick$/];
+// /api/scheduler/tick has its own secret (CRON_SECRET). A project's event
+// callback is signed with the secret given to that project (projectEvents.js).
+const PUBLIC = [/^\/login(\/|$)/, /^\/api\/auth\//, /^\/api\/scheduler\/tick$/, /^\/api\/connectors\/projects\/[a-z0-9_]+\/events$/];
 
 export function proxy(request) {
   if (!authConfigured()) return NextResponse.next();

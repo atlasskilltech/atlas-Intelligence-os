@@ -137,11 +137,40 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
   );
 }
 
+// Two-way ATLAS portals that speak the IntelligenceOS connector contract
+// (`/api/intos/v1`). Picking one fills the name and URL; the admin edits the
+// host if theirs differs and pastes the key generated on that portal's
+// IntelligenceOS Connector settings page.
+export const PROJECT_PRESETS = [
+  {
+    id: "career_services",
+    label: "ATLAS Career Services",
+    name: "ATLAS Career Services",
+    baseUrl: "https://uat-careerconnect.atlasskilltech.app/api/intos/v1",
+    keyHint: "Career Services → Admin → Settings → IntelligenceOS Connector → Generate API key.",
+    delegated: false,
+  },
+  {
+    id: "crm",
+    label: "ATLAS CRM",
+    name: "ATLAS CRM",
+    baseUrl: "https://uat-crm.atlasskilltech.app/api/intos/v1",
+    keyHint: "CRM → Settings → IntelligenceOS Connector → Generate API key.",
+    delegated: false,
+  },
+];
+
 function ConnectForm({ onCancel, onConnected }) {
   const [form, setForm] = useState({ name: "", baseUrl: "https://", key: "", delegated: false });
   const [errors, setErrors] = useState({});
   const [state, setState] = useState({ state: "idle" });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [preset, setPreset] = useState(null);
+  const pick = (pr) => {
+    setPreset(pr);
+    setErrors({});
+    setForm((f) => ({ ...f, name: pr.name, baseUrl: pr.baseUrl, delegated: pr.delegated }));
+  };
 
   async function submit(e) {
     e.preventDefault();
@@ -161,6 +190,29 @@ function ConnectForm({ onCancel, onConnected }) {
       <form onSubmit={submit} noValidate>
         <CardHeader title="Connect a project" description="IntelligenceOS checks the key with the project and shows what it allows." />
         <CardBody className="space-y-4">
+          <div>
+            <p className="text-xs font-medium text-slate-500">ATLAS portals with two-way sync</p>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {PROJECT_PRESETS.map((pr) => (
+                <button
+                  key={pr.id}
+                  type="button"
+                  onClick={() => pick(pr)}
+                  aria-pressed={preset?.id === pr.id}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    preset?.id === pr.id ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:border-brand-300"
+                  }`}
+                >
+                  {pr.label}
+                </button>
+              ))}
+            </div>
+            {preset && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                Get the key from {preset.keyHint} Change the URL if your {preset.label} lives elsewhere. Its agents will appear on the project page and stay in sync.
+              </p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Project name" htmlFor="p-name" error={errors.name}>
               <Input id="p-name" value={form.name} placeholder="ATLAS CRM" invalid={!!errors.name} onChange={set("name")} />
