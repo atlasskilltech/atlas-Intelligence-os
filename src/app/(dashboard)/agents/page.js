@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnectors";
 import AgentRowActions from "@/components/agents/AgentRowActions";
 import { StatusBadge } from "@/components/agents/AgentStatus";
 import Button from "@/components/ui/Button";
@@ -12,6 +13,7 @@ import { cn } from "@/components/ui/cn";
 import { listAgents, summarize } from "@/lib/agents/agentRepo";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { getTool } from "@/lib/catalog/toolCatalog";
+import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
 
 export const metadata = { title: "My Agents" };
@@ -28,7 +30,8 @@ export default async function AgentsPage({ searchParams }) {
   const { status: raw, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
 
-  const all = (await listAgents((await getPageActor()))).map(summarize);
+  const [records, projects] = await Promise.all([listAgents(await getPageActor()), projectStatusList()]);
+  const all = records.map(summarize);
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
@@ -94,6 +97,7 @@ export default async function AgentsPage({ searchParams }) {
                       <StatusBadge status={a.status} />
                     </div>
                     {a.description && <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{a.description}</p>}
+                    {usesProjects(a.tools) && <AgentConnectors compact className="mt-1.5" ids={a.connectors} projects={projects} />}
                     <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1">
                         <Icon name="clock" className="size-3.5" />

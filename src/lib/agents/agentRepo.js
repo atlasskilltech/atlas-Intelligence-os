@@ -85,6 +85,7 @@ export function summarize(rec) {
     stepCount: c.steps.length,
     tools: c.tools,
     approvals: c.permissions.toolsRequiringApproval.length,
+    connectors: c.connectors?.projects || [],
     createdAt: rec.createdAt,
     updatedAt: rec.updatedAt,
   };

@@ -139,6 +139,15 @@ export async function listProjects() {
   return (await readAll()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** [{ id, name, usable }] for showing connectors next to agents. Never throws. */
+export async function projectStatusList() {
+  try {
+    return (await listProjects()).map((p) => ({ id: p.id, name: p.name, usable: p.enabled && p.status === "connected" }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getProject(id) {
   const p = (await readAll()).find((x) => x.id === id);
   if (!p) throw new ProjectError("Project not found.", 404);

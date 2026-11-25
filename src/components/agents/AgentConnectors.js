@@ -9,7 +9,7 @@ export const usesProjects = (tools = []) => tools.some((id) => id.startsWith("at
  * `ids` = config.connectors.projects (empty = all connected projects);
  * `projects` = [{ id, name, usable }] from the server, for names and status.
  */
-export default function AgentConnectors({ ids = [], projects = [], className }) {
+export default function AgentConnectors({ ids = [], projects = [], className, compact = false }) {
   const byId = new Map(projects.map((p) => [p.id, p]));
   if (!ids.length) {
     const live = projects.filter((p) => p.usable);
@@ -19,7 +19,7 @@ export default function AgentConnectors({ ids = [], projects = [], className }) 
           <Icon name="plug" className="size-3" />
           All connected projects
         </span>
-        {live.length > 0 && (
+        {!compact && live.length > 0 && (
           <span className="text-xs text-slate-400">
             ({live.map((p) => p.name).join(", ")})
           </span>

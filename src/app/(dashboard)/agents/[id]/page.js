@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import AgentDetail from "@/components/agents/AgentDetail";
 import { AgentNotFound, getAgent } from "@/lib/agents/agentRepo";
-import { listProjects } from "@/lib/connectors/projects/projectRepo";
+import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
 import { scheduleInfo } from "@/lib/scheduler/scheduler";
@@ -28,9 +28,7 @@ export default async function AgentPage({ params, searchParams }) {
   if (!rec) notFound();
   const [runs, projects] = await Promise.all([
     listRuns((await getPageActor()), { agentId: id, limit: 10 }),
-    listProjects()
-      .then((list) => list.map((p) => ({ id: p.id, name: p.name, usable: p.enabled && p.status === "connected" })))
-      .catch(() => []),
+    projectStatusList(),
   ]);
   const s = rec.config.trigger?.type === "schedule" ? rec.config.trigger.schedule : null;
   const schedule = s ? await scheduleInfo(id, s) : null;
