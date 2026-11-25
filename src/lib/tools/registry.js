@@ -59,7 +59,7 @@ export const hasExternalEffect = (toolId) => RISK_LEVELS[getTool(toolId)?.risk]?
 /**
  * Which of the agent's tools can run right now: an executor exists and, if it
  * has an isReady() check (e.g. "a project is connected"), that check passes.
- * Also collects run-time description extras. `ctx` = { ownerEmail } so
+ * Also collects run-time description extras. `ctx` = { ownerEmail, projectIds? } so
  * connectors can tailor both to the agent's owner. Never throws.
  */
 export async function resolveTools(toolIds, executors = EXECUTORS, ctx = {}) {

@@ -11,6 +11,7 @@ import { cn } from "@/components/ui/cn";
 import { LIMITS, canPreApprove, draftErrors, normalizeAgentConfig } from "@/lib/agents/agentConfig";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { RISK_LEVELS, getTool, isToolAvailable } from "@/lib/catalog/toolCatalog";
+import ConnectorPicker from "./ConnectorPicker";
 import StepsEditor, { newStepKey } from "./StepsEditor";
 import StepsFlow from "./StepsFlow";
 import { ApprovalBadge, AvailabilityBadge, RiskBadge } from "./ToolBadges";
@@ -332,6 +333,23 @@ export default function AgentWorkspace({
               <TriggerEditor trigger={draft.trigger} onChange={(trigger) => set({ trigger })} />
             </CardBody>
           </Card>
+
+          {derived.tools.some((id) => id.startsWith("atlas_project.")) && (
+            <Card>
+              <CardHeader
+                title="Connectors"
+                description="Which ATLAS projects this agent may use when it runs. Leave it on all connectors, or pick some to lock the agent to them."
+              />
+              <CardBody>
+                <ConnectorPicker
+                  remember={false}
+                  placement="down"
+                  value={draft.connectors?.projects || []}
+                  onChange={(projects) => set({ connectors: { projects } })}
+                />
+              </CardBody>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Agent instructions" description="What the AI is told when it runs. Edit freely." />

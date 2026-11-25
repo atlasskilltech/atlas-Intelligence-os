@@ -1,4 +1,5 @@
 import "server-only";
+import { cleanProjectIds as cleanIds } from "../agents/agentConfig.js";
 import { callModel as realCallModel } from "../ai/index.js";
 import { getSecretValues } from "../config/env.js";
 import { callAction, describeProjects } from "../connectors/projects/projectConnector.js";
@@ -29,8 +30,7 @@ const safeText = (s) => redact(String(s ?? ""), getSecretValues());
 
 /** Connector ids from the browser: strings only, short, de-duplicated, max 30. */
 export function cleanProjectIds(value) {
-  if (!Array.isArray(value)) return null;
-  const ids = [...new Set(value.filter((v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v)))].slice(0, 30);
+  const ids = cleanIds(value);
   return ids.length ? ids : null;
 }
 

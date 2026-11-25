@@ -184,3 +184,10 @@ test("generateAgent sends the strict schema to the planner model and returns a n
   const usage = await getUsageSummary({ days: 1 });
   assert.equal(usage.byPurpose.find((p) => p.key === "planner").calls, 2);
 });
+
+test("normaliser: connectors lock is kept and cleaned; default is all connectors", () => {
+  assert.deepEqual(normalizeAgentConfig(modelOutput()).config.connectors, { projects: [] });
+  const { config } = normalizeAgentConfig({ ...modelOutput(), connectors: { projects: ["atlas_crm", "atlas_crm", "bad id!", 7] } });
+  assert.deepEqual(config.connectors.projects, ["atlas_crm"]);
+  assert.ok(validateAgentConfig(config).ok);
+});

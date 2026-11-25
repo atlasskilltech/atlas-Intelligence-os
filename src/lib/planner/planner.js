@@ -55,7 +55,7 @@ async function plan(userContent, { prompt, agentId, keep, userEmail = null, acto
 
   // `keep` carries the employee's own settings the model never sees as editable
   // (pre-approvals, run limits) through a revision.
-  const { config, warnings } = normalizeAgentConfig({ ...result.data, ...keep }, { prompt });
+  const { config, warnings } = normalizeAgentConfig({ ...result.data, ...keep, connectors: { projects: projectIds || [] } }, { prompt });
   const check = validateAgentConfig(config);
   if (!check.ok) {
     // Should not happen: the normaliser always produces a valid shape.
@@ -77,6 +77,7 @@ export function refineAgent(currentAgent, instruction, who = {}) {
   return plan(refineUserPrompt(currentAgent, instruction), {
     ...who,
     prompt: currentAgent.source?.prompt || "",
+    projectIds: who.projectIds ?? (currentAgent.connectors?.projects?.length ? currentAgent.connectors.projects : null),
     keep: { permissions: { preApproved: currentAgent.permissions?.preApproved || [] }, limits: currentAgent.limits },
   });
 }

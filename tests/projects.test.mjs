@@ -131,6 +131,21 @@ test("calling actions: data comes back, read/write kept apart, key never leaks",
   await assert.rejects(conn.callAction({ projectId: "nope", actionId: "x", tool: "read" }), /Unknown project/);
 });
 
+test("agent locked to chosen connectors: other projects are hidden and refused", async () => {
+  const other = await resolveTools(["atlas_project.read"], EXECUTORS, { projectIds: ["some_other_project"] });
+  assert.equal(other.ready.size, 0, "a locked agent does not fall back to other projects");
+  const mine = await resolveTools(["atlas_project.read"], EXECUTORS, { projectIds: ["atlas_crm"] });
+  assert.ok(mine.ready.has("atlas_project.read"));
+  assert.match(mine.extra["atlas_project.read"], /atlas_crm/);
+  const read = EXECUTORS["atlas_project.read"];
+  await assert.rejects(
+    read.execute({ project: "atlas_crm", action: "search_leads", params: {} }, { run: { id: "r", agentName: "x", projectIds: ["erp"] } }),
+    /not one of this agent's connectors/,
+  );
+  const ok = await read.execute({ project: "atlas_crm", action: "search_leads", params: {} }, { run: { id: "r", agentName: "x", projectIds: ["atlas_crm"] } });
+  assert.equal(ok.status, 200);
+});
+
 test("replace the key with a read+write key: write actions appear; read tool can't run them", async () => {
   await repo.updateProject(admin, "atlas_crm", { key: rw.key });
   const p = await repo.getProject("atlas_crm");

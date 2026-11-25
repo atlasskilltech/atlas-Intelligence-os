@@ -179,7 +179,8 @@ async function loop(runId, deps) {
   // Tools that can run now: connected AND set up (e.g. an API has been added).
   if (run.ownerEmail === undefined) run.ownerEmail = await emailForActorId(run.ownerId); // runs created before v1.1
   run.output.links ??= [];
-  const resolved = await resolveTools(config.tools, deps.executors, { ownerEmail: run.ownerEmail });
+  const projectIds = config.connectors?.projects?.length ? config.connectors.projects : null; // agent locked to chosen connectors
+  const resolved = await resolveTools(config.tools, deps.executors, { ownerEmail: run.ownerEmail, projectIds });
   const executable = (id) => resolved.ready.has(id);
   const actionTools = toolDefinitions(config.tools, deps.executors, resolved);
   const planTool = planToolDefinition(config.steps);
@@ -415,7 +416,7 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
   const executor = deps.executors[toolId];
   const started = Date.now();
   const ctx = {
-    run: { id: run.id, agentId: run.agentId, agentName: run.agentName, ownerId: run.ownerId, ownerEmail: run.ownerEmail ?? null, mode: run.mode },
+    run: { id: run.id, agentId: run.agentId, agentName: run.agentName, ownerId: run.ownerId, ownerEmail: run.ownerEmail ?? null, mode: run.mode, projectIds: run.config?.connectors?.projects?.length ? run.config.connectors.projects : null },
     addReport: async (report) => {
       run.output.reports.push({ ...report, createdAt: new Date().toISOString() });
       if (run.output.reports.length > 10) run.output.reports.shift();

@@ -95,6 +95,15 @@ const scheduleSchema = z.object({
   cron: z.string().min(9),
 });
 
+export const PROJECT_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+export const MAX_AGENT_PROJECTS = 30;
+
+/** Connector (project) ids: strings matching PROJECT_ID_RE, de-duplicated, max 30. */
+export function cleanProjectIds(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((v) => typeof v === "string" && PROJECT_ID_RE.test(v)))].slice(0, MAX_AGENT_PROJECTS);
+}
+
 export const agentConfigSchema = z.object({
   version: z.literal(1),
   name: z.string().trim().min(1, "Give the agent a name.").max(LIMITS.name),
@@ -120,6 +129,8 @@ export const agentConfigSchema = z.object({
     clarifyingQuestions: z.array(z.string().max(LIMITS.note)).max(LIMITS.maxNotes),
   }),
   source: z.object({ prompt: z.string().max(4000) }),
+  // ATLAS projects this agent may use. Empty = every connected project.
+  connectors: z.object({ projects: z.array(z.string().regex(PROJECT_ID_RE)).max(MAX_AGENT_PROJECTS) }),
 });
 
 // ---------------------------------------------------------------------------
@@ -217,6 +228,7 @@ export function normalizeAgentConfig(raw, { prompt = "" } = {}) {
       clarifyingQuestions: clipList(raw?.clarifyingQuestions ?? notes.clarifyingQuestions).slice(0, 3),
     },
     source: { prompt: clip(raw?.source?.prompt ?? prompt, 4000) },
+    connectors: { projects: cleanProjectIds(raw?.connectors?.projects) },
   };
 
   // Keep an edited draft's limits if they are valid.

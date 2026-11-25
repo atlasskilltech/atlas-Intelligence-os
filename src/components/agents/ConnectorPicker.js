@@ -27,7 +27,7 @@ function storeSelected(ids) {
  * to chat with or build an agent from. Nothing selected = all connected ones.
  * Controlled: `value` = selected project ids, `onChange(ids)`.
  */
-export default function ConnectorPicker({ value = [], onChange, disabled = false, remember = true }) {
+export default function ConnectorPicker({ value = [], onChange, disabled = false, remember = true, placement = "up" }) {
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState(null); // null = loading
   const [error, setError] = useState(null);
@@ -44,9 +44,10 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
     };
   }, []);
 
-  // Drop selections that are no longer connected.
+  // On the prompt box, drop remembered selections that are no longer connected.
+  // (Not for a saved agent: dropping its last project would silently unlock it to all.)
   useEffect(() => {
-    if (!projects) return;
+    if (!projects || !remember) return;
     const ids = new Set(projects.map((p) => p.id));
     const kept = value.filter((id) => ids.has(id));
     if (kept.length !== value.length) onChange?.(kept);
@@ -72,7 +73,8 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
   };
   const toggle = (id) => set(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   const byId = new Map((projects || []).map((p) => [p.id, p]));
-  const selected = value.filter((id) => byId.has(id));
+  const selected = remember ? value.filter((id) => byId.has(id)) : value;
+  const nameOf = (id) => byId.get(id)?.name || (projects ? `${id} (not connected)` : id);
 
   return (
     <div ref={box} className="relative flex min-w-0 flex-wrap items-center gap-1.5">
@@ -88,9 +90,9 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
         {selected.length ? "Connectors" : "All connectors"}
       </button>
       {selected.map((id) => (
-        <span key={id} className="inline-flex max-w-[160px] items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
-          <span className="truncate">{byId.get(id).name}</span>
-          <button type="button" aria-label={`Remove ${byId.get(id).name}`} onClick={() => toggle(id)} className="hover:text-brand-900">
+        <span key={id} className="inline-flex max-w-[200px] items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
+          <span className="truncate">{nameOf(id)}</span>
+          <button type="button" aria-label={`Remove ${nameOf(id)}`} onClick={() => toggle(id)} className="hover:text-brand-900">
             <Icon name="close" className="size-3" />
           </button>
         </span>
@@ -100,7 +102,10 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
         <div
           role="dialog"
           aria-label="Choose connectors"
-          className="absolute bottom-full left-0 z-30 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-surface p-2 shadow-lg"
+          className={cn(
+            "absolute left-0 z-30 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-surface p-2 shadow-lg",
+            placement === "up" ? "bottom-full mb-2" : "top-full mt-2",
+          )}
         >
           <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Use data from</p>
           {projects === null && <p className="px-2 py-2 text-sm text-slate-500">Loading…</p>}

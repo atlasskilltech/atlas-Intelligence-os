@@ -201,9 +201,11 @@ export async function describeProjects(kind, { userEmail = null, onlyIds = null 
   return lines.length ? `Connected projects (* = required):\n${lines.join("\n")}` : "";
 }
 
-async function hasActions(kind, userEmail) {
+async function hasActions(kind, userEmail, onlyIds = null) {
+  const only = Array.isArray(onlyIds) && onlyIds.length ? new Set(onlyIds) : null;
   for (const p of await listProjects()) {
     if (!usable(p)) continue;
+    if (only && !only.has(p.id)) continue;
     if ((await actionsFor(p, userEmail)).actions.some(ofKind(kind))) return true;
   }
   return false;
@@ -220,9 +222,14 @@ const tool = (kind) => ({
       params: { type: "object", description: "The action's parameters, e.g. {\"status\": \"new\", \"limit\": 20}." },
     },
   },
-  isReady: (ctx) => hasActions(kind, ctx?.ownerEmail || null),
-  describe: (ctx) => describeProjects(kind, { userEmail: ctx?.ownerEmail || null }),
+  isReady: (ctx) => hasActions(kind, ctx?.ownerEmail || null, ctx?.projectIds),
+  describe: (ctx) => describeProjects(kind, { userEmail: ctx?.ownerEmail || null, onlyIds: ctx?.projectIds }),
   async execute(args, ctx) {
+    // An agent locked to chosen connectors may only call those projects.
+    const locked = ctx?.run?.projectIds;
+    if (Array.isArray(locked) && locked.length && !locked.includes(args.project)) {
+      throw new Error(`Project "${args.project}" is not one of this agent's connectors (${locked.join(", ")}). Use only those.`);
+    }
     const r = await callAction({ projectId: args.project, actionId: args.action, tool: kind, params: args.params || {}, run: ctx?.run });
     for (const link of r.links) await ctx?.addLink?.(link);
     const note = r.links.length
