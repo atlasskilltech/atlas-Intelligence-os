@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Field, Input, Select } from "@/components/ui/Field";
 import Icon from "@/components/ui/Icon";
 import { Alert, Spinner } from "@/components/ui/States";
+import ProjectAgents from "./ProjectAgents";
 import { ProjectAvatar, ProjectStatus, api, counts } from "./ProjectsSection";
 
 const when = (iso) =>
@@ -154,6 +155,7 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
               )}
             </CardBody>
           </Card>
+          {p.manifest.events && <ProjectAgents key={`${p.id}:${p.events?.at || ""}`} project={p} isAdmin={isAdmin} />}
           {isAdmin && reads.length > 0 && <ActionTester project={p} actions={reads} />}
         </div>
 
@@ -171,6 +173,7 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
                 ["Last checked", when(p.syncedAt)],
                 ["Connected", when(p.createdAt)],
                 ["Used by agents", p.enabled && p.status === "connected" ? "Yes" : "No"],
+                ...(p.manifest.events ? [["Two-way sync", p.events?.registered ? "On" : "Not registered"]] : []),
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4">
                   <dt className="text-slate-500">{k}</dt>

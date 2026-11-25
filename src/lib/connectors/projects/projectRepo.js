@@ -119,7 +119,7 @@ export async function fetchManifest(baseUrl, key, { userEmail } = {}) {
 
 /** Safe view for the browser: no key, only its last 4 characters. */
 export function publicProject(p) {
-  const { keyBox, ...rest } = p;
+  const { keyBox, eventsBox, ...rest } = p;
   return { ...rest, keyHint: `••••${p.keyLast4 || ""}`, usable: p.enabled && p.status === "connected" };
 }
 
@@ -253,6 +253,13 @@ export async function updateProject(actor, id, { name, enabled, key, delegated }
     updatedAt: new Date().toISOString(),
     updatedBy: actor.id,
   }));
+}
+
+/** Bookkeeping fields only (events registration). Never the key or the manifest. */
+export async function patchProject(id, patch) {
+  const allowed = {};
+  for (const k of ["events", "eventsBox"]) if (k in patch) allowed[k] = patch[k];
+  return mutate(id, (cur) => ({ ...cur, ...allowed }));
 }
 
 /** Called when the project rejects the key during a run, so the card shows the problem. */
