@@ -426,6 +426,7 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
       if (run.output.reports.length > 10) run.output.reports.shift();
     },
     notify: async ({ message, level }) => safeNotify(deps, run, { message, level }),
+    getReports: () => [...(run.output.reports || [])],
     // A project returned a draft / confirm link: show it as a button and tell the owner.
     addLink: async (link) => {
       run.output.links ??= [];

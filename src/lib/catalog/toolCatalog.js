@@ -44,6 +44,16 @@ export const CONNECTORS = [
     ],
   },
   {
+    id: "email",
+    name: "Email",
+    category: "built-in",
+    description: "Email the agent's owner (sent with SendGrid). Only ever goes to the owner's own inbox.",
+    availableIn: 7,
+    actions: [
+      { id: "email_owner", name: "Email owner", risk: "send", description: "Send an email to the agent's owner's own inbox (no other recipients). Can include the report created in this run." },
+    ],
+  },
+  {
     id: "atlas_project",
     name: "ATLAS projects",
     category: "atlas",

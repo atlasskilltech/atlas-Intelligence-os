@@ -102,6 +102,18 @@ export function getDbConfig() {
   };
 }
 
+/**
+ * SendGrid (email the agent's owner). Null when no API key is set.
+ * The "from" address must be a verified sender in SendGrid.
+ */
+export function getSendGridConfig() {
+  const key = pick("SENDGRID_API_KEY", "SENDGRID_KEY");
+  if (!key.value) return null;
+  const from = pick("SENDGRID_FROM_EMAIL", "SENDGRID_FROM", "SENDGRID_SENDER", "MAIL_FROM", "EMAIL_FROM");
+  const fromName = pick("SENDGRID_FROM_NAME", "MAIL_FROM_NAME", "EMAIL_FROM_NAME");
+  return { apiKey: key.value, from: from.value || null, fromName: fromName.value || "ATLAS IntelligenceOS", names: [key.name, from.name].filter(Boolean) };
+}
+
 /** Google sign-in (OAuth client). Null when not configured. */
 export function getGoogleAuth() {
   const id = pick("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID", "GOOGLE_OAUTH_CLIENT_ID");
@@ -150,6 +162,7 @@ export function getSecretValues() {
   return [
     getOpenAIKey(),
     getElevenLabsKey(),
+    getSendGridConfig()?.apiKey,
     getEncryptionKey(),
     getDbConfig()?.password,
     getGoogleAuth()?.clientSecret,
