@@ -2,12 +2,12 @@ import Link from "next/link";
 import { connection } from "next/server";
 import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnectors";
 import AgentRowActions from "@/components/agents/AgentRowActions";
-import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import { StatusBadge } from "@/components/agents/AgentStatus";
 import ProjectCalls, { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import Button from "@/components/ui/Button";
 import { fmtDateTime } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
+import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { Alert, EmptyState } from "@/components/ui/States";
 import StorageNotice from "@/components/ui/StorageNotice";
@@ -29,11 +29,9 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-function listHref({ status, connector, called, owner }) {
+function listHref({ status, owner }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
-  if (connector) q.set("connector", connector);
-  if (called) q.set("called", called);
   if (owner && owner !== "mine") q.set("owner", owner); // "mine" is the default — keep the URL clean
   const qs = q.toString();
   return qs ? `/agents?${qs}` : "/agents";
@@ -41,16 +39,13 @@ function listHref({ status, connector, called, owner }) {
 
 export default async function AgentsPage({ searchParams }) {
   await connection();
-  const { status: raw, connector: rawConnector, called: rawCalled, owner: rawOwner, deleted } = await searchParams;
+  const { status: raw, owner: rawOwner, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
 
   const actor = await getPageActor();
   const isAdmin = actor.role === "admin";
   const [records, projects, recentRuns] = await Promise.all([listAgents(actor), projectStatusList(), listRuns(actor, { limit: 1000 })]);
   const everything = records.map(summarize);
-
-  const { options, names, pick } = connectorOptions(projects, everything);
-  const connector = pick(rawConnector);
 
   // Who built each agent, keyed by email. Newer agents store ownerEmail; resolve older ones from the database.
   const ownerEmail = new Map();
@@ -71,7 +66,7 @@ export default async function AgentsPage({ searchParams }) {
   const ownerMatch = owner === "all" ? () => true : owner === "mine" ? (a) => a.ownerId === actor.id : (a) => a.ownerId === owner;
   const showOwner = (a) => owner === "all" || a.ownerId !== actor.id;
 
-  // Projects each agent's runs actually called (from the run history), with call totals.
+  // Projects each agent's runs actually called (from the run history) — shown per row, not a filter.
   const runsByAgent = new Map();
   for (const r of recentRuns) {
     if (!r.projectCalls?.length) continue;
@@ -80,34 +75,28 @@ export default async function AgentsPage({ searchParams }) {
   }
   const calledBy = new Map([...runsByAgent].map(([id, list]) => [id, new Map(sumProjectCalls(list).map((c) => [c.project, c]))]));
   const callsOf = (agentId) => [...(calledBy.get(agentId)?.values() || [])];
-  const agentIds = new Set(everything.map((a) => a.id));
-  const calledIds = [...new Set([...calledBy].filter(([id]) => agentIds.has(id)).flatMap(([, m]) => [...m.keys()]))];
-  const calledName = (id) => projects.find((p) => p.id === id)?.name || `${id} (removed)`;
-  const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
-  const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
 
-  const filters = { status, connector, called, owner };
-  const hrefWith = (patch) => listHref({ ...filters, ...patch });
+  const hrefWith = (patch) => listHref({ status, owner, ...patch });
 
-  const all = everything
-    .filter(ownerMatch)
-    .filter((a) => !connector || matchesConnector({ ...a, usesProjects: usesProjects(a.tools) }, connector, projects))
-    .filter((a) => !called || calledBy.get(a.id)?.has(called));
+  const all = everything.filter(ownerMatch);
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
 
   const statusWord = status === "all" ? "" : `${FILTERS.find((f) => f.id === status).label.toLowerCase()} `;
-  const emptyTitle =
-    connector || called
-      ? `No ${statusWord}agents${connector ? ` use ${names.get(connector)}` : ""}${connector && called ? " and" : ""}${called ? ` have called ${calledName(called)}` : ""}`
-      : `No ${statusWord}agents`;
+
+  // Dropdown options for the "Created by" filter (admins only).
+  const ownerSelectOptions = [
+    { value: "mine", label: "Mine", href: hrefWith({ owner: "mine" }) },
+    { value: "all", label: "Everyone", href: hrefWith({ owner: "all" }) },
+    ...ownerOptions.map((o) => ({ value: o.id, label: o.label, href: hrefWith({ owner: o.id }) })),
+  ];
 
   return (
     <>
       <PageHeader
         title="My Agents"
-        description="Your own agents by default. Admins can switch “Created by” to see agents built by others."
+        description="Your own agents by default. Admins can use “Created by” to see agents built by others."
         actions={
           <Button href="/agents/new">
             <Icon name="plus" className="size-4" />
@@ -134,55 +123,29 @@ export default async function AgentsPage({ searchParams }) {
         />
       ) : (
         <>
-          <nav aria-label="Filter agents" className="mb-3 flex flex-wrap gap-1.5">
-            {FILTERS.map((f) => (
-              <Link
-                key={f.id}
-                href={hrefWith({ status: f.id })}
-                aria-current={status === f.id ? "page" : undefined}
-                className={cn(
-                  "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-                  status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
-                )}
-              >
-                {f.label} <span className={status === f.id ? "text-white/80" : "text-slate-400"}>{counts[f.id]}</span>
-              </Link>
-            ))}
-          </nav>
-
-          <div className="mb-4 space-y-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <nav aria-label="Filter agents" className="flex flex-wrap gap-1.5">
+              {FILTERS.map((f) => (
+                <Link
+                  key={f.id}
+                  href={hrefWith({ status: f.id })}
+                  aria-current={status === f.id ? "page" : undefined}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
+                    status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+                  )}
+                >
+                  {f.label} <span className={status === f.id ? "text-white/80" : "text-slate-400"}>{counts[f.id]}</span>
+                </Link>
+              ))}
+            </nav>
             {isAdmin && ownerOptions.length > 0 && (
-              <nav aria-label="Filter by creator" className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="mr-1 inline-flex items-center gap-1 font-medium text-slate-500">
-                  <Icon name="user" className="size-3.5" />
-                  Created by:
-                </span>
-                {[{ id: "mine", label: "Mine" }, { id: "all", label: "Everyone" }, ...ownerOptions].map((o) => (
-                  <Link
-                    key={o.id}
-                    href={hrefWith({ owner: o.id })}
-                    scroll
-                    aria-current={owner === o.id ? "page" : undefined}
-                    className={cn(
-                      "max-w-[220px] truncate rounded-full px-2.5 py-1 ring-1 ring-inset",
-                      owner === o.id ? "bg-brand-50 font-medium text-brand-700 ring-brand-500/40" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
-                    )}
-                  >
-                    {o.label}
-                  </Link>
-                ))}
-              </nav>
+              <LinkSelect id="owner-filter" label="Created by" icon="user" value={owner} options={ownerSelectOptions} />
             )}
-            <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
-            <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
           </div>
 
           {agents.length === 0 ? (
-            <EmptyState
-              icon="bot"
-              title={emptyTitle}
-              description={called ? "Called projects come from the agent's recent runs." : undefined}
-            />
+            <EmptyState icon="bot" title={`No ${statusWord}agents`} />
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
               {agents.map((a) => (
