@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import ConnectorFilter, { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
+import { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import RunTable from "@/components/runs/RunTable";
 import { agentFilterOptions } from "@/components/runs/agentFilter";
 import LinkSelect from "@/components/ui/LinkSelect";
@@ -25,19 +25,18 @@ const FILTERS = [
 
 const SHOW_MAX = 200;
 
-function listHref({ status, agent, connector, called }) {
+function listHref({ status, agent, connector }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
   if (agent) q.set("agent", agent);
   if (connector) q.set("connector", connector);
-  if (called) q.set("called", called);
   const qs = q.toString();
   return qs ? `/runs?${qs}` : "/runs";
 }
 
 export default async function RunsPage({ searchParams }) {
   await connection();
-  const { status: raw, agent: rawAgent, connector: rawConnector, called: rawCalled } = await searchParams;
+  const { status: raw, agent: rawAgent, connector: rawConnector } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
   // Filter before trimming to SHOW_MAX, so older matching runs still show up.
   const actor = await getPageActor();
@@ -53,25 +52,18 @@ export default async function RunsPage({ searchParams }) {
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
 
-  // "Called" options: projects that some run actually called.
-  const calledIds = [...new Set(everything.flatMap((r) => (r.projectCalls || []).map((c) => c.project)))];
-  const calledName = (id) => projects.find((p) => p.id === id)?.name || `${id} (removed)`;
-  const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
-  const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
-
-  const filters = { status, agent, connector, called };
+  const filters = { status, agent, connector };
   const hrefWith = (patch) => listHref({ ...filters, ...patch });
   const pool = found ?? everything;
   const runs = pool
     .filter((r) => !agent || r.agentId === agent)
     .filter((r) => !connector || matchesConnector(r, connector, projects))
-    .filter((r) => !called || (r.projectCalls || []).some((c) => c.project === called))
     .slice(0, SHOW_MAX);
 
   const agentName = agent && agentNameOf(agent);
   const emptyTitle =
-    agent || connector || called
-      ? `No ${status === "all" ? "" : "matching "}runs${agent ? ` of ${agentName}` : ""}${connector ? ` with ${names.get(connector)}` : ""}${called ? ` that called ${calledName(called)}` : ""}`
+    agent || connector
+      ? `No ${status === "all" ? "" : "matching "}runs${agent ? ` of ${agentName}` : ""}${connector ? ` with ${names.get(connector)}` : ""}`
       : status === "all"
         ? "No runs yet"
         : "No runs match this filter";
@@ -94,7 +86,7 @@ export default async function RunsPage({ searchParams }) {
           </Link>
         ))}
       </nav>
-      <div className="mb-4 space-y-2">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         {agentOptions.length > 1 && (
           <LinkSelect
             id="filter-agent"
@@ -104,15 +96,22 @@ export default async function RunsPage({ searchParams }) {
             options={[{ id: "", name: "All agents" }, ...agentOptions].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ agent: o.id || null }) }))}
           />
         )}
-        <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
-        <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
+        {options.length > 0 && (
+          <LinkSelect
+            id="filter-connector"
+            label="Connector"
+            icon="plug"
+            value={connector || ""}
+            options={[{ id: "", name: "Any connector" }, ...options].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ connector: o.id || null }) }))}
+          />
+        )}
       </div>
       {runs.length === 0 ? (
         <EmptyState
           icon="history"
           title={emptyTitle}
-          description={connector || called ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
-          action={status === "all" && !agent && !connector && !called && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
+          description={connector ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
+          action={status === "all" && !agent && !connector && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
         />
       ) : (
         <RunTable runs={runs} projects={projects} />
