@@ -49,8 +49,8 @@ export default function EmailSenderForm({ initialSender, configured, myEmail }) 
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
+    <div className="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_17.5rem]">
+      <div className="min-w-0 space-y-6">
         {!configured && (
           <Alert tone="warning" title="Email is not set up on the server">
             An administrator must add SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS (or SENDGRID_API_KEY) to the server environment and restart the app.

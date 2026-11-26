@@ -82,8 +82,8 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
   const inUse = new Set(configuredModels);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
+    <div className="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_17.5rem]">
+      <div className="min-w-0 space-y-6">
         <form onSubmit={onSave} noValidate>
           <Card>
             <CardHeader title="Models" description="Which model is used for each kind of work." />

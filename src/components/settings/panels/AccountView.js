@@ -1,5 +1,5 @@
 import UsersManager from "@/components/users/UsersManager";
-import PageHeader from "@/components/ui/PageHeader";
+import PanelHeader from "./PanelHeader";
 import { Alert } from "@/components/ui/States";
 
 /** Account tab of the Settings popup (admins): who can sign in, and their roles. Data comes from /api/settings/panel/account. */
@@ -7,7 +7,7 @@ export default function AccountView({ isAdmin, db, google, authEnabled, users = 
   if (!isAdmin) {
     return (
       <>
-        <PageHeader title="Account" />
+        <PanelHeader title="Account" />
         <Alert tone="warning" title="Admins only">
           Only administrators can see and manage users.
         </Alert>
@@ -17,12 +17,12 @@ export default function AccountView({ isAdmin, db, google, authEnabled, users = 
 
   return (
     <>
-      <PageHeader
+      <PanelHeader
         title="Account"
         description="People who can sign in to IntelligenceOS with Google. Admins can add users, change roles and remove users; users manage only their own agents."
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid gap-3 @2xl:grid-cols-3">
         <Status label="Database" ok={db.connected} text={db.connected ? `Connected · ${db.version}` : db.configured ? `Not connected: ${db.error}` : "Not configured"} />
         <Status label="Google sign-in" ok={google.configured} text={google.configured ? "Configured" : "Not configured"} />
         <Status label="Login" ok={authEnabled} text={authEnabled ? "Required for everyone" : "Off — the app is open without login"} />

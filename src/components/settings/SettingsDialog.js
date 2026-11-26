@@ -131,7 +131,7 @@ export default function SettingsDialog({ isAdmin = false }) {
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
         tabIndex={-1}
-        className="relative flex h-[min(85vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-2xl focus:outline-none"
+        className="relative flex h-[min(88vh,860px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-surface shadow-2xl focus:outline-none"
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-5">
           <h2 id="settings-dialog-title" className="text-[15px] font-semibold text-ink">
@@ -149,16 +149,17 @@ export default function SettingsDialog({ isAdmin = false }) {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          <nav aria-label="Settings sections" className="shrink-0 border-b border-slate-200 p-2 sm:w-52 sm:border-b-0 sm:border-r sm:p-3">
+          <nav aria-label="Settings sections" className="shrink-0 overflow-x-auto border-b border-slate-200 p-2 sm:w-52 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
             <ul className="flex gap-1 sm:flex-col">
               {SETTINGS_TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
                 <li key={t.id}>
                   <button
                     type="button"
                     onClick={() => pick(t.id)}
+                    ref={t.id === tab ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
                     aria-current={t.id === tab ? "page" : undefined}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                      "flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors",
                       t.id === tab ? "bg-slate-100 font-semibold text-ink" : "text-slate-600 hover:bg-slate-50 hover:text-ink",
                     )}
                   >
@@ -169,7 +170,7 @@ export default function SettingsDialog({ isAdmin = false }) {
               ))}
             </ul>
           </nav>
-          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+          <div className="@container min-h-0 min-w-0 flex-1 overflow-y-auto p-5 sm:px-8 sm:py-6">
             {state.loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
                 <Spinner /> Loading…

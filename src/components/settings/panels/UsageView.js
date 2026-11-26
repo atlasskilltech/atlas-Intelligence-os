@@ -2,7 +2,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { fmtDateTime, fmtInr, fmtInt, fmtUsd } from "@/components/ui/format";
-import PageHeader from "@/components/ui/PageHeader";
+import PanelHeader from "./PanelHeader";
 import StatCard from "@/components/ui/StatCard";
 import StorageNoticeView from "@/components/ui/StorageNoticeView";
 import { Alert, EmptyState } from "@/components/ui/States";
@@ -70,13 +70,13 @@ export default function UsageView({ usage: u, inrRate = 88, agentNames = {}, tem
 
   return (
     <>
-      <PageHeader
+      <PanelHeader
         title="Usage"
         description="Tokens used and estimated AI cost over the last 30 days, per agent. Costs are estimates based on the prices and ₹ rate in Settings."
       />
 
       <StorageNoticeView temporary={temporary} what="Usage records" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid gap-4 @sm:grid-cols-2 @5xl:grid-cols-4">
         <StatCard
           label="AI calls (30 days)"
           value={fmtInt(u.totals.calls)}
@@ -116,7 +116,7 @@ export default function UsageView({ usage: u, inrRate = 88, agentNames = {}, tem
           }
         />
       ) : (
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="mt-6 grid gap-6 [&>*]:min-w-0">
           {u.byMonth?.length > 0 && (
             <Breakdown title="By month (spend tracking, last 12 months)" rows={u.byMonth} labelFor={fmtMonth} inrRate={inrRate} />
           )}
