@@ -40,6 +40,7 @@ function defaults() {
     requestTimeoutSec: 60,
     maxRetries: 3,
     pricingOverrides: {},
+    inrPerUsd: 88, // ₹ per US$1, used to show costs in rupees alongside dollars
     voiceProvider: "openai",
     // ElevenLabs voice + model: set in Model Settings; ELEVENLABS_VOICE_ID / ELEVENLABS_MODEL are only the initial values.
     elevenlabsVoiceId: env.elevenlabsVoiceId, // the voice in use
@@ -111,6 +112,11 @@ export function validateModelSettings(patch) {
     const v = typeof patch.elevenlabsModel === "string" ? patch.elevenlabsModel.trim() : "";
     if (!ELEVEN_MODEL_RE.test(v)) errors.elevenlabsModel = "Choose an ElevenLabs model.";
     else value.elevenlabsModel = v;
+  }
+  if (patch.inrPerUsd !== undefined) {
+    const n = Number(patch.inrPerUsd);
+    if (!Number.isFinite(n) || n <= 0 || n > 100000) errors.inrPerUsd = "Enter a valid ₹ per $1 rate.";
+    else value.inrPerUsd = Math.round(n * 100) / 100;
   }
   if (patch.pricingOverrides !== undefined) {
     const p = patch.pricingOverrides;

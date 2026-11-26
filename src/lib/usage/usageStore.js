@@ -31,6 +31,7 @@ export async function getUsageSummary({ days = 30, recent = 20 } = {}) {
   const totals = empty();
   const byModel = {};
   const byPurpose = {};
+  const byAgent = {};
   const byDay = {};
   const monthStart = new Date();
   monthStart.setUTCDate(1);
@@ -41,6 +42,7 @@ export async function getUsageSummary({ days = 30, recent = 20 } = {}) {
     add(totals, e);
     add((byModel[e.model || "unknown"] ??= empty()), e);
     add((byPurpose[e.purpose || "other"] ??= empty()), e);
+    if (e.agentId) add((byAgent[e.agentId] ??= empty()), e);
     add((byDay[e.ts.slice(0, 10)] ??= empty()), e);
     if (Date.parse(e.ts) >= monthStart.getTime()) add(thisMonth, e);
   }
@@ -57,6 +59,7 @@ export async function getUsageSummary({ days = 30, recent = 20 } = {}) {
     thisMonth: round(thisMonth),
     byModel: mapRound(byModel),
     byPurpose: mapRound(byPurpose),
+    byAgent: mapRound(byAgent),
     byDay: mapRound(byDay).sort((a, b) => b.key.localeCompare(a.key)),
     recent: entries.slice(-recent).reverse(),
   };

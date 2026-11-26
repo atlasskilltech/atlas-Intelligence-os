@@ -3,18 +3,21 @@ import { connection } from "next/server";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { fmtDateTime, fmtInt, fmtUsd } from "@/components/ui/format";
+import { fmtDateTime, fmtInr, fmtInt, fmtUsd } from "@/components/ui/format";
 import PageHeader from "@/components/ui/PageHeader";
 import StorageNotice from "@/components/ui/StorageNotice";
 import StatCard from "@/components/ui/StatCard";
 import { Alert, EmptyState } from "@/components/ui/States";
+import { listAgents } from "@/lib/agents/agentRepo";
+import { getPageActor } from "@/lib/context";
+import { getModelSettings } from "@/lib/settings/modelSettings";
 import { getUsageSummary } from "@/lib/usage/usageStore";
 
 export const metadata = { title: "API Usage" };
 
 const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
 
-function Breakdown({ title, rows, labelFor = (k) => k, mono }) {
+function Breakdown({ title, rows, labelFor = (k) => k, mono, inrRate }) {
   const max = Math.max(...rows.map((r) => r.inputTokens + r.outputTokens), 1);
   return (
     <Card>
@@ -50,6 +53,7 @@ function Breakdown({ title, rows, labelFor = (k) => k, mono }) {
                   <td className="px-5 py-2.5 text-right tabular-nums">
                     {fmtUsd(r.costUsd)}
                     {r.unpricedCalls > 0 && <span className="ml-1 text-xs text-amber-700">+ unpriced</span>}
+                    {inrRate ? <span className="block text-xs text-slate-400">{fmtInr(r.costUsd, inrRate)}</span> : null}
                   </td>
                 </tr>
               );
@@ -63,13 +67,17 @@ function Breakdown({ title, rows, labelFor = (k) => k, mono }) {
 
 export default async function UsagePage() {
   await connection();
-  const u = await getUsageSummary({ days: 30 });
+  const actor = await getPageActor();
+  const [u, agents, settings] = await Promise.all([getUsageSummary({ days: 30 }), listAgents(actor), getModelSettings()]);
+  const inrRate = settings.inrPerUsd || 88;
+  const agentName = new Map(agents.map((a) => [a.id, a.config?.name || a.id]));
+  const byAgent = u.byAgent.map((r) => ({ ...r, label: agentName.get(r.key) || `${r.key} (removed)` }));
 
   return (
     <>
       <PageHeader
         title="API Usage"
-        description="Tokens used and estimated AI cost over the last 30 days. Costs are estimates based on the prices in Model Settings."
+        description="Tokens used and estimated AI cost over the last 30 days, per agent. Costs are estimates based on the prices and ₹ rate in Model Settings."
       />
 
       <StorageNotice what="Usage records" />
@@ -82,7 +90,12 @@ export default async function UsagePage() {
         />
         <StatCard label="Input tokens" value={fmtInt(u.totals.inputTokens)} icon="chart" />
         <StatCard label="Output tokens" value={fmtInt(u.totals.outputTokens)} icon="chart" />
-        <StatCard label="Cost this month" value={fmtUsd(u.thisMonth.costUsd)} icon="chart" hint="Estimated" />
+        <StatCard
+          label="Cost this month"
+          value={fmtUsd(u.thisMonth.costUsd)}
+          icon="chart"
+          hint={`≈ ${fmtInr(u.thisMonth.costUsd, inrRate)} · estimated`}
+        />
       </div>
 
       {u.totals.unpricedCalls > 0 && (
@@ -109,9 +122,12 @@ export default async function UsagePage() {
         />
       ) : (
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
-          <Breakdown title="By day" rows={u.byDay} />
-          <Breakdown title="By model" rows={u.byModel} mono />
-          <Breakdown title="By purpose" rows={u.byPurpose} labelFor={(k) => PURPOSE_LABEL[k] || k} />
+          {byAgent.length > 0 && (
+            <Breakdown title="By agent (tokens & cost)" rows={byAgent} labelFor={(k) => agentName.get(k) || `${k} (removed)`} inrRate={inrRate} />
+          )}
+          <Breakdown title="By day" rows={u.byDay} inrRate={inrRate} />
+          <Breakdown title="By model" rows={u.byModel} mono inrRate={inrRate} />
+          <Breakdown title="By purpose" rows={u.byPurpose} labelFor={(k) => PURPOSE_LABEL[k] || k} inrRate={inrRate} />
           <Card>
             <CardHeader title="Recent calls" />
             <ul className="divide-y divide-slate-100">

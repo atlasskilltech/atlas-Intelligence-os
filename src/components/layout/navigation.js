@@ -3,8 +3,7 @@ export const PRIMARY_NAV = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/voice", label: "Voice Assistant", icon: "mic" },
   { href: "/agents", label: "My Agents", icon: "bot" },
-  { href: "/runs", label: "Execution History", icon: "history" },
-  { href: "/logs", label: "Execution Logs", icon: "terminal" },
+  { href: "/runs", label: "Execution", icon: "history" },
   { href: "/connectors", label: "Connectors", icon: "plug" },
 ];
 

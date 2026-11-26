@@ -6,6 +6,14 @@ export function fmtUsd(n) {
   return n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
 }
 
+/** USD amount shown in Indian rupees, using `rate` as ₹ per $1. */
+export function fmtInr(usd, rate = 88) {
+  const n = (usd || 0) * (rate || 0);
+  if (!n) return "₹0.00";
+  const frac = n < 100 ? 2 : 0;
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: frac, maximumFractionDigits: frac }).format(n);
+}
+
 export function fmtDateTime(iso) {
   return new Date(iso).toLocaleString("en-IN", {
     dateStyle: "medium",

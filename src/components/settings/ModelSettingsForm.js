@@ -65,7 +65,14 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
     }
   }
 
-  const pricingRows = Object.entries({ ...defaultPricing, ...form.pricingOverrides });
+  const priceTable = { ...defaultPricing, ...form.pricingOverrides };
+  const configuredModels = [...new Set([form.plannerModel, form.defaultModel].filter(Boolean))];
+  // Show the models actually in use first (even when unpriced), so their price can be set.
+  const pricingRows = [
+    ...configuredModels.filter((m) => !priceTable[m]).map((m) => [m, null]),
+    ...Object.entries(priceTable),
+  ];
+  const inUse = new Set(configuredModels);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -191,8 +198,26 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
         <Card>
           <CardHeader
             title="Pricing used for cost estimates"
-            description="USD per 1 million tokens. Prices change — verify on openai.com/api/pricing. Models not listed show “price not set”."
+            description="USD per 1 million tokens. The models your agents use are marked “in use” — set their price so run cost stops showing “price not set”."
           />
+          <CardBody className="border-b border-slate-100">
+            <Field
+              label="₹ per US$1 (rupee display)"
+              htmlFor="inrPerUsd"
+              error={errors.inrPerUsd}
+              hint="Used to show costs in ₹ on the API Usage page. Saved with “Save settings”."
+            >
+              <Input
+                id="inrPerUsd"
+                type="number"
+                step="0.01"
+                className="max-w-[160px]"
+                value={form.inrPerUsd ?? 88}
+                onChange={set("inrPerUsd")}
+                invalid={!!errors.inrPerUsd}
+              />
+            </Field>
+          </CardBody>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
@@ -204,12 +229,14 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pricingRows.map(([model, p]) => (
-                  <tr key={model}>
+                  <tr key={model} className={!p ? "bg-amber-50/40" : undefined}>
                     <td className="px-5 py-2.5 font-mono text-xs text-slate-700">
-                      {model} {form.pricingOverrides?.[model] && <Badge tone="brand" className="ml-1">custom</Badge>}
+                      {model}{" "}
+                      {inUse.has(model) && <Badge tone="success" className="ml-1">in use</Badge>}
+                      {form.pricingOverrides?.[model] && <Badge tone="brand" className="ml-1">custom</Badge>}
                     </td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">${p.input}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">${p.output}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums">{p ? `$${p.input}` : <span className="text-amber-700">not set</span>}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums">{p ? `$${p.output}` : <span className="text-slate-400">—</span>}</td>
                   </tr>
                 ))}
               </tbody>
