@@ -556,7 +556,7 @@ export default function VoiceAgentV3() {
           aria-label={active ? (phase === "speaking" ? "Interrupt" : "Voice assistant") : "Start talking"}
           className="relative h-[min(64vh,680px)] w-[min(94vw,560px)] cursor-pointer rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
         >
-          <AvatarHero3D state={orbState} getLevel={getLevel} className="pointer-events-none absolute inset-0 size-full" />
+          <AvatarHero3D state={orbState} getLevel={getLevel} className="pointer-events-none absolute inset-0 size-full [mask-image:linear-gradient(to_bottom,black_70%,transparent)]" />
         </button>
 
         <div className="mt-2 flex min-h-[7.5rem] w-full max-w-2xl flex-col items-center text-center" aria-live="polite">

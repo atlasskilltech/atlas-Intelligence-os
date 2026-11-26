@@ -6,15 +6,16 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import ParticleOrb from "./ParticleOrb";
 
 /**
- * Cartoon-style 3D armored hero (three.js, toon shading + ink outlines, built from
- * primitives — no model files). Full body in red & gold armor with a glowing chest core,
- * eye slits, palm lights and boot thrusters. It hovers, follows the pointer and acts out
- * the conversation:
- *   idle       hovers, blinks, arms relaxed
- *   listening  tilts the head, raises a hand to the ear, ear lights pulse with the mic
- *   thinking   hand to chin, looks up, chest ring spins
- *   speaking   faceplate mouth-light lip-syncs to the voice, hands gesture, head nods
- *   error      eyes and core turn red
+ * Bold, poster-style 3D armored hero bust (three.js, flat two-tone shading + thick black
+ * ink gaps between plates, built from primitives — no model files). Red & gold angular
+ * armor, a large glowing chest core, layered shoulder plates with joint lights, and an
+ * original helmet: crest fin, chevron visor, cheek vents and a light-bar mouth grille.
+ *
+ *   idle       breathes, blinks, looks around and follows the pointer
+ *   listening  leans in and tilts the head, joint lights pulse with the mic
+ *   thinking   looks up and aside, visor narrows, chest core ring spins
+ *   speaking   mouth grille lip-syncs to the voice, head nods, chest core pulses
+ *   error      visor and core turn red
  *
  * Props are read every frame through refs (no re-render):
  *   state     "idle" | "listening" | "thinking" | "speaking" | "error"
@@ -22,21 +23,22 @@ import ParticleOrb from "./ParticleOrb";
  * Falls back to the 2D ParticleOrb when WebGL is not available.
  */
 
-const RED = 0xc8202b;
-const RED_DARK = 0x8f1520;
-const GOLD = 0xf2b632;
-const STEEL = 0x2b303b;
-const INK = 0x0b0d14;
+const RED = 0xe0202a;
+const RED_DARK = 0x9e121b;
+const GOLD = 0xf6b21b;
+const STEEL = 0x1a1d24;
+const INK = 0x000000;
 
-const GLOW = new THREE.Color(0xbff6ff);
-const GLOW_THINK = new THREE.Color(0x7dd3fc);
-const GLOW_ERR = new THREE.Color(0xff6b6b);
+const GLOW = new THREE.Color(0xe8fbff);
+const GLOW_THINK = new THREE.Color(0x8ad8ff);
+const GLOW_ERR = new THREE.Color(0xff5a5a);
 
 const lerp = (a, b, k) => a + (b - a) * k;
 
 function toonGradient() {
-  const data = new Uint8Array([70, 70, 70, 255, 160, 160, 160, 255, 255, 255, 255, 255]);
-  const tex = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  // two hard tones = flat poster look
+  const data = new Uint8Array([120, 120, 120, 255, 255, 255, 255, 255]);
+  const tex = new THREE.DataTexture(data, 2, 1, THREE.RGBAFormat);
   tex.minFilter = THREE.NearestFilter;
   tex.magFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
@@ -92,17 +94,14 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 60);
-    const CAM_Z = 10.6;
-    camera.position.set(0, 0.35, CAM_Z);
-    camera.lookAt(0, 0.15, 0);
+    const CAM_Z = 9.2;
+    camera.position.set(0, 0.1, CAM_Z);
+    camera.lookAt(0, -0.2, 0);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 2.2);
-    key.position.set(3, 5, 6);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+    const key = new THREE.DirectionalLight(0xffffff, 2.0);
+    key.position.set(2.5, 4, 6);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x9bd7ff, 0.6);
-    fill.position.set(-4, 1, 3);
-    scene.add(fill);
 
     // ---------- materials ----------
     const grad = toonGradient();
@@ -110,12 +109,12 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
     const red = toon(RED);
     const redDark = toon(RED_DARK);
     const gold = toon(GOLD);
-    const steel = toon(STEEL);
+    const steel = new THREE.MeshBasicMaterial({ color: STEEL });
     const inkMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
     const glowMat = new THREE.MeshBasicMaterial({ color: GLOW.clone(), toneMapped: false });
     const gTex = glowTexture();
     const glowSprites = [];
-    const sprite = (size, opacity = 1, follow = true) => {
+    const sprite = (size, opacity = 1) => {
       const s = new THREE.Sprite(
         new THREE.SpriteMaterial({
           map: gTex,
@@ -127,11 +126,11 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
         }),
       );
       s.scale.setScalar(size);
-      if (follow) glowSprites.push(s);
+      glowSprites.push(s);
       return s;
     };
 
-    /** Mesh + cartoon ink outline (inverted hull). */
+    /** Mesh + thick black ink hull (reads as the cut lines between plates on a dark page). */
     const part = (geo, mat, parent, pos = [0, 0, 0], opts = {}) => {
       const m = new THREE.Mesh(geo, mat);
       m.position.set(...pos);
@@ -139,172 +138,161 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
       if (opts.scale) m.scale.set(...opts.scale);
       if (opts.outline !== false) {
         const o = new THREE.Mesh(geo, inkMat);
-        o.scale.setScalar(opts.outline || 1.07);
+        o.scale.setScalar(opts.outline || 1.06);
         m.add(o);
       }
       parent.add(m);
       return m;
     };
-    const rbox = (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 4, r);
-    const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 6, 20);
-    const ball = (r) => new THREE.SphereGeometry(r, 28, 20);
+    const rbox = (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 4, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+    const halfBall = (r) => new THREE.SphereGeometry(r, 36, 18, 0, Math.PI * 2, 0, Math.PI / 2);
 
     // ---------- rig ----------
     const root = new THREE.Group();
     scene.add(root);
-
-    const aura = sprite(7.5, 0.18);
-    aura.position.set(0, 0.3, -2);
+    const aura = sprite(8, 0.1);
+    aura.position.set(0, -0.2, -3);
     root.add(aura);
 
-    // ground shadow + thruster light on the floor
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 48),
-      new THREE.MeshBasicMaterial({ map: gTex, color: 0x7dd3fc, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -2.75;
-    floor.scale.set(1.6, 1.6, 1);
-    scene.add(floor);
-
-    const hero = new THREE.Group();
-    root.add(hero);
-
-    // pelvis
-    const pelvis = new THREE.Group();
-    hero.add(pelvis);
-    part(rbox(0.92, 0.42, 0.56, 0.14), red, pelvis, [0, 0, 0]);
-    part(rbox(0.96, 0.1, 0.6, 0.04), gold, pelvis, [0, 0.2, 0], { outline: 1.04 });
-
-    // torso (abdomen + chest)
+    // torso
     const torso = new THREE.Group();
-    torso.position.y = 0.25;
-    pelvis.add(torso);
-    part(cap(0.36, 0.25), gold, torso, [0, 0.32, 0], { scale: [1.15, 1, 0.9] });
-    const chest = part(rbox(1.3, 0.85, 0.72, 0.22), red, torso, [0, 0.95, 0]);
-    part(rbox(0.5, 0.28, 0.08, 0.06), gold, chest, [-0.34, 0.12, 0.35], { rot: [0, -0.2, 0], outline: 1.05 });
-    part(rbox(0.5, 0.28, 0.08, 0.06), gold, chest, [0.34, 0.12, 0.35], { rot: [0, 0.2, 0], outline: 1.05 });
-    // chest core
-    const coreRing = part(new THREE.TorusGeometry(0.16, 0.04, 10, 40), steel, chest, [0, -0.1, 0.37], { outline: 1.1 });
-    const core = new THREE.Mesh(new THREE.CircleGeometry(0.13, 36), glowMat);
-    core.position.set(0, -0.1, 0.375);
-    chest.add(core);
-    const coreSpokes = new THREE.Group();
-    coreSpokes.position.copy(core.position);
-    coreSpokes.position.z += 0.005;
-    for (let i = 0; i < 6; i++) {
-      const s = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.11, 0.01), steel);
-      s.rotation.z = (i * Math.PI) / 3;
-      s.position.set(Math.sin(-s.rotation.z) * 0.065, Math.cos(s.rotation.z) * 0.065, 0);
-      coreSpokes.add(s);
+    torso.position.y = -1.35;
+    root.add(torso);
+    // base chest volume (dark — the plates sit on it so the gaps read black)
+    part(rbox(2.3, 1.7, 1.15, 0.45), steel, torso, [0, 0.05, -0.05], { outline: false });
+    // pectoral plates
+    for (const s of [-1, 1]) {
+      part(rbox(1.0, 0.72, 0.3, 0.12), red, torso, [s * 0.58, 0.32, 0.46], { rot: [0.05, s * 0.32, s * -0.12] });
+      part(rbox(0.62, 0.22, 0.12, 0.06), gold, torso, [s * 0.5, 0.8, 0.36], { rot: [-0.5, s * 0.2, s * -0.25] }); // gold collar
+      part(rbox(0.45, 0.62, 0.25, 0.1), red, torso, [s * 0.95, -0.25, 0.32], { rot: [0, s * 0.55, s * 0.18] }); // side ribs
+      part(rbox(0.12, 0.42, 0.1, 0.04), gold, torso, [s * 1.12, -0.32, 0.36], { rot: [0, s * 0.6, s * 0.2] }); // gold rib accent
+      part(rbox(0.55, 0.28, 0.25, 0.1), red, torso, [s * 0.34, -0.62, 0.44], { rot: [0.15, s * 0.18, s * 0.1] }); // abs
     }
-    chest.add(coreSpokes);
-    const coreGlow = sprite(1.3, 0.8);
-    coreGlow.position.set(0, -0.1, 0.45);
-    chest.add(coreGlow);
+    part(rbox(0.7, 0.2, 0.22, 0.08), red, torso, [0, -0.92, 0.38], { rot: [0.25, 0, 0] });
 
-    // neck + head
-    part(new THREE.CylinderGeometry(0.17, 0.2, 0.25, 20), steel, torso, [0, 1.45, 0]);
+    // chest core
+    const corePos = new THREE.Vector3(0, 0.1, 0.8);
+    const coreRingOuter = part(new THREE.TorusGeometry(0.42, 0.07, 14, 60), red, torso, corePos.toArray(), { outline: 1.12 });
+    const coreRingInner = part(new THREE.TorusGeometry(0.33, 0.035, 10, 60), redDark, torso, [corePos.x, corePos.y, corePos.z + 0.02], { outline: false });
+    const coreNotches = new THREE.Group();
+    coreNotches.position.set(corePos.x, corePos.y, corePos.z + 0.05);
+    for (let i = 0; i < 10; i++) {
+      const n = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.08, 0.02), steel);
+      const a = (i / 10) * Math.PI * 2;
+      n.position.set(Math.cos(a) * 0.375, Math.sin(a) * 0.375, 0);
+      n.rotation.z = a + Math.PI / 2;
+      coreNotches.add(n);
+    }
+    torso.add(coreNotches);
+    const core = new THREE.Mesh(new THREE.CircleGeometry(0.29, 48), glowMat);
+    core.position.set(corePos.x, corePos.y, corePos.z + 0.01);
+    torso.add(core);
+    const coreGlow = sprite(1.3, 0.45);
+    coreGlow.position.set(corePos.x, corePos.y, corePos.z + 0.2);
+    torso.add(coreGlow);
+
+    // shoulders: layered pauldrons + upper arms + joint lights
+    const shoulders = [];
+    for (const s of [-1, 1]) {
+      const sh = new THREE.Group();
+      sh.position.set(s * 1.3, 0.55, 0);
+      sh.scale.setScalar(0.88);
+      torso.add(sh);
+      part(halfBall(0.55), red, sh, [0, -0.05, 0], { rot: [0, 0, s * -0.55], scale: [1, 0.75, 1] });
+      part(halfBall(0.46), redDark, sh, [s * 0.22, -0.28, 0], { rot: [0, 0, s * -0.8], scale: [1, 0.6, 1] });
+      part(halfBall(0.38), red, sh, [s * 0.38, -0.5, 0], { rot: [0, 0, s * -1.0], scale: [1, 0.5, 1] });
+      part(rbox(0.3, 0.14, 0.42, 0.05), gold, sh, [s * -0.15, 0.25, 0.1], { rot: [0, 0, s * -0.4] }); // gold trim
+      const arm = part(new THREE.CapsuleGeometry(0.3, 0.7, 6, 20), red, sh, [s * 0.42, -0.95, -0.05], { rot: [0, 0, s * 0.22] });
+      part(rbox(0.2, 0.5, 0.2, 0.06), redDark, arm, [s * 0.18, 0.05, 0.18], { outline: false });
+      // joint light disc facing forward/outward
+      const joint = new THREE.Group();
+      joint.position.set(s * 0.62, -0.6, 0.28);
+      joint.rotation.y = s * 0.7;
+      sh.add(joint);
+      part(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 32), red, joint, [0, 0, 0], { rot: [Math.PI / 2, 0, 0], outline: 1.15 });
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glowMat);
+      dot.position.z = 0.045;
+      joint.add(dot);
+      const jg = sprite(0.5, 0.4);
+      jg.position.z = 0.1;
+      joint.add(jg);
+      shoulders.push({ sh, jg, s });
+    }
+
+    // neck
+    part(new THREE.CylinderGeometry(0.3, 0.38, 0.5, 24), steel, torso, [0, 1.05, -0.05], { outline: false });
+    for (const s of [-1, 1]) part(rbox(0.22, 0.35, 0.2, 0.06), gold, torso, [s * 0.32, 1.02, 0.12], { rot: [0, 0, s * 0.35] });
+
+    // head (original design: crest fin, chevron visor, cheek vents, light-bar grille)
     const head = new THREE.Group();
-    head.position.y = 1.5;
-  head.scale.setScalar(1.38); // big cartoon head
-    torso.add(head);
-    part(rbox(0.66, 0.76, 0.7, 0.26), red, head, [0, 0.38, -0.02]);
-    part(rbox(0.12, 0.5, 0.5, 0.05), gold, head, [-0.34, 0.36, -0.04], { outline: 1.04 });
-    part(rbox(0.12, 0.5, 0.5, 0.05), gold, head, [0.34, 0.36, -0.04], { outline: 1.04 });
-    const faceplate = part(rbox(0.5, 0.56, 0.14, 0.07), gold, head, [0, 0.33, 0.3], { outline: 1.05 });
-    part(rbox(0.3, 0.12, 0.1, 0.04), redDark, faceplate, [0, 0.27, 0.02], { outline: false }); // brow ridge
-    const eyes = [-1, 1].map((side) => {
-      const e = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.045, 0.02), glowMat);
-      e.position.set(side * 0.11, 0.1, 0.075);
-      e.rotation.z = side * -0.18;
-      faceplate.add(e);
-      const g = sprite(0.24, 0.8);
-      g.position.set(side * 0.11, 0.1, 0.1);
-      faceplate.add(g);
-      return { e, g };
+    head.position.set(0, -0.12, 0.05);
+    head.scale.setScalar(1.22);
+    root.add(head);
+    part(rbox(1.02, 1.2, 1.05, 0.42), red, head, [0, 0.42, -0.04]); // helmet shell
+    part(rbox(0.16, 0.34, 1.0, 0.07), redDark, head, [0, 1.02, -0.06]); // crest fin
+    part(rbox(0.08, 0.2, 0.7, 0.03), gold, head, [0, 1.14, -0.02], { outline: 1.08 });
+    for (const s of [-1, 1]) {
+      part(rbox(0.1, 0.5, 0.55, 0.04), redDark, head, [s * 0.52, 0.42, -0.1], { outline: false }); // ear plate
+      part(rbox(0.06, 0.3, 0.3, 0.03), gold, head, [s * 0.56, 0.42, -0.1], { outline: 1.08 });
+    }
+    // gold face
+    const face = new THREE.Group();
+    face.position.set(0, 0.36, 0.44);
+    head.add(face);
+    part(rbox(0.8, 0.78, 0.22, 0.14), gold, face, [0, 0.05, 0]); // face plate
+    part(rbox(0.86, 0.2, 0.2, 0.08), red, face, [0, 0.42, 0.04], { rot: [0.25, 0, 0] }); // brow band
+    part(rbox(0.5, 0.26, 0.2, 0.08), gold, face, [0, -0.38, 0.0], { rot: [-0.25, 0, 0] }); // chin
+    // chevron visor
+    const visor = new THREE.Group();
+    visor.position.set(0, 0.18, 0.12);
+    face.add(visor);
+    part(rbox(0.7, 0.16, 0.06, 0.03), steel, visor, [0, -0.02, -0.01], { outline: false });
+    const visorHalves = [-1, 1].map((s) => {
+      const v = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.055, 0.02), glowMat);
+      v.position.set(s * 0.15, -0.01, 0.025);
+      v.rotation.z = s * 0.2;
+      visor.add(v);
+      return v;
     });
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.022, 0.02), glowMat);
-    mouth.position.set(0, -0.15, 0.075);
-    faceplate.add(mouth);
-    const mouthGlow = sprite(0.3, 0);
-    mouthGlow.position.set(0, -0.15, 0.1);
-    faceplate.add(mouthGlow);
-    part(rbox(0.06, 0.12, 0.02, 0.01), redDark, faceplate, [-0.15, -0.16, 0.07], { outline: false });
-    part(rbox(0.06, 0.12, 0.02, 0.01), redDark, faceplate, [0.15, -0.16, 0.07], { outline: false });
-    const earLights = [-1, 1].map((side) => {
-      const g = sprite(0.4, 0.2);
-      g.position.set(side * 0.42, 0.36, -0.04);
-      head.add(g);
-      return g;
-    });
+    const visorGlow = sprite(0.7, 0.45);
+    visorGlow.position.set(0, 0.0, 0.1);
+    visor.add(visorGlow);
+    // cheek vents
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const v = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.02), steel);
+        v.position.set(s * 0.25, -0.08 - i * 0.07, 0.115);
+        v.rotation.z = s * -0.25;
+        face.add(v);
+      }
+    }
+    // mouth light-bar grille
+    const mouthSlot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.09, 0.02), steel);
+    mouthSlot.position.set(0, -0.27, 0.112);
+    face.add(mouthSlot);
+    const mouthBars = [];
+    for (let i = 0; i < 5; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.02), glowMat);
+      b.position.set((i - 2) * 0.055, -0.27, 0.12);
+      face.add(b);
+      mouthBars.push({ b, ph: Math.random() * 6.28, f: 12 + Math.random() * 8, env: 1 - Math.abs(i - 2) * 0.25 });
+    }
+    const mouthGlow = sprite(0.28, 0);
+    mouthGlow.position.set(0, -0.27, 0.18);
+    face.add(mouthGlow);
 
-    // arms
-    const makeArm = (side) => {
-      const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.82, 1.22, 0);
-      torso.add(shoulder);
-      part(ball(0.31), red, shoulder, [0, 0, 0], { scale: [1.05, 0.95, 1] });
-      part(rbox(0.12, 0.3, 0.5, 0.05), gold, shoulder, [side * 0.27, 0.02, 0], { outline: 1.05 });
-      part(cap(0.15, 0.42), red, shoulder, [0, -0.42, 0]);
-      const elbow = new THREE.Group();
-      elbow.position.y = -0.78;
-      shoulder.add(elbow);
-      part(ball(0.15), steel, elbow, [0, 0, 0]);
-      part(cap(0.155, 0.36), gold, elbow, [0, -0.33, 0], { scale: [1, 1, 0.95] });
-      part(rbox(0.34, 0.14, 0.34, 0.05), red, elbow, [0, -0.5, 0], { outline: 1.05 });
-      const hand = new THREE.Group();
-      hand.position.y = -0.7;
-      elbow.add(hand);
-      part(rbox(0.26, 0.3, 0.14, 0.06), red, hand, [0, -0.08, 0]);
-      part(rbox(0.07, 0.15, 0.08, 0.03), gold, hand, [side * -0.15, -0.02, 0.04], { rot: [0, 0, side * 0.5] }); // thumb
-      const palm = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glowMat);
-      palm.position.set(0, -0.08, 0.072);
-      hand.add(palm);
-      const palmGlow = sprite(0.55, 0.35);
-      palmGlow.position.set(0, -0.08, 0.12);
-      hand.add(palmGlow);
-      return { shoulder, elbow, hand, palmGlow, side };
-    };
-    const armR = makeArm(1);
-    const armL = makeArm(-1);
-
-    // legs
-    const makeLeg = (side) => {
-      const hip = new THREE.Group();
-      hip.position.set(side * 0.27, -0.18, 0);
-      pelvis.add(hip);
-      part(cap(0.21, 0.5), red, hip, [0, -0.45, 0]);
-      part(rbox(0.3, 0.32, 0.12, 0.05), gold, hip, [0, -0.42, 0.18], { outline: 1.05 });
-      const knee = new THREE.Group();
-      knee.position.y = -0.92;
-      hip.add(knee);
-      part(ball(0.17), gold, knee, [0, 0, 0.03]);
-      part(cap(0.18, 0.5), red, knee, [0, -0.45, 0]);
-      part(rbox(0.36, 0.34, 0.6, 0.1), gold, knee, [0, -0.95, 0.08]);
-      part(rbox(0.38, 0.1, 0.62, 0.04), red, knee, [0, -0.78, 0.08], { outline: 1.04 });
-      const thrust = sprite(0.9, 0.6);
-      thrust.position.set(0, -1.2, 0.05);
-      knee.add(thrust);
-      return { hip, knee, thrust };
-    };
-    const legR = makeLeg(1);
-    const legL = makeLeg(-1);
-    legR.hip.rotation.z = 0.05;
-    legL.hip.rotation.z = -0.05;
-
-    // sparkles
-    const P = 140;
+    // embers
+    const P = 120;
     const pPos = new Float32Array(P * 3);
-    const pSeed = Array.from({ length: P }, () => [Math.random() * Math.PI * 2, 1.9 + Math.random() * 1.8, (Math.random() - 0.5) * 5]);
+    const pSeed = Array.from({ length: P }, () => [Math.random() * Math.PI * 2, 2.2 + Math.random() * 1.6, (Math.random() - 0.5) * 5]);
     const pGeo = new THREE.BufferGeometry();
     pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
     const pMat = new THREE.PointsMaterial({
-      size: 0.07,
+      size: 0.06,
       map: gTex,
-      color: 0xfcd34d,
+      color: 0xffb347,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.6,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
@@ -317,7 +305,7 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
       const h = Math.max(1, height);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.position.z = camera.aspect < 0.62 ? CAM_Z * (0.62 / camera.aspect) : CAM_Z;
+      camera.position.z = camera.aspect < 0.95 ? CAM_Z * (0.95 / camera.aspect) : CAM_Z;
       camera.updateProjectionMatrix();
     };
     resize();
@@ -342,17 +330,11 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
     let blink = 0;
     let nextBlink = 2;
     const look = { x: 0, y: 0, tx: 0, ty: 0, next: 2 };
-    let coreSpin = 0;
+    let spin = 0;
     let raf = 0;
     let visible = true;
     const io = new IntersectionObserver(([en]) => (visible = en.isIntersecting));
     io.observe(wrap);
-
-    const pose = (arm, sx, sz, ex, k) => {
-      arm.shoulder.rotation.x = lerp(arm.shoulder.rotation.x, sx, k);
-      arm.shoulder.rotation.z = lerp(arm.shoulder.rotation.z, sz * arm.side, k);
-      arm.elbow.rotation.x = lerp(arm.elbow.rotation.x, ex, k);
-    };
 
     const frame = (now) => {
       raf = requestAnimationFrame(frame);
@@ -376,101 +358,76 @@ export default function AvatarHero3D({ state = "idle", getLevel, className = "" 
       glowMat.color.copy(glowColor);
       for (const s of glowSprites) s.material.color.copy(glowColor);
 
-      // hover
-      const hover = Math.sin(t * 1.5) * 0.09;
-      hero.position.y = hover;
-      floor.material.opacity = 0.28 - hover * 0.6 + level * 0.15;
-      for (const leg of [legR, legL]) {
-        leg.thrust.material.opacity = 0.45 + Math.random() * 0.15 + level * 0.3;
-        leg.thrust.scale.set(0.8 + Math.random() * 0.1, 1 + Math.random() * 0.2, 1);
-      }
-      legR.knee.rotation.x = lerp(legR.knee.rotation.x, 0.08 + Math.sin(t * 1.5) * 0.04, 0.1);
-      legL.knee.rotation.x = lerp(legL.knee.rotation.x, 0.12 + Math.sin(t * 1.5 + 1) * 0.04, 0.1);
-      legL.hip.rotation.x = lerp(legL.hip.rotation.x, -0.06, 0.1);
-
-      // breathing
-      torso.scale.set(1, 1 + Math.sin(t * 1.5 + 0.8) * 0.008, 1);
+      // breathing + slight sway
+      const breath = Math.sin(t * 1.3);
+      root.position.y = breath * 0.03;
+      torso.scale.set(1 + breath * 0.006, 1 + breath * 0.01, 1);
+      for (const s of shoulders) s.sh.position.y = 0.55 + breath * 0.02 + (listening ? 0.04 : 0);
 
       // head look
       if (t > look.next) {
-        look.tx = (Math.random() - 0.5) * 0.6;
-        look.ty = (Math.random() - 0.5) * 0.2;
+        look.tx = (Math.random() - 0.5) * 0.5;
+        look.ty = (Math.random() - 0.5) * 0.18;
         look.next = t + 2 + Math.random() * 3;
       }
       const usePointer = now - pointer.last < 4000;
-      let yaw = usePointer ? pointer.x * 0.45 : look.tx;
-      let pitch = usePointer ? pointer.y * 0.25 : look.ty;
+      let yaw = usePointer ? pointer.x * 0.4 : look.tx;
+      let pitch = usePointer ? pointer.y * 0.22 : look.ty;
       if (thinking) {
-        yaw = -0.25 + Math.sin(t * 0.7) * 0.06;
-        pitch = -0.25;
+        yaw = -0.3 + Math.sin(t * 0.7) * 0.06;
+        pitch = -0.2;
+      } else if (listening) {
+        pitch += 0.08;
       }
       look.x = lerp(look.x, yaw, 0.06);
       look.y = lerp(look.y, pitch, 0.06);
-      const nod = speaking ? Math.sin(t * 6.5) * level * 0.09 : 0;
+      const nod = speaking ? Math.sin(t * 6.5) * level * 0.08 : 0;
       head.rotation.y = look.x;
       head.rotation.x = look.y + nod;
-      head.rotation.z = lerp(head.rotation.z, listening ? 0.16 : thinking ? -0.1 : 0, 0.06);
-      torso.rotation.y = lerp(torso.rotation.y, look.x * 0.3, 0.05);
-      torso.rotation.x = lerp(torso.rotation.x, speaking ? 0.04 : listening ? 0.06 : 0, 0.05);
+      head.rotation.z = lerp(head.rotation.z, listening ? 0.14 : thinking ? -0.1 : 0, 0.06);
+      head.position.z = lerp(head.position.z, listening ? 0.15 : 0.05, 0.05);
+      torso.rotation.y = lerp(torso.rotation.y, look.x * 0.25, 0.05);
+      torso.rotation.z = lerp(torso.rotation.z, speaking ? Math.sin(t * 2.2) * 0.02 : 0, 0.05);
 
-      // arms
-      const k = 0.08;
-      if (speaking) {
-        pose(armR, -0.45 - level * 0.5 + Math.sin(t * 3.1) * 0.12, 0.28 + Math.sin(t * 2.3) * 0.08, -1.0 - Math.sin(t * 4.2) * 0.3 * (0.4 + level), k);
-        pose(armL, -0.25 - level * 0.35 + Math.sin(t * 2.6 + 1.5) * 0.1, 0.22, -0.7 - Math.sin(t * 3.7 + 1) * 0.25 * (0.4 + level), k);
-      } else if (thinking) {
-        pose(armR, -0.7, -0.3, -2.3, k); // hand to chin
-        pose(armL, -0.35, -0.05, -1.45, k); // arm across the waist
-      } else if (listening) {
-        pose(armR, -0.05, 0.16, -0.15, k);
-        pose(armL, -0.15, 0.95, -2.2, k); // hand cupped near the ear
-      } else {
-        pose(armR, Math.sin(t * 1.5) * 0.04, 0.16, -0.2, k);
-        pose(armL, Math.sin(t * 1.5 + 1) * 0.04, 0.16, -0.25, k);
-      }
-      armR.hand.rotation.y = lerp(armR.hand.rotation.y, speaking ? Math.sin(t * 3) * 0.4 : 0, 0.1);
-      armL.hand.rotation.y = lerp(armL.hand.rotation.y, listening ? 1.2 : speaking ? -Math.sin(t * 2.7) * 0.4 : 0, 0.1);
-      armR.palmGlow.material.opacity = 0.3 + (speaking ? level * 0.6 : 0);
-      armL.palmGlow.material.opacity = 0.3 + (listening ? level * 0.8 : 0);
-
-      // eyes: blink + mood
+      // visor blink / mood
       if (t > nextBlink) {
         blink = 1;
         nextBlink = t + 2.5 + Math.random() * 3.5;
       }
       blink = Math.max(0, blink - dt * 7);
       const close = blink > 0.5 ? (1 - blink) * 2 : blink * 2;
-      const eyeH = (thinking ? 0.6 : listening ? 1.3 : 1) * (1 - close * 0.9);
-      for (const e of eyes) {
-        e.e.scale.y = lerp(e.e.scale.y, Math.max(0.1, eyeH), 0.35);
-        e.g.material.opacity = 0.45 + level * 0.3 + (thinking ? Math.sin(t * 6) * 0.2 : 0);
+      const open = (thinking ? 0.5 : listening ? 1.35 : 1) * (1 - close * 0.9);
+      for (const v of visorHalves) v.scale.y = lerp(v.scale.y, Math.max(0.12, open), 0.35);
+      visorGlow.material.opacity = 0.4 + level * 0.35 + (thinking ? Math.sin(t * 6) * 0.15 : 0);
+
+      // mouth grille lip-sync
+      for (const m of mouthBars) {
+        const h = speaking ? 0.5 + level * 1.6 * m.env * (0.55 + 0.45 * Math.sin(t * m.f + m.ph)) : thinking ? 0.4 + 0.4 * Math.max(0, Math.sin(t * 6 + m.ph)) : 0.45;
+        m.b.scale.y = lerp(m.b.scale.y, Math.min(1.7, h), 0.45);
       }
+      mouthGlow.material.opacity = lerp(mouthGlow.material.opacity, speaking ? 0.2 + level * 0.7 : 0.05, 0.2);
 
-      // mouth light lip-sync
-      const talk = speaking ? level * (0.65 + 0.35 * Math.sin(t * 17)) : 0;
-      mouth.scale.y = lerp(mouth.scale.y, 1 + talk * 4.5, 0.45);
-      mouth.scale.x = lerp(mouth.scale.x, speaking ? 1 + level * 0.4 : thinking ? 0.6 : 1, 0.2);
-      mouthGlow.material.opacity = lerp(mouthGlow.material.opacity, speaking ? 0.2 + level * 0.8 : 0.08, 0.2);
-
-      for (const g of earLights) g.material.opacity = listening ? 0.3 + level * 0.8 : 0.15;
+      // joint lights react to the mic / voice
+      for (const s of shoulders) s.jg.material.opacity = 0.3 + (listening || speaking ? level * 0.7 : 0);
 
       // chest core
-      coreSpin += dt * (thinking ? 4 : 0.6 + level * 3);
-      coreSpokes.rotation.z = coreSpin;
-      coreRing.rotation.z = -coreSpin * 0.3;
-      coreGlow.scale.setScalar(1.1 + Math.sin(t * 2.4) * 0.08 + level * 0.9);
-      coreGlow.material.opacity = 0.65 + level * 0.35;
+      spin += dt * (thinking ? 3.5 : 0.4 + level * 2.5);
+      coreNotches.rotation.z = spin;
+      coreRingInner.rotation.z = -spin * 0.5;
+      coreRingOuter.rotation.z = spin * 0.1;
+      coreGlow.scale.setScalar(1.25 + Math.sin(t * 2.4) * 0.06 + level * 0.7);
+      coreGlow.material.opacity = 0.35 + level * 0.35;
 
-      aura.material.opacity = lerp(aura.material.opacity, 0.14 + level * 0.2 + (thinking ? 0.08 : 0), 0.08);
+      aura.material.opacity = lerp(aura.material.opacity, 0.08 + level * 0.15, 0.08);
 
       for (let i = 0; i < P; i++) {
         const [a0, r, y0] = pSeed[i];
-        const a = a0 + t * (0.06 + (i % 5) * 0.015) * (thinking ? 2.5 : 1);
-        let y = y0 + t * 0.2;
+        const a = a0 + t * (0.05 + (i % 5) * 0.012) * (thinking ? 2.5 : 1);
+        let y = y0 + t * 0.25;
         y = ((y + 2.5) % 5 + 5) % 5 - 2.5;
         pPos[i * 3] = Math.cos(a) * r;
         pPos[i * 3 + 1] = y;
-        pPos[i * 3 + 2] = Math.sin(a) * r * 0.5 - 1;
+        pPos[i * 3 + 2] = Math.sin(a) * r * 0.5 - 1.2;
       }
       pGeo.attributes.position.needsUpdate = true;
 
