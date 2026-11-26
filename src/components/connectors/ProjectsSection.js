@@ -66,15 +66,15 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
   }
 
   return (
-    <section className="mt-10" aria-labelledby="projects-title">
+    <section className="mt-8" aria-labelledby="projects-title">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 id="projects-title" className="text-lg font-bold text-ink">
-            ATLAS projects
+            Connected apps
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Connect an ATLAS app (CRM, ERP, LMS…) with a key created in that app. The key decides what agents may do there.
-            Click a project to see exactly what its key allows.
+            ATLAS apps (CRM, HRMS, Procurement…) your agents can use. Each app is connected with a key created in that app, and the key
+            decides what agents may read or change there. Click an app to see exactly what its key allows.
           </p>
         </div>
         {isAdmin && !adding && (
