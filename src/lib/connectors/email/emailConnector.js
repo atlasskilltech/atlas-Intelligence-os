@@ -1,18 +1,19 @@
 import "server-only";
-import { getSendGridConfig } from "../../config/env.js";
+import nodemailer from "nodemailer";
+import { getEmailConfig } from "../../config/env.js";
 import { getSenderFor } from "../../email/senderSettings.js";
 import { defineConnector } from "../defineConnector.js";
 import { safeFetch } from "../http/safeFetch.js";
 
 /**
- * Email connector (SendGrid). One action: email the agent's OWNER.
+ * Email connector (SMTP or SendGrid API). One action: email the agent's OWNER.
  * The recipient is never taken from the model's arguments — it is always
  * ctx.run.ownerEmail — so an agent cannot email anyone else.
  *
  * The "From" is the owner's own sender (Email sender page), else the default
  * (SENDGRID_FROM_EMAIL, else tech@atlasuniversity.edu.in).
  *
- * Env: SENDGRID_API_KEY; optional SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME, SENDGRID_ALLOWED_FROM_DOMAINS.
+ * Env: SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS, or SENDGRID_API_KEY — see getEmailConfig().
  */
 
 const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
@@ -64,8 +65,48 @@ export function buildEmail({ subject, message, report, agentName }) {
   return { subject: oneLine(subject, 200) || `Update from ${oneLine(agentName, 100) || "your agent"}`, html, text };
 }
 
-/** POSTs one email to SendGrid. `from` = { email, name }. Throws a readable error on failure. */
-export async function sendMail({ apiKey, to, from, mail }) {
+/** Sends one email with the configured provider. `from` = { email, name }. Throws a readable error. */
+export async function sendMail({ cfg, to, from, mail }) {
+  if (cfg.provider === "smtp") return sendSmtp({ smtp: cfg.smtp, to, from, mail });
+  return sendSendGrid({ apiKey: cfg.apiKey, to, from, mail });
+}
+
+async function sendSmtp({ smtp, to, from, mail }) {
+  const transport = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: smtp.user ? { user: smtp.user, pass: smtp.pass || "" } : undefined,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 30_000,
+  });
+  try {
+    await transport.sendMail({
+      from: { address: from.email, name: oneLine(from.name, 100) },
+      to,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+  } catch (err) {
+    const code = err?.responseCode || err?.code || "";
+    const raw = String(err?.response || err?.message || "unknown error").replace(/\s+/g, " ").slice(0, 300);
+    const hint =
+      err?.code === "EAUTH"
+        ? " Check SMTP_USER and SMTP_PASS."
+        : /sender|from address|verified|not owned|relay/i.test(raw)
+          ? ` The sender ${from.email} must be allowed (verified) on the mail server.`
+          : ["ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS"].includes(err?.code)
+            ? ` Could not reach ${smtp.host}:${smtp.port}. Check SMTP_HOST, SMTP_PORT and SMTP_SECURE.`
+            : "";
+    throw new Error(`The mail server refused the email${code ? ` (${code})` : ""}: ${raw}.${hint}`);
+  } finally {
+    transport.close();
+  }
+}
+
+async function sendSendGrid({ apiKey, to, from, mail }) {
   const res = await safeFetch(SENDGRID_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -106,14 +147,14 @@ const emailOwner = {
     },
   },
   async isReady(ctx = {}) {
-    return Boolean(getSendGridConfig() && (ctx.ownerEmail === undefined || ctx.ownerEmail));
+    return Boolean(getEmailConfig() && (ctx.ownerEmail === undefined || ctx.ownerEmail));
   },
   async describe(ctx = {}) {
     return ctx.ownerEmail ? `The email always goes to the agent's owner (${ctx.ownerEmail}); you cannot choose the recipient.` : "";
   },
   async execute(args, ctx) {
-    const cfg = getSendGridConfig();
-    if (!cfg) throw new Error("Email is not set up: SENDGRID_API_KEY is missing on the server.");
+    const cfg = getEmailConfig();
+    if (!cfg) throw new Error("Email is not set up on the server (add SMTP_HOST/SMTP_USER/SMTP_PASS or SENDGRID_API_KEY).");
     const to = ctx.run?.ownerEmail;
     if (!to || !EMAIL_RE.test(to)) throw new Error("The agent's owner has no email address on file, so the email was not sent.");
 
@@ -122,7 +163,7 @@ const emailOwner = {
     const mail = buildEmail({ subject: args.subject, message: args.message, report, agentName: ctx.run?.agentName });
 
     const from = await getSenderFor(ctx.run?.ownerId);
-    await sendMail({ apiKey: cfg.apiKey, to, from, mail });
+    await sendMail({ cfg, to, from, mail });
     return { sent: true, to, from: from.email, subject: mail.subject, includedReport: Boolean(report) };
   },
 };
@@ -131,8 +172,9 @@ export const emailConnector = defineConnector({
   id: "email",
   actions: { email_owner: emailOwner },
   status: async () => {
-    const cfg = getSendGridConfig();
-    if (!cfg) return { ready: false, message: "Set SENDGRID_API_KEY on the server" };
-    return { ready: true, message: `Ready · default sender ${cfg.from} (each user can set their own on the Email sender page)` };
+    const cfg = getEmailConfig();
+    if (!cfg) return { ready: false, message: "Set SMTP_HOST, SMTP_USER and SMTP_PASS (or SENDGRID_API_KEY) on the server" };
+    const via = cfg.provider === "smtp" ? `SMTP ${cfg.smtp.host}:${cfg.smtp.port}` : "SendGrid API";
+    return { ready: true, message: `Ready · ${via} · default sender ${cfg.from} (each user can set their own on the Email sender page)` };
   },
 });

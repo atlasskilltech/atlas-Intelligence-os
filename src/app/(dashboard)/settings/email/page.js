@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import EmailSenderForm from "@/components/settings/EmailSenderForm";
 import PageHeader from "@/components/ui/PageHeader";
-import { getSendGridConfig } from "@/lib/config/env";
+import { getEmailConfig } from "@/lib/config/env";
 import { getPageActor } from "@/lib/context";
 import { getSenderFor } from "@/lib/email/senderSettings";
 
@@ -17,7 +17,7 @@ export default async function EmailSenderPage() {
         title="Email sender"
         description="Choose which address your agents' emails come from. Emails always go to your own inbox."
       />
-      <EmailSenderForm initialSender={sender} configured={Boolean(getSendGridConfig())} myEmail={actor.email || ""} />
+      <EmailSenderForm initialSender={sender} configured={Boolean(getEmailConfig())} myEmail={actor.email || ""} />
     </>
   );
 }

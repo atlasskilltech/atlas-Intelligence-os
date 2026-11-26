@@ -5,6 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { EventEmitter } from "node:events";
+import net from "node:net";
 
 process.env.DATA_DIR = await mkdtemp(path.join(tmpdir(), "atlas-email-"));
 
@@ -21,8 +22,7 @@ const ctx = (over = {}) => ({
 });
 
 afterEach(() => {
-  delete process.env.SENDGRID_API_KEY;
-  delete process.env.SENDGRID_FROM_EMAIL;
+  for (const k of ["SENDGRID_API_KEY", "SENDGRID_FROM_EMAIL", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_SECURE"]) delete process.env[k];
 });
 
 test("email.email_owner is a send tool: simulated in test runs, needs approval unless pre-approved", () => {
@@ -127,4 +127,86 @@ test("execute uses the owner's own sender", async (t) => {
   assert.equal(out.from, "hr@atlasuniversity.edu.in");
   assert.deepEqual(body.from, { email: "hr@atlasuniversity.edu.in", name: "HR Team" });
   assert.equal(out.includedReport, false);
+});
+
+/** Minimal SMTP server: accepts AUTH PLAIN/LOGIN and records the message. */
+function fakeSmtp() {
+  const got = { auth: null, from: null, to: [], data: "" };
+  const server = net.createServer((sock) => {
+    let inData = false;
+    let buf = "";
+    const say = (l) => sock.write(`${l}\r\n`);
+    say("220 fake ESMTP");
+    sock.on("data", (chunk) => {
+      buf += chunk.toString("utf8");
+      let i;
+      while ((i = buf.indexOf("\r\n")) >= 0) {
+        const line = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (inData) {
+          if (line === ".") {
+            inData = false;
+            say("250 queued");
+          } else got.data += `${line}\n`;
+          continue;
+        }
+        const cmd = line.toUpperCase();
+        if (cmd.startsWith("EHLO")) sock.write("250-fake\r\n250 AUTH PLAIN LOGIN\r\n");
+        else if (cmd.startsWith("AUTH PLAIN")) {
+          got.auth = Buffer.from(line.split(" ")[2] || "", "base64").toString("utf8").split("\0").slice(1);
+          say("235 ok");
+        } else if (cmd.startsWith("MAIL FROM")) {
+          got.from = /<([^>]*)>/.exec(line)?.[1];
+          say("250 ok");
+        } else if (cmd.startsWith("RCPT TO")) {
+          got.to.push(/<([^>]*)>/.exec(line)?.[1]);
+          say("250 ok");
+        } else if (cmd === "DATA") {
+          inData = true;
+          say("354 go");
+        } else if (cmd === "QUIT") {
+          say("221 bye");
+          sock.end();
+        } else say("250 ok");
+      }
+    });
+  });
+  return new Promise((r) => server.listen(0, "127.0.0.1", () => r({ server, got, port: server.address().port })));
+}
+
+test("SMTP: SMTP_HOST/PORT/USER/PASS are used, from = default tech@ sender, to = owner", async () => {
+  const { server, got, port } = await fakeSmtp();
+  try {
+    Object.assign(process.env, { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(port), SMTP_USER: "apikey", SMTP_PASS: "smtp-secret-pass-123" });
+    assert.equal(await tool.isReady({ ownerEmail: "o@atlas.test" }), true);
+    const status = (await connectorOverview()).find((c) => c.id === "email");
+    assert.match(status.message, /SMTP 127\.0\.0\.1/);
+    const out = await tool.execute({ subject: "Faculty report", message: "Here it is" }, ctx({ ownerId: "u_42" }));
+    assert.equal(out.from, "tech@atlasuniversity.edu.in");
+    assert.deepEqual(got.auth, ["apikey", "smtp-secret-pass-123"]);
+    assert.equal(got.from, "tech@atlasuniversity.edu.in");
+    assert.deepEqual(got.to, ["owner@atlas.test"]);
+    assert.match(got.data, /Subject: Faculty report/);
+  } finally {
+    server.close();
+  }
+});
+
+test("SMTP: a refused login gives a readable error", async () => {
+  const server = net.createServer((sock) => {
+    sock.write("220 fake\r\n");
+    sock.on("data", (c) => {
+      const l = c.toString().toUpperCase();
+      if (l.startsWith("EHLO")) sock.write("250-fake\r\n250 AUTH PLAIN\r\n");
+      else if (l.startsWith("AUTH")) sock.write("535 Authentication failed\r\n");
+      else sock.write("250 ok\r\n");
+    });
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  try {
+    Object.assign(process.env, { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(server.address().port), SMTP_USER: "u", SMTP_PASS: "wrong-password-1" });
+    await assert.rejects(tool.execute({ subject: "s", message: "m" }, ctx()), /Check SMTP_USER and SMTP_PASS/);
+  } finally {
+    server.close();
+  }
 });

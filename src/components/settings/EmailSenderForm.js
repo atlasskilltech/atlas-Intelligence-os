@@ -53,7 +53,7 @@ export default function EmailSenderForm({ initialSender, configured, myEmail }) 
       <div className="space-y-6 lg:col-span-2">
         {!configured && (
           <Alert tone="warning" title="Email is not set up on the server">
-            An administrator must add SENDGRID_API_KEY to the server environment before agents can send email.
+            An administrator must add SMTP_HOST, SMTP_PORT, SMTP_USER and SMTP_PASS (or SENDGRID_API_KEY) to the server environment and restart the app.
           </Alert>
         )}
         <form
@@ -70,7 +70,7 @@ export default function EmailSenderForm({ initialSender, configured, myEmail }) 
                 label="From email"
                 htmlFor="from-email"
                 error={errors.email}
-                hint={`Leave empty to use the default (${sender.default.email}). Must be an ${domains} address that is verified in SendGrid.`}
+                hint={`Leave empty to use the default (${sender.default.email}). Must be an ${domains} address that your mail server allows you to send from.`}
               >
                 <Input
                   id="from-email"

@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_SENDER_EMAIL, getDbConfig, getSendGridConfig } from "../config/env.js";
+import { DEFAULT_SENDER_EMAIL, getDbConfig, getEmailConfig } from "../config/env.js";
 import { query, table } from "../db/mysql.js";
 import { readJson, writeJson } from "../storage/jsonFile.js";
 
@@ -34,7 +34,7 @@ const storedInDb = (actorId) => Boolean(getDbConfig()) && uidOf(actorId) !== nul
 const cleanName = (n) => String(n ?? "").replace(/[\r\n\t<>"]+/g, " ").trim().slice(0, 100);
 
 export function defaultSender() {
-  const cfg = getSendGridConfig();
+  const cfg = getEmailConfig();
   return {
     email: cfg?.from || DEFAULT_SENDER_EMAIL,
     name: cfg?.fromName || "ATLAS IntelligenceOS",

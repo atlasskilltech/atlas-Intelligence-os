@@ -1,4 +1,4 @@
-import { getSendGridConfig } from "@/lib/config/env";
+import { getEmailConfig } from "@/lib/config/env";
 import { buildEmail, sendMail } from "@/lib/connectors/email/emailConnector";
 import { getActor } from "@/lib/context";
 import { BadRequest, fail, ok } from "@/lib/http/respond";
@@ -8,8 +8,8 @@ import { getSenderFor } from "@/lib/email/senderSettings";
 export async function POST() {
   try {
     const actor = await getActor();
-    const cfg = getSendGridConfig();
-    if (!cfg) throw new BadRequest("Email is not set up on the server (SENDGRID_API_KEY is missing).");
+    const cfg = getEmailConfig();
+    if (!cfg) throw new BadRequest("Email is not set up on the server (add SMTP_HOST/SMTP_USER/SMTP_PASS or SENDGRID_API_KEY).");
     if (!actor.email) throw new BadRequest("Your account has no email address, so there is nowhere to send the test.");
     const from = await getSenderFor(actor.id);
     const mail = buildEmail({
@@ -18,9 +18,9 @@ export async function POST() {
       agentName: "Email sender settings",
     });
     try {
-      await sendMail({ apiKey: cfg.apiKey, to: actor.email, from, mail });
+      await sendMail({ cfg, to: actor.email, from, mail });
     } catch (err) {
-      throw new BadRequest(err?.message || "SendGrid could not send the email.");
+      throw new BadRequest(err?.message || "The email could not be sent.");
     }
     return ok({ sent: true, to: actor.email, from: from.email });
   } catch (err) {
