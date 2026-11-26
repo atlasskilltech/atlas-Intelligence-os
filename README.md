@@ -51,19 +51,41 @@ out loud in the same language. It uses the same read-only connector lookups as H
 `OPENAI_API_KEY`; optional `OPENAI_STT_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`. Browsers only
 allow the microphone on `https://` (or `localhost`).
 
-## Emailing reports (Google Workspace)
+## Emailing reports with Google Workspace
 
-Agents can email their report to the **agent owner** (the signed-in user who owns the agent),
-never to anyone else. Ask for it in the request, e.g. "email the report to me".
+Agents can email their report to the agent owner's own inbox (`email.email_owner`). Configure it in
+the server `.env` (see `.env.example`) and restart. Two ways with Google Workspace:
 
-1. Pick a Workspace mailbox to send from (a shared one like `intelligenceos@…` is best) and turn on
-   2-Step Verification for it.
-2. Create an App Password for it at <https://myaccount.google.com/apppasswords>.
-3. Set `SMTP_USER` (the mailbox) and `SMTP_PASSWORD` (the App Password) in the server `.env`,
-   and `APP_URL` so emails link to the run. Restart the server.
+**A. One sending mailbox (simplest).** Use the default sender mailbox (e.g.
+`tech@atlasuniversity.edu.in`) with 2-Step Verification on, and create an App Password for it at
+<https://myaccount.google.com/apppasswords>.
 
-The Connectors page shows "Sends from …" when it is ready. Test runs also send the email, marked
-"[Test run]" in the subject, so you can check it.
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=tech@atlasuniversity.edu.in
+SMTP_PASS=<16-character App Password>
+SMTP_FROM=tech@atlasuniversity.edu.in
+```
+
+Gmail always sends as the signed-in mailbox (or one of its "Send mail as" aliases), so a different
+sender chosen on the **Email sender** page is replaced by `SMTP_USER`. Use option B if users need
+their own sender.
+
+**B. Workspace SMTP relay (per-user senders).** A Workspace admin turns on *Apps → Google Workspace →
+Gmail → Routing → SMTP relay service*, allowing "only addresses in my domains", requiring TLS, and
+either allowing the server's IP address or requiring SMTP authentication. Then:
+
+```
+SMTP_HOST=smtp-relay.gmail.com
+SMTP_PORT=587
+SMTP_USER=tech@atlasuniversity.edu.in   # only if the relay requires SMTP authentication
+SMTP_PASS=<App Password>                # only if the relay requires SMTP authentication
+SMTP_FROM=tech@atlasuniversity.edu.in
+EMAIL_ALLOWED_FROM_DOMAINS=atlasuniversity.edu.in
+```
+
+Use **Settings → Email sender → Send test email** to check the setup.
 
 ## Scheduled agents
 

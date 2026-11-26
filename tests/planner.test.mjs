@@ -120,7 +120,7 @@ test("schedules convert to cron and readable text", () => {
 test("every catalog tool has a valid risk and milestone", () => {
   for (const id of TOOL_IDS) {
     const t = getTool(id);
-    assert.ok(["read", "internal", "self", "write", "send", "destructive"].includes(t.risk), id);
+    assert.ok(["read", "internal", "write", "send", "destructive"].includes(t.risk), id);
     assert.ok(t.availableIn >= 5 && t.availableIn <= 8, id);
     assert.match(id, /^[a-z_]+\.[a-z_]+$/);
   }

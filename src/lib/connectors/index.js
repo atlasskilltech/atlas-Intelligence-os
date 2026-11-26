@@ -1,7 +1,7 @@
 import "server-only";
 import { CONNECTORS as CATALOG } from "../catalog/toolCatalog.js";
 import { notifyConnector, reportConnector } from "./builtin.js";
-import { emailConnector } from "./email.js";
+import { emailConnector } from "./email/emailConnector.js";
 import { executorsOf } from "./defineConnector.js";
 import { projectConnector } from "./projects/projectConnector.js";
 

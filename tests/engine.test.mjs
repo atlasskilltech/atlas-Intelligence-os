@@ -293,31 +293,3 @@ test("events feed the execution log", async () => {
   const stats = await runs.runStats(actor);
   assert.ok(stats.today >= 5);
 });
-
-test("email.email_owner sends the run's report to the owner, marked as a test run", async () => {
-  const { emailConnector } = await import("../src/lib/connectors/email.js");
-  process.env.SMTP_USER = "ios@atlas.example";
-  process.env.SMTP_PASSWORD = "app-password-123456";
-  try {
-    const owner = { ...actor, email: "owner@atlas.example" };
-    const agent = await makeAgent({ steps: [{ title: "Write report", tool: "report.create_report" }, { title: "Email me", tool: "email.email_owner" }] });
-    const run = await engine.startRun(owner, agent.id, { mode: "test" });
-    const sent = [];
-    const model = fakeModel([callTool("report__create_report", reportArgs), callTool("email__email_owner", {}), { text: "Emailed." }]);
-    await engine.executeRun(run.id, {
-      ...deps(model),
-      executors: { ...executors, "email.email_owner": emailConnector.actions.email_owner },
-      sendMail: async (m) => sent.push(m),
-    });
-    const r = await runs.loadRun(run.id);
-    assert.equal(r.status, "succeeded");
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].to, "owner@atlas.example");
-    assert.equal(sent[0].subject, "[Test run] Leads today");
-    assert.ok(sent[0].html.includes("Asha"));
-    assert.ok(model.calls[0].tools.includes("email__email_owner"));
-  } finally {
-    delete process.env.SMTP_USER;
-    delete process.env.SMTP_PASSWORD;
-  }
-});

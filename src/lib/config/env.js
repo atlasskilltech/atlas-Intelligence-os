@@ -102,6 +102,53 @@ export function getDbConfig() {
   };
 }
 
+/** Sender used when a user has not set their own (Email sender page). */
+export const DEFAULT_SENDER_EMAIL = "tech@atlasuniversity.edu.in";
+
+/**
+ * Email for agents (email the agent's owner). Null when not configured.
+ * Two ways, SMTP preferred when both are set:
+ *   SMTP:     SMTP_HOST, SMTP_PORT (587 STARTTLS / 465 TLS), SMTP_USER, SMTP_PASS, optional SMTP_SECURE=true
+ *             (SendGrid over SMTP: host smtp.sendgrid.net, user "apikey", pass = the API key)
+ *   SendGrid: SENDGRID_API_KEY
+ * `from` is the default sender: SMTP_FROM / SENDGRID_FROM_EMAIL / MAIL_FROM…, else tech@atlasuniversity.edu.in.
+ * `allowedDomains`: domains users may pick their own sender from (EMAIL_ALLOWED_FROM_DOMAINS or
+ * SENDGRID_ALLOWED_FROM_DOMAINS, comma-separated; default = the default sender's domain).
+ */
+export function getEmailConfig() {
+  const host = pick("SMTP_HOST", "MAIL_HOST");
+  const key = pick("SENDGRID_API_KEY", "SENDGRID_KEY");
+  if (!host.value && !key.value) return null;
+  const from = pick("SMTP_FROM", "SMTP_FROM_EMAIL", "SENDGRID_FROM_EMAIL", "SENDGRID_FROM", "SENDGRID_SENDER", "MAIL_FROM", "MAIL_FROM_ADDRESS", "EMAIL_FROM");
+  const fromName = pick("SMTP_FROM_NAME", "SENDGRID_FROM_NAME", "MAIL_FROM_NAME", "EMAIL_FROM_NAME");
+  const fromEmail = (from.value || DEFAULT_SENDER_EMAIL).toLowerCase();
+  const allowed = String(process.env.EMAIL_ALLOWED_FROM_DOMAINS || process.env.SENDGRID_ALLOWED_FROM_DOMAINS || "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+    .filter(Boolean);
+  const common = {
+    from: fromEmail,
+    fromName: fromName.value || "ATLAS IntelligenceOS",
+    allowedDomains: allowed.length ? allowed : [fromEmail.split("@")[1]].filter(Boolean),
+  };
+  if (host.value) {
+    const port = Number(pick("SMTP_PORT", "MAIL_PORT").value) || 587;
+    const secureEnv = pick("SMTP_SECURE", "MAIL_SECURE", "SMTP_ENCRYPTION", "MAIL_ENCRYPTION").value;
+    return {
+      provider: "smtp",
+      smtp: {
+        host: host.value,
+        port,
+        secure: /^ssl$/i.test(secureEnv || "") || (secureEnv ? /^(1|true|yes)$/i.test(secureEnv) : port === 465),
+        user: pick("SMTP_USER", "SMTP_USERNAME", "MAIL_USERNAME").value,
+        pass: pick("SMTP_PASS", "SMTP_PASSWORD", "MAIL_PASSWORD").value,
+      },
+      ...common,
+    };
+  }
+  return { provider: "sendgrid", apiKey: key.value, ...common };
+}
+
 /** Google sign-in (OAuth client). Null when not configured. */
 export function getGoogleAuth() {
   const id = pick("GOOGLE_CLIENT_ID", "AUTH_GOOGLE_ID", "GOOGLE_OAUTH_CLIENT_ID");
@@ -139,27 +186,6 @@ export function getSessionSecret() {
   return enc ? `derived:session:${enc}` : undefined;
 }
 
-/**
- * Outgoing email (agents emailing their owner). Built for Google Workspace:
- * a sending mailbox on smtp.gmail.com with an App Password. Any SMTP server works.
- * Null when SMTP_USER / SMTP_PASSWORD are not set.
- */
-export function getMailConfig() {
-  const user = clean(process.env.SMTP_USER);
-  const password = clean(process.env.SMTP_PASSWORD)?.replace(/\s+/g, ""); // App Passwords are shown with spaces
-  if (!user || !password) return null;
-  const port = Number(clean(process.env.SMTP_PORT)) || 465;
-  return {
-    host: clean(process.env.SMTP_HOST) || "smtp.gmail.com",
-    port,
-    secure: port === 465,
-    user,
-    password,
-    from: clean(process.env.MAIL_FROM) || user,
-    fromName: clean(process.env.MAIL_FROM_NAME) || "ATLAS IntelligenceOS",
-  };
-}
-
 /** Secrets that only exist at run time (e.g. decrypted project keys) — redacted like env secrets. */
 const runtimeSecrets = new Set();
 export function registerSecret(value) {
@@ -171,10 +197,11 @@ export function getSecretValues() {
   return [
     getOpenAIKey(),
     getElevenLabsKey(),
+    getEmailConfig()?.apiKey,
+    getEmailConfig()?.smtp?.pass,
     getEncryptionKey(),
     getDbConfig()?.password,
     getGoogleAuth()?.clientSecret,
-    getMailConfig()?.password,
     pick("AUTH_SECRET", "SESSION_SECRET", "NEXTAUTH_SECRET").value,
     ...runtimeSecrets,
   ].filter(Boolean);
