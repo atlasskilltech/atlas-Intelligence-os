@@ -215,7 +215,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setRunMode("test")} disabled={!!busy || !!runBlocked} title={runBlocked || "Try the agent safely: changes and messages are simulated"}>
+          <Button variant="secondary" onClick={() => setRunMode("test")} disabled={!!busy || !!runBlocked} title={runBlocked || "Try the agent safely: changes and messages are simulated (an email to you is still sent, marked [Test run])"}>
             <Icon name="play" className="size-4" />
             Run test
           </Button>
@@ -329,7 +329,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
             <CardBody className="text-sm text-slate-500">
               {runFilters.connector || runFilters.called
                 ? "None of this agent's recent runs match these filters."
-                : "No runs yet. Press Run test to see the agent work — nothing is changed or sent in a test run."}
+                : "No runs yet. Press Run test to see the agent work — nothing is changed, and only an email to you is sent (marked [Test run])."}
             </CardBody>
           </Card>
         )}
@@ -347,7 +347,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
         <p>
           {runMode === "live"
             ? "The agent runs for real. Actions that need approval will pause and wait for you."
-            : "The agent runs its plan with real AI and read-only tools. Actions that change data or send messages are simulated."}
+            : "The agent runs its plan with real AI and read-only tools. Actions that change data or message other people are simulated; an email to you is sent, marked [Test run]."}
         </p>
         <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="run-input">
           Extra instructions for this run <span className="font-normal text-slate-400">(optional)</span>

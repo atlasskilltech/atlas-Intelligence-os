@@ -25,9 +25,17 @@ afterEach(() => {
   for (const k of ["SENDGRID_API_KEY", "SENDGRID_FROM_EMAIL", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_SECURE"]) delete process.env[k];
 });
 
-test("email.email_owner is a send tool: simulated in test runs, needs approval unless pre-approved", () => {
-  assert.equal(getTool("email.email_owner").risk, "send");
-  assert.equal(hasExternalEffect("email.email_owner"), true);
+test("email.email_owner only emails the owner: never asks for approval, runs for real in test runs", async () => {
+  const { normalizeAgentConfig } = await import("../src/lib/agents/agentConfig.js");
+  assert.equal(getTool("email.email_owner").risk, "self");
+  assert.equal(hasExternalEffect("email.email_owner"), false);
+  const { config } = normalizeAgentConfig({
+    name: "Free faculty",
+    instructions: "Report free faculty and email me.",
+    steps: [{ title: "Report", tool: "report.create_report" }, { title: "Email me", tool: "email.email_owner" }],
+    trigger: { type: "manual" },
+  });
+  assert.deepEqual(config.permissions.toolsRequiringApproval, [], "no approval step for owner email");
   assert.equal(tool.parameters.properties.to, undefined, "the model cannot pick a recipient");
 });
 
@@ -74,6 +82,29 @@ test("execute sends to the owner only, with the latest report", async (t) => {
   assert.equal(sent.url, "https://api.sendgrid.com/v3/mail/send");
   assert.equal(sent.opts.headers.Authorization, "Bearer SG.test-key-123456");
   assert.match(sent.body.content[1].value, /Free faculty/);
+});
+
+test("test-run emails are sent for real and marked in the subject", async (t) => {
+  process.env.SENDGRID_API_KEY = "SG.test-key-123456";
+  let body;
+  t.mock.method(httpMod.default, "request", (url, opts, cb) => {
+    const req = new EventEmitter();
+    req.setTimeout = () => req;
+    req.write = (b) => (body = JSON.parse(String(b)));
+    req.end = () => {
+      const res = new EventEmitter();
+      res.statusCode = 202;
+      res.headers = {};
+      res.destroy = () => {};
+      cb(res);
+      setImmediate(() => res.emit("end"));
+    };
+    req.destroy = () => {};
+    return req;
+  });
+  const out = await tool.execute({ subject: "Free faculty today", message: "Here it is" }, ctx({ mode: "test" }));
+  assert.equal(out.subject, "[Test run] Free faculty today");
+  assert.equal(body.subject, "[Test run] Free faculty today");
 });
 
 test("execute refuses when the owner has no email", async () => {

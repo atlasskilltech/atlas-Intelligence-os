@@ -161,6 +161,8 @@ const emailOwner = {
     const reports = ctx.getReports?.() || [];
     const report = args.includeReport === false ? null : reports.at(-1) || null;
     const mail = buildEmail({ subject: args.subject, message: args.message, report, agentName: ctx.run?.agentName });
+    // Owner-only email runs for real in test runs too (so "Run test" shows what arrives); mark it.
+    if (ctx.run?.mode === "test") mail.subject = `[Test run] ${mail.subject}`.slice(0, 200);
 
     const from = await getSenderFor(ctx.run?.ownerId);
     await sendMail({ cfg, to, from, mail });

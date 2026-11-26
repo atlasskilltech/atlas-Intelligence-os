@@ -170,8 +170,7 @@ test("withEmailStep: one-click email for agents planned before email existed", a
   assert.deepEqual(upgraded.steps.map((s) => s.tool), ["atlas_project.read", "report.create_report", "email.email_owner", "notify.notify_owner"]);
   assert.deepEqual(upgraded.notes.missingCapabilities, []);
   assert.deepEqual(upgraded.notes.assumptions, ["Use today's date."]);
-  assert.deepEqual(upgraded.permissions.preApproved, ["email.email_owner"], "sends without pausing");
-  assert.deepEqual(upgraded.permissions.toolsRequiringApproval, []);
+  assert.deepEqual(upgraded.permissions.toolsRequiringApproval, [], "sends without pausing");
   assert.match(upgraded.instructions, /email\.email_owner/);
   assert.equal(agentWantsEmail(upgraded), false);
   assert.equal(withEmailStep(upgraded), upgraded, "adding twice changes nothing");
