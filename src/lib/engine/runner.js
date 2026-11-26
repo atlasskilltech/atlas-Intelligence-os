@@ -23,6 +23,8 @@ import { EXECUTORS } from "../connectors/index.js";
 import { pushAgentById } from "../connectors/projects/agentPush.js";
 import { PLAN_TOOL_NAME, fromFunctionName, hasExternalEffect, planToolDefinition, resolveTools, toolDefinitions } from "../tools/registry.js";
 import { runStartMessage, runSystemPrompt } from "./prompt.js";
+import { DATA_TOOL_NAME, compactPayload, dataToolDefinition, queryWithin } from "./dataTool.js";
+import { DATASET_CAP, loadDataset, loadDatasets, removeDatasets, saveDatasets } from "../runs/datasetRepo.js";
 
 /**
  * Execution engine (Milestone 5): a bounded tool-calling loop.
@@ -40,7 +42,10 @@ import { runStartMessage, runSystemPrompt } from "./prompt.js";
 
 const TOOL_TIMEOUT_MS = 60_000;
 const MODEL_CALL_TIMEOUT_MS = 120_000;
-const TOOL_RESULT_MAX = 8_000;
+// Max characters of one tool result sent to the model. Bigger results keep valid
+// JSON: large lists become datasets the agent reads with query_data.
+const TOOL_RESULT_MAX = Math.min(200_000, Math.max(4_000, Number(process.env.TOOL_RESULT_MAX_CHARS) || 24_000));
+const MAX_DATA_QUERIES = 25;
 const STALE_AFTER_MS = 3 * 60_000;
 const APPROVAL_TTL_MS = 7 * 24 * 60 * 60_000;
 
@@ -187,7 +192,7 @@ async function loop(runId, deps) {
   const planTool = planToolDefinition(config.steps);
   const tools = [...actionTools, planTool];
   const budgetMs = config.limits.timeoutMinutes * 60_000;
-  const maxModelCalls = config.limits.maxSteps * 2 + 5 + config.steps.length; // + progress updates
+  const maxModelCalls = () => config.limits.maxSteps * 2 + 5 + config.steps.length + Math.min(run.stats.dataQueries || 0, MAX_DATA_QUERIES); // + progress updates + data queries
   const segmentStart = Date.now();
   const elapsed = () => run.activeMs + (Date.now() - segmentStart);
 
@@ -213,6 +218,7 @@ async function loop(runId, deps) {
     run.finishedAt = new Date().toISOString();
     run.activeMs = elapsed();
     run.error = error;
+    if (run.datasets?.length) await removeDatasets(run.id);
     await logEvent(run, { type: `run_${status}`, level, message: event || error || "Run finished", durationMs: run.activeMs });
     await save();
     // §2c: projects that list this agent see its last run. Best effort, never throws.
@@ -267,7 +273,7 @@ async function loop(runId, deps) {
       if (elapsed() >= budgetMs) {
         return await finish("timed_out", { error: `Stopped: the run reached its ${config.limits.timeoutMinutes}-minute time limit.`, level: "error" });
       }
-      if (run.stats.modelCalls >= maxModelCalls) {
+      if (run.stats.modelCalls >= maxModelCalls()) {
         return await finish("failed", { error: "Stopped: too many AI calls without finishing.", level: "error" });
       }
 
@@ -287,7 +293,7 @@ async function loop(runId, deps) {
           "chatWithTools",
           {
             messages: run.messages,
-            tools: limitHit ? [planTool] : tools,
+            tools: [...(limitHit ? [planTool] : tools), ...(run.datasets?.length ? [dataToolDefinition(run.datasets)] : [])],
             timeoutMs: Math.max(5_000, Math.min(MODEL_CALL_TIMEOUT_MS, budgetMs - elapsed())),
           },
           { purpose: "agent_run", agentId: run.agentId, runId: run.id, actorId: run.ownerId },
@@ -310,7 +316,7 @@ async function loop(runId, deps) {
       });
 
       const first = res.toolCalls?.[0];
-      const call = first && (!limitHit || first.name === PLAN_TOOL_NAME) ? first : null;
+      const call = first && (!limitHit || first.name === PLAN_TOOL_NAME || first.name === DATA_TOOL_NAME) ? first : null;
       if (!call) {
         run.output.summary = clip(safeText(res.text || "").trim(), 20_000) || "(The agent finished without a summary.)";
         run.messages.push({ role: "assistant", content: res.text || "" });
@@ -344,6 +350,7 @@ async function loop(runId, deps) {
 /** Returns true when the run must pause for approval. */
 async function handleToolCall(run, call, deps, reasonText, executable = (id) => !!deps.executors[id]) {
   if (call.name === PLAN_TOOL_NAME) return recordProgress(run, call);
+  if (call.name === DATA_TOOL_NAME) return runDataQuery(run, call);
   const toolId = fromFunctionName(call.name);
   const tool = getTool(toolId);
   const reject = async (message) => {
@@ -445,7 +452,7 @@ async function executeTool(run, toolId, toolCallId, args, deps) {
       executor.execute(args, ctx),
       new Promise((_, rej) => (timer = setTimeout(() => rej(new Error(`Timed out after ${TOOL_TIMEOUT_MS / 1000}s`)), TOOL_TIMEOUT_MS))),
     ]).finally(() => clearTimeout(timer));
-    pushToolResult(run, toolCallId, { ok: true, result: data });
+    await pushLargeToolResult(run, toolCallId, { ok: true, result: data }, `${tool?.name || toolId}${args?.action ? ` · ${args.project}/${args.action}` : ""}`);
     recordProjectCall(run, toolId, args, "ok");
     await logEvent(run, {
       type: "tool_call",
@@ -492,6 +499,62 @@ export function recordProjectCall(run, toolId, args, outcome) {
 function pushToolResult(run, toolCallId, payload) {
   const body = clip(safeText(JSON.stringify(payload)), TOOL_RESULT_MAX);
   run.messages.push({ role: "tool", toolCallId, content: `<tool_result untrusted="true">\n${body}\n</tool_result>` });
+}
+
+/**
+ * Like pushToolResult, for real tool output that may be large: big lists are
+ * stored as datasets and the model gets valid JSON with a preview (see dataTool.js),
+ * instead of JSON cut off in the middle.
+ */
+async function pushLargeToolResult(run, toolCallId, payload, label) {
+  let redacted;
+  try {
+    redacted = JSON.parse(safeText(JSON.stringify(payload ?? null)));
+  } catch {
+    return pushToolResult(run, toolCallId, payload);
+  }
+  run.datasets ??= [];
+  let n = run.datasets.reduce((m, d) => Math.max(m, Number(String(d.id).slice(3)) || 0), 0);
+  const { text, datasets, clipped } = compactPayload(redacted, { maxChars: TOOL_RESULT_MAX, newId: () => `ds_${++n}` });
+  if (datasets.length) {
+    await saveDatasets(run.id, datasets);
+    const now = new Date().toISOString();
+    for (const d of datasets) run.datasets.push({ id: d.id, label: `${label}${d.path ? ` → ${d.path}` : ""}`, totalRows: d.totalRows, fields: d.fields, createdAt: now });
+    run.datasets = run.datasets.slice(-DATASET_CAP);
+    await logEvent(run, {
+      type: "data_stored",
+      message: `Large result stored for querying: ${datasets.map((d) => `${d.id} (${d.totalRows} rows)`).join(", ")}`,
+    });
+  }
+  if (clipped) await logEvent(run, { type: "result_truncated", level: "warning", message: `${label}: result was too large and was cut off` });
+  run.messages.push({ role: "tool", toolCallId, content: `<tool_result untrusted="true">\n${text}\n</tool_result>` });
+}
+
+/** query_data: read a stored dataset. Local and read-only: no approval, not an action. */
+async function runDataQuery(run, call) {
+  const fail = async (message) => {
+    pushToolResult(run, call.id, { ok: false, error: message });
+    await logEvent(run, { type: "tool_rejected", level: "warning", message: `${DATA_TOOL_NAME}: ${message}` });
+    return false;
+  };
+  const q = call.arguments;
+  if (q == null) return fail("The arguments were not valid JSON. Try again with valid JSON.");
+  const problems = validateArgs(dataToolDefinition(run.datasets || []).parameters, q);
+  if (problems.length) return fail(`Invalid arguments: ${problems.join("; ")}.`);
+  run.stats.dataQueries = (run.stats.dataQueries || 0) + 1;
+  if (run.stats.dataQueries > MAX_DATA_QUERIES) return fail(`Too many data queries (limit ${MAX_DATA_QUERIES}). Write your answer with what you have.`);
+  const meta = (run.datasets || []).find((d) => d.id === q.dataset);
+  const rows = meta ? await loadDataset(run.id, q.dataset) : null;
+  if (!rows) return fail(`Unknown dataset "${q.dataset}". Available: ${(run.datasets || []).map((d) => d.id).join(", ") || "none"}.`);
+  try {
+    const all = q.excludeMatching ? await loadDatasets(run.id) : {};
+    const result = queryWithin(rows, q, { fields: meta.fields, load: (id) => all[id] || null }, TOOL_RESULT_MAX - 500);
+    pushToolResult(run, call.id, { ok: true, dataset: q.dataset, ...result });
+    await logEvent(run, { type: "data_query", message: `${DATA_TOOL_NAME} ${q.dataset} → ${result.totalMatched} matching row${result.totalMatched === 1 ? "" : "s"}`, args: redactArgs(q) });
+  } catch (err) {
+    return fail(err?.message || "Query failed.");
+  }
+  return false;
 }
 
 function redactArgs(args) {

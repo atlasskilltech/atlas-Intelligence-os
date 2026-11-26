@@ -25,6 +25,7 @@ const headerSafe = (s) => String(s || "").replace(/[^\x20-\x7e]/g, "").slice(0, 
 const ofKind = (kind) => (a) => (kind === "read" ? a.risk === "read" : a.risk !== "read");
 
 const usable = (p) => p.enabled && p.status === "connected";
+const PROJECT_MAX_BYTES = 8_000_000;
 
 // ---------------------------------------------------------------------------
 // Per-user manifests (delegated projects), cached for 10 minutes
@@ -147,7 +148,9 @@ export async function callAction({ projectId, actionId, tool = null, params = {}
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await safeFetch(url, { method: action.method, headers, body });
+  // Project APIs can return whole timetables / registers: allow up to 8 MB. The
+  // engine turns big lists into datasets the agent can query (engine/dataTool.js).
+  const res = await safeFetch(url, { method: action.method, headers, body, maxBytes: PROJECT_MAX_BYTES });
   const data = parseBody(res);
   if (res.status === 401) {
     const msg = "The project rejected the key (revoked or expired). An administrator must replace it.";
@@ -238,7 +241,9 @@ const tool = (kind) => ({
     return {
       status: r.status,
       data: r.data,
-      ...(r.truncated ? { note: "The response was too large and was cut off." } : {}),
+      ...(r.truncated
+        ? { note: `The response was larger than ${PROJECT_MAX_BYTES / 1_000_000} MB and was cut off. Call the action again with filters (e.g. a date, school or limit parameter) to get a smaller result.` }
+        : {}),
       ...(note ? { nextStep: note } : {}),
     };
   },

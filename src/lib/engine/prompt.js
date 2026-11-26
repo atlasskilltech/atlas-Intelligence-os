@@ -45,6 +45,7 @@ export function runSystemPrompt(config, { mode, executable, now = new Date() }) 
     "- Call one tool at a time and only the tools listed above. Never invent data you did not receive.",
     "- Some actions need the owner's approval first. If an action is rejected, do not try it again — continue without it.",
     "- If a tool fails, you may retry once with corrected input; then continue and report the failure.",
+    `- Large results: when a tool result holds a {"dataset": "ds_…", "totalRows": …, "preview": […]} stub, only a preview is shown and the FULL rows are stored. Read them with query_data (filter, select fields, distinct, groupBy, excludeMatching, and page with offset until nextOffset is null). Never report data as missing, truncated or incomplete before querying the dataset.`,
     "- Record progress with update_plan: after you finish, skip or fail a step, call it with that step's id (e.g. s2). You may record several steps in one call. AI steps count too. Before your final summary, every step must be recorded.",
     "- When you are done, reply with a short plain-text summary of what you did, what you found and anything that needs attention. Do not call a tool in that final reply.",
   ];
