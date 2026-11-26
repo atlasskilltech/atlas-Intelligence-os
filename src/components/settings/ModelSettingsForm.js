@@ -212,7 +212,7 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
               label="₹ per US$1 (rupee display)"
               htmlFor="inrPerUsd"
               error={errors.inrPerUsd}
-              hint="Used to show costs in ₹ on the API Usage page. Saved with “Save settings”."
+              hint="Used to show costs in ₹ on the Usage page. Saved with “Save settings”."
             >
               <Input
                 id="inrPerUsd"

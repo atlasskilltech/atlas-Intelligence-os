@@ -7,16 +7,20 @@ export const PRIMARY_NAV = [
 ];
 
 export const SECONDARY_NAV = [
-  { href: "/settings/models", label: "Model Settings", icon: "cpu" },
   { href: "/settings/email", label: "Email sender", icon: "mail" },
-  { href: "/usage", label: "API Usage", icon: "chart" },
   { href: "/settings/users", label: "Users", icon: "user", adminOnly: true },
 ];
 
 /** "+ New" opens Home, where you either chat or build an agent. */
 export const NEW_HREF = "/";
 
-const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: NEW_HREF, label: "New" }, { href: "/agents/new", label: "New agent" }];
+// Settings and Usage live in the account menu (UserMenu), not the sidebar list.
+const ACCOUNT_ITEMS = [
+  { href: "/settings/models", label: "Settings" },
+  { href: "/usage", label: "Usage" },
+];
+
+const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, ...ACCOUNT_ITEMS, { href: NEW_HREF, label: "New" }, { href: "/agents/new", label: "New agent" }];
 
 /** Longest matching item wins, so /agents/new is not treated as "My Agents". */
 export function activeHref(pathname) {

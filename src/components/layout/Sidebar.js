@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { HomeModeToggle, useHomeMode } from "./HomeMode";
 import SidebarHistory from "./SidebarHistory";
+import UserMenu from "./UserMenu";
 import { NEW_HREF, PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
 
 /**
@@ -99,37 +100,7 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2">
-          {user?.picture ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Google profile photo
-            <img src={user.picture} alt="" referrerPolicy="no-referrer" className="size-8 shrink-0 rounded-full" />
-          ) : (
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/10 text-white/80">
-              <Icon name="user" className="size-4" />
-            </span>
-          )}
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[13px] font-medium" title={user?.email || undefined}>
-              {user?.name || "ATLAS Employee"}
-              {user?.role === "admin" && !user?.local && <span className="ml-1.5 text-[10px] font-semibold uppercase text-brand-400">Admin</span>}
-            </p>
-            <p className="flex items-center gap-1.5 truncate text-[11px] whitespace-nowrap text-white/50">
-              <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-brand-400" : "bg-amber-400")} />
-              {aiConfigured ? "OpenAI configured" : "AI not configured"}
-            </p>
-          </div>
-          {user && !user.local && (
-            <form action="/api/auth/logout" method="post">
-              <button
-                type="submit"
-                className="rounded-lg px-2 py-1 text-[11px] font-medium text-white/60 hover:bg-white/8 hover:text-white"
-                title="Sign out"
-              >
-                Sign out
-              </button>
-            </form>
-          )}
-        </div>
+        <UserMenu user={user} aiConfigured={aiConfigured} onNavigate={onNavigate} />
       </div>
     </nav>
   );

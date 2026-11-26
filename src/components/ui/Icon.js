@@ -39,6 +39,8 @@ const PATHS = {
   search: "M21 21l-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z",
   chatSearch: "M20 11.5A8 8 0 1 0 6.3 17.2L4 20l4-.9a8 8 0 0 0 2.5.8M15.5 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm1.8.7L19 22",
   code: "M8 8l-4 4 4 4m8-8 4 4-4 4m-2.5-10-3 12",
+  logout: "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10",
+  chevronsUpDown: "M8 9l4-4 4 4M8 15l4 4 4-4",
 };
 
 export default function Icon({ name, className = "size-5", ...props }) {

@@ -13,7 +13,7 @@ import { getPageActor } from "@/lib/context";
 import { getModelSettings } from "@/lib/settings/modelSettings";
 import { getUsageSummary } from "@/lib/usage/usageStore";
 
-export const metadata = { title: "API Usage" };
+export const metadata = { title: "Usage" };
 
 const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
 
@@ -83,8 +83,8 @@ export default async function UsagePage() {
   return (
     <>
       <PageHeader
-        title="API Usage"
-        description="Tokens used and estimated AI cost over the last 30 days, per agent. Costs are estimates based on the prices and ₹ rate in Model Settings."
+        title="Usage"
+        description="Tokens used and estimated AI cost over the last 30 days, per agent. Costs are estimates based on the prices and ₹ rate in Settings."
       />
 
       <StorageNotice what="Usage records" />
@@ -109,7 +109,7 @@ export default async function UsagePage() {
         <Alert tone="warning" className="mt-6" title={`${u.totals.unpricedCalls} call(s) used a model with no price set`}>
           Their tokens are counted but not included in cost. Add the model&apos;s price in{" "}
           <Link href="/settings/models" className="font-medium underline">
-            Model Settings
+            Settings
           </Link>
           .
         </Alert>
@@ -123,7 +123,7 @@ export default async function UsagePage() {
           description="Every AI call is logged here with its tokens and estimated cost. Run a connection test to record the first one."
           action={
             <Button href="/settings/models" variant="secondary">
-              Go to Model Settings
+              Go to Settings
             </Button>
           }
         />
