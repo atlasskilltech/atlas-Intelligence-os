@@ -262,6 +262,20 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
   );
 }
 
+const FALLBACK_HELP = {
+  not_configured: "ELEVENLABS_API_KEY is not set on the server. Add it to .env.local and run: pm2 restart atlas-Intelligence-os --update-env",
+  auth: "ElevenLabs rejected the API key. Check ELEVENLABS_API_KEY (no spaces, one line) and restart the app.",
+  permission:
+    "ElevenLabs refused this request for your plan or key. On the free plan, Voice Library voices cannot be used through the API: pick a Default/Premade voice or upgrade. Also check the key has Text to Speech access.",
+  quota: "ElevenLabs credits are used up. Wait for the reset, upgrade, or switch Voice to OpenAI.",
+  model_not_found: "The Voice ID or model was not found. Copy the Voice ID again from My Voices, and make sure the voice is added to My Voices.",
+  bad_request: "ElevenLabs rejected the request. Try another model (e.g. Flash v2.5) or a shorter text.",
+  rate_limit: "ElevenLabs is busy (too many requests). Try again in a minute.",
+  timeout: "ElevenLabs took too long. Try Flash v2.5, which is faster than v3.",
+  connection: "The server could not reach ElevenLabs. Check the server's internet / firewall.",
+  server: "ElevenLabs had a temporary problem. Try again shortly.",
+};
+
 const SAMPLE = "Hello, welcome to ATLAS SkillTech University. नमस्ते, आपका स्वागत है। Aapka admission form submit ho gaya hai.";
 
 /** Plays a short Hindi + English sample with the SAVED voice settings. */
@@ -281,11 +295,16 @@ function VoiceTest({ dirty }) {
       }
       const provider = res.headers.get("X-Voice-Provider") || "openai";
       const fallback = res.headers.get("X-Voice-Fallback") === "1";
+      const reason = res.headers.get("X-Voice-Fallback-Reason") || "server";
+      let detail = "";
+      try {
+        detail = decodeURIComponent(res.headers.get("X-Voice-Fallback-Detail") || "");
+      } catch {}
       const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audio.onended = () => URL.revokeObjectURL(url);
       await audio.play().catch(() => {});
-      setT({ state: "ok", provider, fallback });
+      setT({ state: "ok", provider, fallback, reason, detail });
     } catch (err) {
       setT({ state: "error", message: err.message });
     }
@@ -304,7 +323,12 @@ function VoiceTest({ dirty }) {
       )}
       {t.state === "ok" && t.fallback && (
         <Alert tone="warning" title="ElevenLabs did not work — OpenAI spoke instead">
-          Check the Voice ID, the model, and the ElevenLabs credits card. Free plans cannot use some Voice Library voices through the API.
+          <p>{FALLBACK_HELP[t.reason] || FALLBACK_HELP.server}</p>
+          {t.detail && (
+            <p className="mt-1 text-xs opacity-80">
+              ElevenLabs said: <span className="font-mono">{t.detail}</span>
+            </p>
+          )}
         </Alert>
       )}
       {t.state === "error" && <p className="text-xs text-red-600">{t.message}</p>}

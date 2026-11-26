@@ -32,7 +32,13 @@ export async function POST(request) {
         "Content-Length": String(res.audio.length),
         "Cache-Control": "no-store",
         "X-Voice-Provider": res.provider,
-        ...(res.fallback ? { "X-Voice-Fallback": "1" } : {}),
+        ...(res.fallback
+          ? {
+              "X-Voice-Fallback": "1",
+              "X-Voice-Fallback-Reason": res.fallbackReason || "server",
+              ...(res.fallbackDetail ? { "X-Voice-Fallback-Detail": encodeURIComponent(res.fallbackDetail) } : {}),
+            }
+          : {}),
       },
     });
   } catch (err) {
