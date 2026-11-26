@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import RunTable from "@/components/runs/RunTable";
 import { agentFilterOptions } from "@/components/runs/agentFilter";
+import LinkSelect from "@/components/ui/LinkSelect";
 import SearchSelect from "@/components/ui/SearchSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import Button from "@/components/ui/Button";
-import { cn } from "@/components/ui/cn";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { listAgents } from "@/lib/agents/agentRepo";
 import { getPageActor } from "@/lib/context";
@@ -54,6 +53,7 @@ export default async function RunsPage({ searchParams }) {
 
   const filters = { status, agent, connector };
   const hrefWith = (patch) => listHref({ ...filters, ...patch });
+  const statusSelectOptions = FILTERS.map((f) => ({ value: f.id, label: f.label, href: hrefWith({ status: f.id }) }));
   const pool = found ?? everything;
   const runs = pool
     .filter((r) => !agent || r.agentId === agent)
@@ -71,22 +71,8 @@ export default async function RunsPage({ searchParams }) {
   return (
     <>
       <PageHeader title="Execution History" description="Every agent run with its status, duration, actions and cost." />
-      <nav aria-label="Filter runs" className="mb-3 flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <Link
-            key={f.id}
-            href={hrefWith({ status: f.id })}
-            aria-current={status === f.id ? "page" : undefined}
-            className={cn(
-              "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-              status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
-            )}
-          >
-            {f.label}
-          </Link>
-        ))}
-      </nav>
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <LinkSelect id="filter-status" label="Show" icon="history" value={status} options={statusSelectOptions} />
         {agentOptions.length > 1 && (
           <SearchSelect
             id="filter-agent"
