@@ -268,11 +268,10 @@ export function agentWantsEmail(config) {
 
 /**
  * Returns a copy of the config (or draft) with an email step after the last
- * report step (else at the end), email notes removed, and — when
- * `preApprove` — email pre-approved so manual and scheduled runs send without
- * pausing. Email only ever goes to the owner's own inbox.
+ * report step (else at the end) and email notes removed. Owner-only email
+ * never needs approval (risk "self"), so runs send without pausing.
  */
-export function withEmailStep(config, { preApprove = true } = {}) {
+export function withEmailStep(config) {
   if (!config || (config.steps || []).some((s) => s?.tool === EMAIL_TOOL)) return config;
   const steps = [...(config.steps || [])];
   const step = {
@@ -294,12 +293,10 @@ export function withEmailStep(config, { preApprove = true } = {}) {
   const drop = (list) => (list || []).filter((t) => !EMAIL_WORD.test(t));
   const line = "\n\nWhen the report is ready, email it to the owner with email.email_owner (includeReport: true). The email always goes to the owner's own inbox.";
   const instructions = String(config.instructions || "");
-  const preApproved = config.permissions?.preApproved || [];
   return {
     ...config,
     steps,
     instructions: instructions.includes("email.email_owner") ? instructions : (instructions + line).slice(0, LIMITS.instructions),
     notes: { ...notes, missingCapabilities: drop(notes.missingCapabilities), assumptions: drop(notes.assumptions) },
-    permissions: { ...(config.permissions || {}), preApproved: preApprove ? [...new Set([...preApproved, EMAIL_TOOL])] : preApproved },
   };
 }

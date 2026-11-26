@@ -9,6 +9,7 @@
  * Risk levels (enforced by code, never by the model):
  *   read        – reads data, no side effects                → runs automatically
  *   internal    – writes only inside IntelligenceOS          → runs automatically
+ *   self        – messages only the agent's own owner         → runs automatically (real in test runs too)
  *   write       – creates/changes data in another system     → needs approval
  *   send        – sends a message to people                  → needs approval
  *   destructive – deletes or irreversible change             → always needs approval
@@ -17,6 +18,7 @@
 export const RISK_LEVELS = {
   read: { label: "Read only", tone: "success", approval: false },
   internal: { label: "Internal", tone: "neutral", approval: false },
+  self: { label: "Emails you only", tone: "neutral", approval: false },
   write: { label: "Changes data", tone: "warning", approval: true },
   send: { label: "Sends messages", tone: "warning", approval: true },
   destructive: { label: "Destructive", tone: "danger", approval: true },
@@ -50,7 +52,7 @@ export const CONNECTORS = [
     description: "Email the agent's owner (sent with the server's mail settings: SMTP or SendGrid). Only ever goes to the owner's own inbox.",
     availableIn: 7,
     actions: [
-      { id: "email_owner", name: "Email owner", risk: "send", description: "Send an email to the agent's owner's own inbox (no other recipients). Can include the report created in this run." },
+      { id: "email_owner", name: "Email owner", risk: "self", description: "Send an email to the agent's owner's own inbox (no other recipients). Can include the report created in this run." },
     ],
   },
   {
