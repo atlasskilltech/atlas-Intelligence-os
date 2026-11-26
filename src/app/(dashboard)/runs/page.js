@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { connectorOptions, matchesConnector } from "@/components/agents/ConnectorFilter";
 import RunTable from "@/components/runs/RunTable";
 import { agentFilterOptions } from "@/components/runs/agentFilter";
-import LinkSelect from "@/components/ui/LinkSelect";
+import SearchSelect from "@/components/ui/SearchSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/States";
 import Button from "@/components/ui/Button";
@@ -88,20 +88,22 @@ export default async function RunsPage({ searchParams }) {
       </nav>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {agentOptions.length > 1 && (
-          <LinkSelect
+          <SearchSelect
             id="filter-agent"
             label="Agent"
             icon="bot"
             value={agent || ""}
+            placeholder="Search agents…"
             options={[{ id: "", name: "All agents" }, ...agentOptions].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ agent: o.id || null }) }))}
           />
         )}
         {options.length > 0 && (
-          <LinkSelect
+          <SearchSelect
             id="filter-connector"
             label="Connector"
             icon="plug"
             value={connector || ""}
+            placeholder="Search connectors…"
             options={[{ id: "", name: "Any connector" }, ...options].map((o) => ({ value: o.id, label: o.name, href: hrefWith({ connector: o.id || null }) }))}
           />
         )}
