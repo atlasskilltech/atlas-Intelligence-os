@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/Card";
 import { fmtInr, fmtInt, fmtUsd } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/States";
-import PanelHeader from "./PanelHeader";
 
 function Avatar({ name, email, picture }) {
   if (picture) {
@@ -38,21 +37,18 @@ function Stat({ label, value, hint }) {
 }
 
 /**
- * All Agents tab of the Settings popup: who built how many agents, and each
+ * All Agents popup (#agents), separate from Settings: who built how many agents, and each
  * agent's all-time tokens and estimated cost in $ and ₹. Admins see everyone.
  * Data comes from /api/settings/panel/agents.
  */
 export default function AgentsView({ isAdmin, inrRate = 88, owners = [], totals }) {
   return (
     <>
-      <PanelHeader
-        title="All Agents"
-        description={
-          isAdmin
-            ? "Everyone's agents: who built how many, and what each has used so far in tokens and estimated cost."
-            : "Your agents and what each has used so far in tokens and estimated cost."
-        }
-      />
+      <p className="mb-5 text-sm text-slate-500">
+        {isAdmin
+          ? "Everyone's agents: who built how many, and what each has used so far in tokens and estimated cost."
+          : "Your agents and what each has used so far in tokens and estimated cost."}
+      </p>
 
       {owners.length === 0 ? (
         <EmptyState icon="bot" title="No agents yet" description="Agents appear here once someone builds one from Home." />

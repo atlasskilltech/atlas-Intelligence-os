@@ -213,7 +213,7 @@ export default async function ExecutionPage({ searchParams }) {
           icon="history"
           title={emptyTitle}
           description={connector ? "Runs from before connectors were recorded are not included." : "Open an agent and press Run test to see it work."}
-          action={status === "all" && !agent && !connector && <Button href="#settings/agents" variant="secondary">Go to All Agents</Button>}
+          action={status === "all" && !agent && !connector && <Button href="#agents" variant="secondary">Go to All Agents</Button>}
         />
       ) : (
         <RunTable runs={runsWithOwner} projects={projects} />

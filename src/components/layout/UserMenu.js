@@ -5,7 +5,8 @@ import { settingsHref } from "@/components/settings/SettingsDialog";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
-// Each opens the Settings popup on top of the current page (Account and Email sender are tabs inside it).
+// Settings and Usage open the Settings popup (Account and Email sender are tabs inside it);
+// All Agents opens its own popup. Both sit on top of the current page.
 const MENU_ITEMS = [
   { tab: "settings", label: "Settings", icon: "settings" },
   { tab: "usage", label: "Usage", icon: "chart" },

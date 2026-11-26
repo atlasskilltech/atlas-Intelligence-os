@@ -11,21 +11,26 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { Alert, Spinner } from "@/components/ui/States";
 
-/** Tabs of the Settings popup. The URL hash says which one is open: #settings/<id>. */
+/**
+ * Tabs of the Settings popup; the URL hash says which one is open: #settings/<id>.
+ * All Agents is a popup of its own (#agents), with no Settings tabs around it.
+ */
 export const SETTINGS_TABS = [
   { id: "account", label: "Account", icon: "user", adminOnly: true },
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "email", label: "Email sender", icon: "mail" },
   { id: "usage", label: "Usage", icon: "chart" },
-  { id: "agents", label: "All Agents", icon: "bot" },
 ];
+const OWN_POPUPS = { agents: "All Agents" };
 
-export const settingsHref = (tab) => `#settings/${tab}`;
+export const settingsHref = (tab) => (OWN_POPUPS[tab] ? `#${tab}` : `#settings/${tab}`);
+const POPUP_LINK = 'a[href*="#settings/"], a[href$="#agents"]';
 
 const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, agents: AgentsView };
 
-/** "#settings/usage" → "usage"; anything else → null. */
+/** "#settings/usage" → "usage", "#agents" → "agents"; anything else → null. */
 function tabFromHash(hash, isAdmin) {
+  if (hash === "#agents") return "agents";
   const m = /^#settings\/([a-z]+)$/.exec(hash || "");
   if (!m) return null;
   const tab = SETTINGS_TABS.find((t) => t.id === m[1]);
@@ -104,13 +109,13 @@ export default function SettingsDialog({ isAdmin = false }) {
   // append a second one.
   useEffect(() => {
     const onClick = (e) => {
-      const a = e.target.closest?.('a[href*="#settings/"]');
+      const a = e.target.closest?.(POPUP_LINK);
       if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
       const href = a.getAttribute("href");
       const next = tabFromHash(href.slice(href.indexOf("#")), isAdmin);
       if (!next) return;
       e.preventDefault();
-      e.stopPropagation();
+      // No stopPropagation: the link's own onClick (e.g. closing the account menu) still runs.
       if (tab) {
         window.history.replaceState(window.history.state, "", settingsHref(next)); // switch tabs
       } else {
@@ -139,6 +144,7 @@ export default function SettingsDialog({ isAdmin = false }) {
   if (!tab) return null;
   const state = data[tab] || { loading: true };
   const View = VIEWS[tab];
+  const ownTitle = OWN_POPUPS[tab]; // a popup of its own: its title, no Settings tabs
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
@@ -153,13 +159,13 @@ export default function SettingsDialog({ isAdmin = false }) {
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-5">
           <h2 id="settings-dialog-title" className="text-[15px] font-semibold text-ink">
-            Settings
+            {ownTitle || "Settings"}
           </h2>
           <button
             type="button"
             onClick={close}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-ink"
-            aria-label="Close settings"
+            aria-label={`Close ${(ownTitle || "settings").toLowerCase()}`}
             title="Close (Esc)"
           >
             <Icon name="close" className="size-5" />
@@ -167,27 +173,29 @@ export default function SettingsDialog({ isAdmin = false }) {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          <nav aria-label="Settings sections" className="shrink-0 overflow-x-auto border-b border-slate-200 p-2 sm:w-52 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
-            <ul className="flex gap-1 sm:flex-col">
-              {SETTINGS_TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => pick(t.id)}
-                    ref={t.id === tab ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
-                    aria-current={t.id === tab ? "page" : undefined}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                      t.id === tab ? "bg-slate-100 font-semibold text-ink" : "text-slate-600 hover:bg-slate-50 hover:text-ink",
-                    )}
-                  >
-                    <Icon name={t.icon} className="size-4 shrink-0" />
-                    {t.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          {!ownTitle && (
+            <nav aria-label="Settings sections" className="shrink-0 overflow-x-auto border-b border-slate-200 p-2 sm:w-52 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
+              <ul className="flex gap-1 sm:flex-col">
+                {SETTINGS_TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => pick(t.id)}
+                      ref={t.id === tab ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
+                      aria-current={t.id === tab ? "page" : undefined}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        t.id === tab ? "bg-slate-100 font-semibold text-ink" : "text-slate-600 hover:bg-slate-50 hover:text-ink",
+                      )}
+                    >
+                      <Icon name={t.icon} className="size-4 shrink-0" />
+                      {t.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
           <div className="@container min-h-0 min-w-0 flex-1 overflow-y-auto p-5 sm:px-8 sm:py-6">
             {state.loading ? (
               <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
