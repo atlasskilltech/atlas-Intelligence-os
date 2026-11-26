@@ -106,12 +106,12 @@ export default function AppShell({ aiConfigured = false, recentAgents = [], user
                 <Icon name="panel" />
               </button>
               <Link
-                href="/agents/new"
+                href="/"
                 className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-ink lg:block"
-                aria-label="New agent"
-                title="New agent"
+                aria-label="New"
+                title="New chat or agent"
               >
-                <Icon name="edit" />
+                <Icon name="plus" />
               </Link>
             </>
           )}

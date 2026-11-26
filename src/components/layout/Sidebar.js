@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
-import { PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
+import { NEW_HREF, PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
 
 /**
  * ATLAS IntelligenceOS logo. `onDark` = always the white-text logo (navy sidebar);
@@ -68,17 +68,17 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
 
       <div className="px-3 pt-3">
         <Link
-          href="/agents/new"
+          href={NEW_HREF}
           onClick={onNavigate}
           className={cn(
             "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors",
-            current === "/agents/new"
+            current === NEW_HREF || current === "/agents/new"
               ? "border-brand-500 bg-brand-500 text-navy-800"
               : "border-white/15 text-white hover:border-brand-500/60 hover:bg-white/5",
           )}
         >
-          <Icon name="edit" className="size-[18px]" />
-          New agent
+          <Icon name="plus" className="size-[18px]" />
+          New
         </Link>
       </div>
 

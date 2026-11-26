@@ -9,10 +9,11 @@ import Icon from "@/components/ui/Icon";
 import { Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 
+// Two modes, picked with icons: a normal chat (answers only, read-only lookups)
+// or "new agent" (the text opens the agent builder).
 const MODES = [
-  { id: "auto", label: "Auto", hint: "Questions get an answer, tasks become an agent" },
-  { id: "ask", label: "Ask", hint: "Just answer — never create an agent" },
-  { id: "agent", label: "Build agent", hint: "Turn this into an agent" },
+  { id: "ask", label: "Chat", icon: "chatSearch", hint: "Chat — get an answer straight away (never creates an agent)" },
+  { id: "agent", label: "New agent", icon: "code", hint: "New agent — turn this into an agent that runs on its own" },
 ];
 
 /** Minimal safe text renderer: paragraphs, "- " bullets and **bold**. No HTML injection. */
@@ -65,7 +66,7 @@ function Rich({ text }) {
 export default function HomeAssistant({ suggestions = [] }) {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
-  const [mode, setMode] = useState("auto");
+  const [mode, setMode] = useState("ask");
   const [thread, setThread] = useState([]); // { role: "user"|"assistant", content, sources?, error?, agentPrompt? }
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
@@ -172,7 +173,13 @@ export default function HomeAssistant({ suggestions = [] }) {
         autoFocus
         disabled={busy}
         key={thread.length}
-        placeholder={thread.length ? "Ask a follow-up…" : "Ask a question or describe a task to automate…"}
+        placeholder={
+          mode === "agent"
+            ? "Describe the task the agent should do…"
+            : thread.length
+              ? "Ask a follow-up…"
+              : "Ask a question…"
+        }
         onSubmit={send}
         toolbar={
           <div className="flex min-w-0 items-center gap-1.5">
@@ -189,21 +196,27 @@ export default function HomeAssistant({ suggestions = [] }) {
         }
         suggestions={thread.length ? [] : suggestions}
         footer={
-          <div className="flex flex-wrap items-center justify-center gap-1 text-xs">
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                title={m.hint}
-                onClick={() => setMode(m.id)}
-                className={cn(
-                  "rounded-full px-2.5 py-1 transition-colors",
-                  mode === m.id ? "bg-ink/90 text-white dark:bg-brand-600" : "text-slate-500 hover:bg-slate-100",
-                )}
-              >
-                {m.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
+            <div role="radiogroup" aria-label="Mode" className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-surface p-0.5">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m.id}
+                  aria-label={m.label}
+                  title={m.hint}
+                  onClick={() => setMode(m.id)}
+                  className={cn(
+                    "grid size-8 place-items-center rounded-md transition-colors",
+                    mode === m.id ? "bg-slate-100 text-ink dark:bg-white/10" : "text-slate-400 hover:text-ink",
+                  )}
+                >
+                  <Icon name={m.icon} className="size-[18px]" />
+                </button>
+              ))}
+            </div>
+            <span className="text-slate-500">{mode === "agent" ? "New agent" : "Chat"}</span>
             {thread.length > 0 && (
               <button type="button" onClick={() => setThread([])} className="ml-2 rounded-full px-2.5 py-1 text-slate-500 hover:bg-slate-100">
                 New chat

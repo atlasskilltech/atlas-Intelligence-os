@@ -37,6 +37,8 @@ const PATHS = {
   mail: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm-1 1 9 7 9-7",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
   search: "M21 21l-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z",
+  chatSearch: "M20 11.5A8 8 0 1 0 6.3 17.2L4 20l4-.9a8 8 0 0 0 2.5.8M15.5 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm1.8.7L19 22",
+  code: "M8 8l-4 4 4 4m8-8 4 4-4 4m-2.5-10-3 12",
 };
 
 export default function Icon({ name, className = "size-5", ...props }) {

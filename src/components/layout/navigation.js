@@ -1,6 +1,5 @@
 // Single source of truth for the sidebar. Add new pages here.
 export const PRIMARY_NAV = [
-  { href: "/", label: "Home", icon: "home" },
   { href: "/voice", label: "Voice Assistant", icon: "mic" },
   { href: "/agents", label: "My Agents", icon: "bot" },
   { href: "/runs", label: "Execution", icon: "history" },
@@ -14,7 +13,10 @@ export const SECONDARY_NAV = [
   { href: "/settings/users", label: "Users", icon: "user", adminOnly: true },
 ];
 
-const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: "/agents/new", label: "New agent" }];
+/** "+ New" opens Home, where you either chat or build an agent. */
+export const NEW_HREF = "/";
+
+const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: NEW_HREF, label: "New" }, { href: "/agents/new", label: "New agent" }];
 
 /** Longest matching item wins, so /agents/new is not treated as "My Agents". */
 export function activeHref(pathname) {
