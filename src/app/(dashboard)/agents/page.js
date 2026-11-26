@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnectors";
 import AgentRowActions from "@/components/agents/AgentRowActions";
+import AgentSearch from "@/components/agents/AgentSearch";
 import { StatusBadge } from "@/components/agents/AgentStatus";
 import ProjectCalls, { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import Button from "@/components/ui/Button";
@@ -11,7 +12,6 @@ import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import { Alert, EmptyState } from "@/components/ui/States";
 import StorageNotice from "@/components/ui/StorageNotice";
-import { cn } from "@/components/ui/cn";
 import { listAgents, summarize } from "@/lib/agents/agentRepo";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { getTool } from "@/lib/catalog/toolCatalog";
@@ -29,18 +29,21 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-function listHref({ status, owner }) {
-  const q = new URLSearchParams();
-  if (status !== "all") q.set("status", status);
-  if (owner && owner !== "mine") q.set("owner", owner); // "mine" is the default — keep the URL clean
-  const qs = q.toString();
+function listHref({ status, owner, query }) {
+  const p = new URLSearchParams();
+  if (status !== "all") p.set("status", status);
+  if (owner && owner !== "mine") p.set("owner", owner); // "mine" is the default — keep the URL clean
+  if (query) p.set("q", query);
+  const qs = p.toString();
   return qs ? `/agents?${qs}` : "/agents";
 }
 
 export default async function AgentsPage({ searchParams }) {
   await connection();
-  const { status: raw, owner: rawOwner, deleted } = await searchParams;
+  const { status: raw, owner: rawOwner, q: rawQ, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
+  const query = (typeof rawQ === "string" ? rawQ : "").slice(0, 100).trim();
+  const queryLower = query.toLowerCase();
 
   const actor = await getPageActor();
   const isAdmin = actor.role === "admin";
@@ -76,16 +79,19 @@ export default async function AgentsPage({ searchParams }) {
   const calledBy = new Map([...runsByAgent].map(([id, list]) => [id, new Map(sumProjectCalls(list).map((c) => [c.project, c]))]));
   const callsOf = (agentId) => [...(calledBy.get(agentId)?.values() || [])];
 
-  const hrefWith = (patch) => listHref({ status, owner, ...patch });
+  const hrefWith = (patch) => listHref({ status, owner, query, ...patch });
 
-  const all = everything.filter(ownerMatch);
+  const matchesQuery = (a) => !queryLower || a.name.toLowerCase().includes(queryLower) || (a.description || "").toLowerCase().includes(queryLower);
+  const all = everything.filter(ownerMatch).filter(matchesQuery);
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
 
   const statusWord = status === "all" ? "" : `${FILTERS.find((f) => f.id === status).label.toLowerCase()} `;
+  const emptyTitle = query ? `No ${statusWord}agents match “${query}”` : `No ${statusWord}agents`;
 
-  // Dropdown options for the "Created by" filter (admins only).
+  // Dropdown options (value / label / href) for the status and "Created by" filters.
+  const statusSelectOptions = FILTERS.map((f) => ({ value: f.id, label: `${f.label} (${counts[f.id]})`, href: hrefWith({ status: f.id }) }));
   const ownerSelectOptions = [
     { value: "mine", label: "Mine", href: hrefWith({ owner: "mine" }) },
     { value: "all", label: "Everyone", href: hrefWith({ owner: "all" }) },
@@ -123,29 +129,18 @@ export default async function AgentsPage({ searchParams }) {
         />
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <nav aria-label="Filter agents" className="flex flex-wrap gap-1.5">
-              {FILTERS.map((f) => (
-                <Link
-                  key={f.id}
-                  href={hrefWith({ status: f.id })}
-                  aria-current={status === f.id ? "page" : undefined}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-                    status === f.id ? "bg-brand-500 text-white ring-brand-500" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
-                  )}
-                >
-                  {f.label} <span className={status === f.id ? "text-white/80" : "text-slate-400"}>{counts[f.id]}</span>
-                </Link>
-              ))}
-            </nav>
-            {isAdmin && ownerOptions.length > 0 && (
-              <LinkSelect id="owner-filter" label="Created by" icon="user" value={owner} options={ownerSelectOptions} />
-            )}
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <LinkSelect id="status-filter" label="Show" icon="bot" value={status} options={statusSelectOptions} />
+              {isAdmin && ownerOptions.length > 0 && (
+                <LinkSelect id="owner-filter" label="Created by" icon="user" value={owner} options={ownerSelectOptions} />
+              )}
+            </div>
+            <AgentSearch value={query} />
           </div>
 
           {agents.length === 0 ? (
-            <EmptyState icon="bot" title={`No ${statusWord}agents`} />
+            <EmptyState icon="bot" title={emptyTitle} />
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
               {agents.map((a) => (
