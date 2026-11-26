@@ -126,6 +126,21 @@ test("summaries exclude instructions and the list is newest first", async () => 
   await repo.deleteAgent(alice, two.id);
 });
 
+test("createAgent captures the owner's email; summarize exposes owner id + email", async () => {
+  const dev = { id: "u_7", name: "Dev", email: "dev@atlas.test", role: "admin" };
+  const rec = await repo.createAgent(dev, draft({ name: "Owned" }));
+  assert.equal(rec.ownerEmail, "dev@atlas.test");
+  const s = repo.summarize(rec);
+  assert.equal(s.ownerId, "u_7");
+  assert.equal(s.ownerEmail, "dev@atlas.test");
+  // An actor without an email stores null (not undefined), so the field is always present.
+  const rec2 = await repo.createAgent(alice, draft({ name: "NoEmail" }));
+  assert.equal(rec2.ownerEmail, null);
+  assert.equal(repo.summarize(rec2).ownerEmail, null);
+  await repo.deleteAgent(dev, rec.id);
+  await repo.deleteAgent(alice, rec2.id);
+});
+
 test("concurrent writes never lose an agent", async () => {
   const made = await Promise.all(Array.from({ length: 20 }, (_, i) => repo.createAgent(alice, draft({ name: `Agent ${i}` }))));
   const stored = JSON.parse(await readFile(path.join(process.env.DATA_DIR, "agents.json"), "utf8"));

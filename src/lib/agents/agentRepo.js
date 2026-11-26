@@ -9,7 +9,12 @@ import { draftErrors, normalizeAgentConfig, validateAgentConfig } from "./agentC
  * and nothing else (routes and pages only call these functions).
  *
  * Stored record = normalised agent config + metadata:
- *   { id, ownerId, status, createdAt, updatedAt, createdBy, updatedBy, config }
+ *   { id, ownerId, ownerEmail, status, createdAt, updatedAt, createdBy, updatedBy, config }
+ *
+ * ownerEmail is the email of whoever created the agent, captured at creation so
+ * lists can show "built by …" and filter by creator without a database lookup.
+ * Agents created before v1.1 have no ownerEmail; callers resolve it from ownerId
+ * via users.emailForActorId when they need it.
  */
 
 const FILE = "agents.json";
@@ -86,6 +91,8 @@ export function summarize(rec) {
     tools: c.tools,
     approvals: c.permissions.toolsRequiringApproval.length,
     connectors: c.connectors?.projects || [],
+    ownerId: rec.ownerId,
+    ownerEmail: rec.ownerEmail ?? null,
     createdAt: rec.createdAt,
     updatedAt: rec.updatedAt,
   };
@@ -122,6 +129,7 @@ export async function createAgent(actor, rawConfig, { activate = false } = {}) {
   const rec = {
     id: newId(),
     ownerId: actor.id,
+    ownerEmail: actor.email || null,
     status: activate ? "active" : "draft",
     createdAt: now,
     updatedAt: now,

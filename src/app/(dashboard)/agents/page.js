@@ -18,6 +18,7 @@ import { getTool } from "@/lib/catalog/toolCatalog";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
+import { emailForActorId } from "@/lib/users/userRepo";
 
 export const metadata = { title: "My Agents" };
 
@@ -28,26 +29,47 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-function listHref({ status, connector, called }) {
+function listHref({ status, connector, called, owner }) {
   const q = new URLSearchParams();
   if (status !== "all") q.set("status", status);
   if (connector) q.set("connector", connector);
   if (called) q.set("called", called);
+  if (owner && owner !== "mine") q.set("owner", owner); // "mine" is the default — keep the URL clean
   const qs = q.toString();
   return qs ? `/agents?${qs}` : "/agents";
 }
 
 export default async function AgentsPage({ searchParams }) {
   await connection();
-  const { status: raw, connector: rawConnector, called: rawCalled, deleted } = await searchParams;
+  const { status: raw, connector: rawConnector, called: rawCalled, owner: rawOwner, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
 
   const actor = await getPageActor();
+  const isAdmin = actor.role === "admin";
   const [records, projects, recentRuns] = await Promise.all([listAgents(actor), projectStatusList(), listRuns(actor, { limit: 1000 })]);
   const everything = records.map(summarize);
 
   const { options, names, pick } = connectorOptions(projects, everything);
   const connector = pick(rawConnector);
+
+  // Who built each agent, keyed by email. Newer agents store ownerEmail; resolve older ones from the database.
+  const ownerEmail = new Map();
+  for (const a of everything) if (a.ownerId && a.ownerEmail && !ownerEmail.has(a.ownerId)) ownerEmail.set(a.ownerId, a.ownerEmail);
+  const unresolved = [...new Set(everything.map((a) => a.ownerId))].filter((id) => id && !ownerEmail.has(id));
+  for (const [id, email] of await Promise.all(unresolved.map(async (id) => [id, await emailForActorId(id)]))) if (email) ownerEmail.set(id, email);
+  const ownerLabel = (id) => ownerEmail.get(id) || (id === actor.id ? actor.email || "You" : id);
+
+  // "Created by" filter: your own agents by default; admins can switch to Everyone or one person (matched by email).
+  const ownerIds = [...new Set(everything.map((a) => a.ownerId).filter(Boolean))];
+  const owner = isAdmin ? (rawOwner === "all" ? "all" : ownerIds.includes(rawOwner) ? rawOwner : "mine") : "mine";
+  const ownerOptions = isAdmin
+    ? ownerIds
+        .filter((id) => id !== actor.id)
+        .map((id) => ({ id, label: ownerLabel(id) }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    : [];
+  const ownerMatch = owner === "all" ? () => true : owner === "mine" ? (a) => a.ownerId === actor.id : (a) => a.ownerId === owner;
+  const showOwner = (a) => owner === "all" || a.ownerId !== actor.id;
 
   // Projects each agent's runs actually called (from the run history), with call totals.
   const runsByAgent = new Map();
@@ -64,10 +86,11 @@ export default async function AgentsPage({ searchParams }) {
   const calledOptions = calledIds.map((id) => ({ id, name: calledName(id) })).sort((a, b) => a.name.localeCompare(b.name));
   const called = typeof rawCalled === "string" && calledIds.includes(rawCalled) ? rawCalled : null;
 
-  const filters = { status, connector, called };
+  const filters = { status, connector, called, owner };
   const hrefWith = (patch) => listHref({ ...filters, ...patch });
 
   const all = everything
+    .filter(ownerMatch)
     .filter((a) => !connector || matchesConnector({ ...a, usesProjects: usesProjects(a.tools) }, connector, projects))
     .filter((a) => !called || calledBy.get(a.id)?.has(called));
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
@@ -84,7 +107,7 @@ export default async function AgentsPage({ searchParams }) {
     <>
       <PageHeader
         title="My Agents"
-        description="Run, pause, resume, edit or delete the agents you have created."
+        description="Your own agents by default. Admins can switch “Created by” to see agents built by others."
         actions={
           <Button href="/agents/new">
             <Icon name="plus" className="size-4" />
@@ -128,6 +151,28 @@ export default async function AgentsPage({ searchParams }) {
           </nav>
 
           <div className="mb-4 space-y-2">
+            {isAdmin && ownerOptions.length > 0 && (
+              <nav aria-label="Filter by creator" className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="mr-1 inline-flex items-center gap-1 font-medium text-slate-500">
+                  <Icon name="user" className="size-3.5" />
+                  Created by:
+                </span>
+                {[{ id: "mine", label: "Mine" }, { id: "all", label: "Everyone" }, ...ownerOptions].map((o) => (
+                  <Link
+                    key={o.id}
+                    href={hrefWith({ owner: o.id })}
+                    scroll
+                    aria-current={owner === o.id ? "page" : undefined}
+                    className={cn(
+                      "max-w-[220px] truncate rounded-full px-2.5 py-1 ring-1 ring-inset",
+                      owner === o.id ? "bg-brand-50 font-medium text-brand-700 ring-brand-500/40" : "bg-surface text-slate-600 ring-slate-200 hover:bg-slate-50",
+                    )}
+                  >
+                    {o.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
             <ConnectorFilter options={options} current={connector} hrefFor={(id) => hrefWith({ connector: id })} />
             <ConnectorFilter label="Called" icon="check" options={calledOptions} current={called} hrefFor={(id) => hrefWith({ called: id })} />
           </div>
@@ -157,6 +202,12 @@ export default async function AgentsPage({ searchParams }) {
                       </div>
                     )}
                     <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                      {showOwner(a) && (
+                        <span className="inline-flex items-center gap-1" title={`Built by ${ownerLabel(a.ownerId)}`}>
+                          <Icon name="user" className="size-3.5" />
+                          {ownerLabel(a.ownerId)}
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1">
                         <Icon name="clock" className="size-3.5" />
                         {describeTrigger(a.trigger)}
