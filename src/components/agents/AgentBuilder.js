@@ -12,6 +12,7 @@ import AgentWorkspace, { agentApi, downloadAgentJson, postGenerate, toDraft, toP
 import ConnectorPicker, { loadSelectedConnectors } from "./ConnectorPicker";
 import PromptComposer from "./PromptComposer";
 import { PROMPT_SUGGESTIONS } from "./suggestions";
+import { shortTaskReason } from "@/lib/planner/promptCheck";
 
 const DRAFT_KEY = "atlas.agentDraft.v1";
 const STEPS = ["Describe", "Review plan", "Test & activate"];
@@ -94,15 +95,23 @@ export default function AgentBuilder({ initialPrompt = "", initialProjects = [] 
   const [meta, setMeta] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [error, setError] = useState(null);
+  const [shortWarning, setShortWarning] = useState(null); // reason the task text looks too short
   const [history, setHistory] = useState([]);
   const [saving, setSaving] = useState(null); // null | "active" | "draft"
   const [saveError, setSaveError] = useState(null);
   const [serverErrors, setServerErrors] = useState({});
   const started = useRef(false);
 
-  async function generate(text, picked = projects) {
+  // Warn (once) before planning from a fragment; "Create anyway" passes force.
+  async function generate(text, picked = projects, { force = false } = {}) {
     setPrompt(text);
     setError(null);
+    const reason = force ? null : shortTaskReason(text);
+    setShortWarning(reason);
+    if (reason) {
+      setPhase("describe");
+      return;
+    }
     setPhase("generating");
     try {
       const data = await postGenerate({ prompt: text, ...(picked.length ? { projects: picked } : {}) });
@@ -204,7 +213,20 @@ export default function AgentBuilder({ initialPrompt = "", initialProjects = [] 
             onSubmit={(text) => generate(text)}
             toolbar={<ConnectorPicker value={projects} onChange={setProjects} />}
             suggestions={PROMPT_SUGGESTIONS}
-            footer={error && <Alert tone="error" title="Couldn't create the agent">{error}</Alert>}
+            footer={
+              shortWarning ? (
+                <Alert tone="warning" title="Is this the full task?">
+                  <p>{shortWarning}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => generate(prompt, projects, { force: true })}>
+                      Create anyway
+                    </Button>
+                  </div>
+                </Alert>
+              ) : (
+                error && <Alert tone="error" title="Couldn't create the agent">{error}</Alert>
+              )
+            }
           />
         )}
       </div>
