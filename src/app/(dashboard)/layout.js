@@ -10,7 +10,10 @@ export default async function DashboardLayout({ children }) {
   const ai = getAIStatus();
   const actor = await getPageActor();
   const [agents, recentChats] = await Promise.all([listAgents(actor), listChats(actor, { limit: 50 })]);
-  const recentAgents = agents.slice(0, 50).map((a) => ({ id: a.id, name: a.config.name, status: a.status, updatedAt: a.updatedAt }));
+  // The sidebar lists your own agents only, even for admins (All Agents shows everyone's).
+  const recentAgents = agents
+    .filter((a) => a.ownerId === actor.id)
+    .slice(0, 50).map((a) => ({ id: a.id, name: a.config.name, status: a.status, updatedAt: a.updatedAt }));
   return (
     <AppShell
       aiConfigured={ai.configured}

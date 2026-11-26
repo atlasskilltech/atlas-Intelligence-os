@@ -1,7 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AccountView from "@/components/settings/panels/AccountView";
+import AgentsView from "@/components/settings/panels/AgentsView";
 import EmailView from "@/components/settings/panels/EmailView";
 import SettingsView from "@/components/settings/panels/SettingsView";
 import UsageView from "@/components/settings/panels/UsageView";
@@ -15,11 +17,12 @@ export const SETTINGS_TABS = [
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "email", label: "Email sender", icon: "mail" },
   { id: "usage", label: "Usage", icon: "chart" },
+  { id: "agents", label: "All Agents", icon: "bot" },
 ];
 
 export const settingsHref = (tab) => `#settings/${tab}`;
 
-const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView };
+const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, agents: AgentsView };
 
 /** "#settings/usage" → "usage"; anything else → null. */
 function tabFromHash(hash, isAdmin) {
@@ -41,6 +44,7 @@ export default function SettingsDialog({ isAdmin = false }) {
   const [data, setData] = useState({}); // tab → { loading, error, value }
   const openedHere = useRef(false); // opened by a click on this page (so Back can close it)
   const panelRef = useRef(null);
+  const pathname = usePathname();
 
   // Follow the hash: on load, on link clicks and on Back / Forward.
   useEffect(() => {
@@ -57,7 +61,9 @@ export default function SettingsDialog({ isAdmin = false }) {
       window.removeEventListener("hashchange", sync);
       window.removeEventListener("popstate", sync);
     };
-  }, [isAdmin]);
+    // Re-check whenever the page changes, e.g. after opening an agent from the
+    // All Agents tab: the new URL has no hash, so the popup closes.
+  }, [isAdmin, pathname]);
 
   const load = useCallback(async (id) => {
     setData((d) => ({ ...d, [id]: { loading: true } }));
@@ -93,17 +99,29 @@ export default function SettingsDialog({ isAdmin = false }) {
     setTab(id);
   };
 
-  // Links inside a tab that point at another tab (e.g. "Go to Settings") switch
-  // tabs here; a Next.js <Link> would otherwise append a second hash.
-  const onClickCapture = (e) => {
-    const a = e.target.closest?.('a[href*="#settings/"]');
-    if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-    const next = tabFromHash(a.getAttribute("href").slice(a.getAttribute("href").indexOf("#")), isAdmin);
-    if (!next) return;
-    e.preventDefault();
-    e.stopPropagation();
-    pick(next);
-  };
+  // Any link to "#settings/<tab>", anywhere in the app, opens (or switches) the
+  // popup here. A Next.js <Link> would otherwise change the hash silently or
+  // append a second one.
+  useEffect(() => {
+    const onClick = (e) => {
+      const a = e.target.closest?.('a[href*="#settings/"]');
+      if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const href = a.getAttribute("href");
+      const next = tabFromHash(href.slice(href.indexOf("#")), isAdmin);
+      if (!next) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (tab) {
+        window.history.replaceState(window.history.state, "", settingsHref(next)); // switch tabs
+      } else {
+        window.history.pushState(window.history.state, "", settingsHref(next)); // open: Back closes it
+        openedHere.current = true;
+      }
+      setTab(next);
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [tab, isAdmin]);
 
   useEffect(() => {
     if (!tab) return;
@@ -123,7 +141,7 @@ export default function SettingsDialog({ isAdmin = false }) {
   const View = VIEWS[tab];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6" onClickCapture={onClickCapture}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-[2px]" onClick={close} aria-hidden="true" />
       <div
         ref={panelRef}

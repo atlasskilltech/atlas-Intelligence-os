@@ -20,7 +20,7 @@ import { getPageActor } from "@/lib/context";
 import { listRuns } from "@/lib/runs/runRepo";
 import { emailForActorId } from "@/lib/users/userRepo";
 
-export const metadata = { title: "My Agents" };
+export const metadata = { title: "All Agents" };
 
 const FILTERS = [
   { id: "all", label: "All" },
@@ -96,7 +96,7 @@ export default async function AgentsPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        title="My Agents"
+        title="All Agents"
         description="Your own agents by default. Admins can use “Created by” to see agents built by others."
         actions={
           <Button href="/agents/new">

@@ -9,7 +9,7 @@ import { agentApi } from "./AgentWorkspace";
 
 const iconBtn = "grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-ink disabled:opacity-40";
 
-/** Quick pause / resume / activate / delete for one row of My Agents. */
+/** Quick pause / resume / activate / delete for one row of All Agents. */
 export default function AgentRowActions({ id, name, status }) {
   const router = useRouter();
   const [busy, setBusy] = useState(null);

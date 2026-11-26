@@ -5,17 +5,18 @@ import { settingsHref } from "@/components/settings/SettingsDialog";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
-// Both open the Settings popup on top of the current page (Account is a tab inside it).
+// Each opens the Settings popup on top of the current page (Account and Email sender are tabs inside it).
 const MENU_ITEMS = [
   { tab: "settings", label: "Settings", icon: "settings" },
   { tab: "usage", label: "Usage", icon: "chart" },
+  { tab: "agents", label: "All Agents", icon: "bot" },
 ];
 
 const itemClass = "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] text-white/85 hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:outline-none";
 
 /**
  * Claude-style account menu: the profile row at the bottom of the sidebar opens
- * a small menu with Settings, Usage and Log out. Settings and Usage open the
+ * a small menu with Settings, Usage, All Agents and Log out. Settings and Usage open the
  * Settings popup (#settings/<tab>) over the current page.
  */
 export default function UserMenu({ user, aiConfigured, onNavigate }) {

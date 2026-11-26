@@ -188,7 +188,7 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
     <div>
       <div className="mb-2">
         <Link href="/agents" className="text-sm text-slate-500 hover:text-ink">
-          ← My Agents
+          ← All Agents
         </Link>
       </div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
