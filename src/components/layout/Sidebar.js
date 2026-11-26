@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
+import { HomeModeToggle } from "./HomeMode";
 import { NEW_HREF, PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
 
 /**
@@ -43,9 +44,10 @@ function NavLink({ item, active, onNavigate }) {
 
 /**
  * Dark navy sidebar in the style of ChatGPT / Claude, coloured like the ATLAS CRM.
- * `onCollapse` shows the collapse button (desktop); `onNavigate` closes the mobile drawer.
+ * The Chat / Agent switch sits top-right (like Claude); the desktop sidebar is
+ * resized or closed by dragging its edge. `onNavigate` closes the mobile drawer.
  */
-export default function Sidebar({ aiConfigured, recentAgents = [], user = null, onNavigate, onCollapse }) {
+export default function Sidebar({ aiConfigured, recentAgents = [], user = null, onNavigate }) {
   const pathname = usePathname();
   const current = activeHref(pathname);
 
@@ -53,17 +55,7 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
     <nav aria-label="Main" className="flex h-full flex-col bg-navy-800 text-white">
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3">
         <Logo />
-        {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            className="rounded-lg p-1.5 text-white/60 hover:bg-white/8 hover:text-white"
-            aria-label="Close sidebar"
-            title="Close sidebar"
-          >
-            <Icon name="panel" className="size-[18px]" />
-          </button>
-        )}
+        <HomeModeToggle onNavigate={onNavigate} />
       </div>
 
       <div className="px-3 pt-3">
