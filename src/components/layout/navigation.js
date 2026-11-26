@@ -13,14 +13,7 @@ export const SECONDARY_NAV = [
 /** "+ New" opens Home, where you either chat or build an agent. */
 export const NEW_HREF = "/";
 
-// Account, Settings and Usage live in the account menu (UserMenu), not the sidebar list.
-const ACCOUNT_ITEMS = [
-  { href: "/settings/users", label: "Account" },
-  { href: "/settings/models", label: "Settings" },
-  { href: "/usage", label: "Usage" },
-];
-
-const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, ...ACCOUNT_ITEMS, { href: NEW_HREF, label: "New" }, { href: "/agents/new", label: "New agent" }];
+const ALL_ITEMS = [...PRIMARY_NAV, ...SECONDARY_NAV, { href: NEW_HREF, label: "New" }, { href: "/agents/new", label: "New agent" }];
 
 /** Longest matching item wins, so /agents/new is not treated as "My Agents". */
 export function activeHref(pathname) {

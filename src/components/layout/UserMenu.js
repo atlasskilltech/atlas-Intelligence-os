@@ -1,28 +1,27 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { settingsHref } from "@/components/settings/SettingsDialog";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
-export const USER_MENU_ITEMS = [
-  { href: "/settings/users", label: "Account", icon: "user", adminOnly: true },
-  { href: "/settings/models", label: "Settings", icon: "settings" },
-  { href: "/usage", label: "Usage", icon: "chart" },
+// Both open the Settings popup on top of the current page (Account is a tab inside it).
+const MENU_ITEMS = [
+  { tab: "settings", label: "Settings", icon: "settings" },
+  { tab: "usage", label: "Usage", icon: "chart" },
 ];
 
 const itemClass = "flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] text-white/85 hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:outline-none";
 
 /**
  * Claude-style account menu: the profile row at the bottom of the sidebar opens
- * a small menu with Settings, Usage and Log out.
+ * a small menu with Settings, Usage and Log out. Settings and Usage open the
+ * Settings popup (#settings/<tab>) over the current page.
  */
 export default function UserMenu({ user, aiConfigured, onNavigate }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const buttonRef = useRef(null);
-  const pathname = usePathname();
 
   // Close on a click outside or Escape.
   useEffect(() => {
@@ -56,18 +55,11 @@ export default function UserMenu({ user, aiConfigured, onNavigate }) {
           className="absolute inset-x-0 bottom-full z-50 mb-2 rounded-xl border border-white/10 bg-navy-900 p-1.5 shadow-2xl"
         >
           {user?.email && <p className="truncate px-2.5 pb-1.5 pt-1 text-xs text-white/50">{user.email}</p>}
-          {USER_MENU_ITEMS.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              role="menuitem"
-              onClick={go}
-              aria-current={pathname === item.href ? "page" : undefined}
-              className={cn(itemClass, pathname === item.href && "bg-white/10 text-white")}
-            >
+          {MENU_ITEMS.map((item) => (
+            <a key={item.tab} href={settingsHref(item.tab)} role="menuitem" onClick={go} className={itemClass}>
               <Icon name={item.icon} className="size-4 shrink-0 opacity-80" />
               {item.label}
-            </Link>
+            </a>
           ))}
           {user && !user.local && (
             <>

@@ -1,16 +1,11 @@
-import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { fmtDateTime, fmtInr, fmtInt, fmtUsd } from "@/components/ui/format";
 import PageHeader from "@/components/ui/PageHeader";
-import StorageNotice from "@/components/ui/StorageNotice";
 import StatCard from "@/components/ui/StatCard";
+import StorageNoticeView from "@/components/ui/StorageNoticeView";
 import { Alert, EmptyState } from "@/components/ui/States";
-import { listAgents } from "@/lib/agents/agentRepo";
-import { getPageActor } from "@/lib/context";
-import { getModelSettings } from "@/lib/settings/modelSettings";
-import { getUsageSummary } from "@/lib/usage/usageStore";
 
 const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
 
@@ -68,13 +63,9 @@ function Breakdown({ title, rows, labelFor = (k) => k, mono, inrRate }) {
   );
 }
 
-/** Usage: tokens and estimated AI cost. Shown as a page (/usage) and in the Settings popup. */
-export default async function UsageContent() {
-  const actor = await getPageActor();
-  const settings = await getModelSettings();
-  const [u, agents] = await Promise.all([getUsageSummary({ days: 30, pricingOverrides: settings.pricingOverrides }), listAgents(actor)]);
-  const inrRate = settings.inrPerUsd || 88;
-  const agentName = new Map(agents.map((a) => [a.id, a.config?.name || a.id]));
+/** Usage tab of the Settings popup: tokens and estimated AI cost. Data comes from /api/settings/panel/usage. */
+export default function UsageView({ usage: u, inrRate = 88, agentNames = {}, temporary = false }) {
+  const agentName = new Map(Object.entries(agentNames));
   const byAgent = u.byAgent.map((r) => ({ ...r, label: agentName.get(r.key) || `${r.key} (removed)` }));
 
   return (
@@ -84,7 +75,7 @@ export default async function UsageContent() {
         description="Tokens used and estimated AI cost over the last 30 days, per agent. Costs are estimates based on the prices and ₹ rate in Settings."
       />
 
-      <StorageNotice what="Usage records" />
+      <StorageNoticeView temporary={temporary} what="Usage records" />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="AI calls (30 days)"
@@ -105,9 +96,9 @@ export default async function UsageContent() {
       {u.totals.unpricedCalls > 0 && (
         <Alert tone="warning" className="mt-6" title={`${u.totals.unpricedCalls} call(s) used a model with no price set`}>
           Their tokens are counted but not included in cost. Add the model&apos;s price in{" "}
-          <Link href="/settings/models" className="font-medium underline">
+          <a href="#settings/settings" className="font-medium underline">
             Settings
-          </Link>
+          </a>
           .
         </Alert>
       )}
@@ -119,7 +110,7 @@ export default async function UsageContent() {
           title="No AI usage recorded yet"
           description="Every AI call is logged here with its tokens and estimated cost. Run a connection test to record the first one."
           action={
-            <Button href="/settings/models" variant="secondary">
+            <Button href="#settings/settings" variant="secondary">
               Go to Settings
             </Button>
           }

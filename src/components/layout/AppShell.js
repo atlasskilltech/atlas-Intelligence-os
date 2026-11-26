@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { HomeModeProvider, useHomeMode } from "./HomeMode";
 import Sidebar, { Logo } from "./Sidebar";
+import SettingsDialog, { settingsHref } from "@/components/settings/SettingsDialog";
 import ThemeToggle from "./ThemeToggle";
 import { titleFor } from "./navigation";
 
@@ -253,20 +254,21 @@ function Shell({ aiConfigured = false, recentAgents = [], user = null, children 
           </div>
           {!isHome && <p className="hidden text-sm font-semibold text-ink lg:block">{titleFor(pathname)}</p>}
 
-          <Link
-            href="/settings/models"
+          <a
+            href={settingsHref("settings")}
             className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-surface px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
           >
             <span className={cn("size-1.5 rounded-full", aiConfigured ? "bg-brand-500" : "bg-amber-500")} />
             <span className="hidden sm:inline">{aiConfigured ? "OpenAI configured" : "AI not configured"}</span>
             <span className="sm:hidden">AI</span>
-          </Link>
+          </a>
           <ThemeToggle />
         </header>
 
         <main className={cn("flex w-full flex-1 flex-col", !isHome && "mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8")}>
           {children}
         </main>
+        <SettingsDialog isAdmin={user?.role === "admin"} />
       </div>
     </div>
   );

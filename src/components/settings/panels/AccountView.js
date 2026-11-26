@@ -1,15 +1,10 @@
 import UsersManager from "@/components/users/UsersManager";
 import PageHeader from "@/components/ui/PageHeader";
 import { Alert } from "@/components/ui/States";
-import { getGoogleAuth, isAuthEnabled } from "@/lib/config/env";
-import { getPageActor } from "@/lib/context";
-import { TABLE_PREFIX, dbStatus } from "@/lib/db/mysql";
-import { listUsers } from "@/lib/users/userRepo";
 
-/** Account: who can sign in, and their roles (admins only). Shown as a page (/settings/users) and in the Settings popup. */
-export default async function AccountContent() {
-  const actor = await getPageActor();
-  if (actor.role !== "admin") {
+/** Account tab of the Settings popup (admins): who can sign in, and their roles. Data comes from /api/settings/panel/account. */
+export default function AccountView({ isAdmin, db, google, authEnabled, users = [], loadError, currentUid, tablePrefix }) {
+  if (!isAdmin) {
     return (
       <>
         <PageHeader title="Account" />
@@ -20,18 +15,6 @@ export default async function AccountContent() {
     );
   }
 
-  const db = await dbStatus();
-  let users = [];
-  let loadError = null;
-  if (db.connected) {
-    try {
-      users = await listUsers(actor);
-    } catch (err) {
-      loadError = err.publicMessage || "Could not load users.";
-    }
-  }
-  const google = getGoogleAuth();
-
   return (
     <>
       <PageHeader
@@ -41,11 +24,11 @@ export default async function AccountContent() {
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <Status label="Database" ok={db.connected} text={db.connected ? `Connected · ${db.version}` : db.configured ? `Not connected: ${db.error}` : "Not configured"} />
-        <Status label="Google sign-in" ok={Boolean(google)} text={google ? "Configured" : "Not configured"} />
-        <Status label="Login" ok={isAuthEnabled()} text={isAuthEnabled() ? "Required for everyone" : "Off — the app is open without login"} />
+        <Status label="Google sign-in" ok={google.configured} text={google.configured ? "Configured" : "Not configured"} />
+        <Status label="Login" ok={authEnabled} text={authEnabled ? "Required for everyone" : "Off — the app is open without login"} />
       </div>
 
-      {!isAuthEnabled() && (
+      {!authEnabled && (
         <Alert tone="warning" className="mb-6" title="Login is off">
           Set the database and Google settings on the server and restart the app. Until then everyone uses the app as one local admin.
         </Alert>
@@ -56,12 +39,12 @@ export default async function AccountContent() {
         </Alert>
       )}
 
-      {db.connected && <UsersManager initialUsers={users} currentUid={actor.uid} />}
+      {db.connected && <UsersManager initialUsers={users} currentUid={currentUid} />}
 
       {db.configured && (
         <p className="mt-6 text-xs text-slate-500">
-          Stored in the <code className="font-mono">{TABLE_PREFIX}users</code> table · server settings used: {db.names.join(", ")}
-          {google ? `, ${google.names.join(", ")}` : ""}
+          Stored in the <code className="font-mono">{tablePrefix}users</code> table · server settings used: {db.names.join(", ")}
+          {google.configured ? `, ${google.names.join(", ")}` : ""}
         </p>
       )}
     </>

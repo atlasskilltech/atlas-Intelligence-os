@@ -5,7 +5,7 @@ import { listAgents } from "@/lib/agents/agentRepo";
 import { listChats } from "@/lib/chats/chatRepo";
 import { getPageActor } from "@/lib/context";
 
-export default async function DashboardLayout({ children, modal }) {
+export default async function DashboardLayout({ children }) {
   await connection(); // render per request: status reflects the live server config
   const ai = getAIStatus();
   const actor = await getPageActor();
@@ -19,7 +19,6 @@ export default async function DashboardLayout({ children, modal }) {
       user={{ name: actor.name, email: actor.email, role: actor.role, picture: actor.picture || "", local: actor.local }}
     >
       {children}
-      {modal}
     </AppShell>
   );
 }
