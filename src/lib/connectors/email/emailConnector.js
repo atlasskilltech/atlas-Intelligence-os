@@ -1,5 +1,6 @@
 import "server-only";
 import { getSendGridConfig } from "../../config/env.js";
+import { getSenderFor } from "../../email/senderSettings.js";
 import { defineConnector } from "../defineConnector.js";
 import { safeFetch } from "../http/safeFetch.js";
 
@@ -8,7 +9,10 @@ import { safeFetch } from "../http/safeFetch.js";
  * The recipient is never taken from the model's arguments — it is always
  * ctx.run.ownerEmail — so an agent cannot email anyone else.
  *
- * Env: SENDGRID_API_KEY, SENDGRID_FROM_EMAIL (verified sender), optional SENDGRID_FROM_NAME.
+ * The "From" is the owner's own sender (Email sender page), else the default
+ * (SENDGRID_FROM_EMAIL, else tech@atlasuniversity.edu.in).
+ *
+ * Env: SENDGRID_API_KEY; optional SENDGRID_FROM_EMAIL, SENDGRID_FROM_NAME, SENDGRID_ALLOWED_FROM_DOMAINS.
  */
 
 const SENDGRID_URL = "https://api.sendgrid.com/v3/mail/send";
@@ -60,6 +64,36 @@ export function buildEmail({ subject, message, report, agentName }) {
   return { subject: oneLine(subject, 200) || `Update from ${oneLine(agentName, 100) || "your agent"}`, html, text };
 }
 
+/** POSTs one email to SendGrid. `from` = { email, name }. Throws a readable error on failure. */
+export async function sendMail({ apiKey, to, from, mail }) {
+  const res = await safeFetch(SENDGRID_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    sensitiveHeaders: ["authorization"],
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: from.email, name: oneLine(from.name, 100) },
+      subject: mail.subject,
+      content: [
+        { type: "text/plain", value: mail.text },
+        { type: "text/html", value: mail.html },
+      ],
+    }),
+    timeoutMs: 20_000,
+    maxRedirects: 0,
+  });
+  if (res.status < 200 || res.status >= 300) {
+    let detail = "";
+    try {
+      detail = (JSON.parse(res.body)?.errors || []).map((e) => e.message).filter(Boolean).join("; ");
+    } catch {
+      /* not JSON */
+    }
+    const hint = /from address|sender identity|verified/i.test(detail) ? ` The sender ${from.email} must be verified in SendGrid.` : "";
+    throw new Error(`SendGrid refused the email (HTTP ${res.status})${detail ? `: ${detail.slice(0, 300)}` : ""}.${hint}`);
+  }
+}
+
 const emailOwner = {
   parameters: {
     type: "object",
@@ -72,8 +106,7 @@ const emailOwner = {
     },
   },
   async isReady(ctx = {}) {
-    const cfg = getSendGridConfig();
-    return Boolean(cfg?.from && (ctx.ownerEmail === undefined || ctx.ownerEmail));
+    return Boolean(getSendGridConfig() && (ctx.ownerEmail === undefined || ctx.ownerEmail));
   },
   async describe(ctx = {}) {
     return ctx.ownerEmail ? `The email always goes to the agent's owner (${ctx.ownerEmail}); you cannot choose the recipient.` : "";
@@ -81,7 +114,6 @@ const emailOwner = {
   async execute(args, ctx) {
     const cfg = getSendGridConfig();
     if (!cfg) throw new Error("Email is not set up: SENDGRID_API_KEY is missing on the server.");
-    if (!cfg.from || !EMAIL_RE.test(cfg.from)) throw new Error("Email is not set up: SENDGRID_FROM_EMAIL (a verified SendGrid sender) is missing or invalid.");
     const to = ctx.run?.ownerEmail;
     if (!to || !EMAIL_RE.test(to)) throw new Error("The agent's owner has no email address on file, so the email was not sent.");
 
@@ -89,32 +121,9 @@ const emailOwner = {
     const report = args.includeReport === false ? null : reports.at(-1) || null;
     const mail = buildEmail({ subject: args.subject, message: args.message, report, agentName: ctx.run?.agentName });
 
-    const res = await safeFetch(SENDGRID_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
-      sensitiveHeaders: ["authorization"],
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: cfg.from, name: oneLine(cfg.fromName, 100) },
-        subject: mail.subject,
-        content: [
-          { type: "text/plain", value: mail.text },
-          { type: "text/html", value: mail.html },
-        ],
-      }),
-      timeoutMs: 20_000,
-      maxRedirects: 0,
-    });
-    if (res.status < 200 || res.status >= 300) {
-      let detail = "";
-      try {
-        detail = (JSON.parse(res.body)?.errors || []).map((e) => e.message).filter(Boolean).join("; ");
-      } catch {
-        /* not JSON */
-      }
-      throw new Error(`SendGrid refused the email (HTTP ${res.status})${detail ? `: ${detail.slice(0, 300)}` : ""}.`);
-    }
-    return { sent: true, to, subject: mail.subject, includedReport: Boolean(report) };
+    const from = await getSenderFor(ctx.run?.ownerId);
+    await sendMail({ apiKey: cfg.apiKey, to, from, mail });
+    return { sent: true, to, from: from.email, subject: mail.subject, includedReport: Boolean(report) };
   },
 };
 
@@ -124,7 +133,6 @@ export const emailConnector = defineConnector({
   status: async () => {
     const cfg = getSendGridConfig();
     if (!cfg) return { ready: false, message: "Set SENDGRID_API_KEY on the server" };
-    if (!cfg.from) return { ready: false, message: "Set SENDGRID_FROM_EMAIL (a verified SendGrid sender)" };
-    return { ready: true, message: `Ready · sends from ${cfg.from}` };
+    return { ready: true, message: `Ready · default sender ${cfg.from} (each user can set their own on the Email sender page)` };
   },
 });

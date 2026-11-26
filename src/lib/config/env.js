@@ -102,16 +102,33 @@ export function getDbConfig() {
   };
 }
 
+/** Sender used when a user has not set their own (Email sender page). */
+export const DEFAULT_SENDER_EMAIL = "tech@atlasuniversity.edu.in";
+
 /**
  * SendGrid (email the agent's owner). Null when no API key is set.
- * The "from" address must be a verified sender in SendGrid.
+ * `from` is the default sender: SENDGRID_FROM_EMAIL, else tech@atlasuniversity.edu.in.
+ * Every sender address must be verified in SendGrid (single sender or authenticated domain).
+ * `allowedDomains`: domains users may pick their own sender from (SENDGRID_ALLOWED_FROM_DOMAINS,
+ * comma-separated; default = the default sender's domain).
  */
 export function getSendGridConfig() {
   const key = pick("SENDGRID_API_KEY", "SENDGRID_KEY");
   if (!key.value) return null;
   const from = pick("SENDGRID_FROM_EMAIL", "SENDGRID_FROM", "SENDGRID_SENDER", "MAIL_FROM", "EMAIL_FROM");
   const fromName = pick("SENDGRID_FROM_NAME", "MAIL_FROM_NAME", "EMAIL_FROM_NAME");
-  return { apiKey: key.value, from: from.value || null, fromName: fromName.value || "ATLAS IntelligenceOS", names: [key.name, from.name].filter(Boolean) };
+  const fromEmail = (from.value || DEFAULT_SENDER_EMAIL).toLowerCase();
+  const allowed = String(process.env.SENDGRID_ALLOWED_FROM_DOMAINS || "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+    .filter(Boolean);
+  return {
+    apiKey: key.value,
+    from: fromEmail,
+    fromName: fromName.value || "ATLAS IntelligenceOS",
+    allowedDomains: allowed.length ? allowed : [fromEmail.split("@")[1]].filter(Boolean),
+    names: [key.name, from.name].filter(Boolean),
+  };
 }
 
 /** Google sign-in (OAuth client). Null when not configured. */

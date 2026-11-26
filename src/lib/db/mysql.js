@@ -35,6 +35,12 @@ const SCHEMA = [
     created_by INT UNSIGNED NULL,
     UNIQUE KEY ${table("users_email")} (email)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS ${table("email_senders")} (
+    user_id INT UNSIGNED NOT NULL PRIMARY KEY,
+    from_email VARCHAR(254) NOT NULL,
+    from_name VARCHAR(100) NOT NULL DEFAULT '',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 let pool = null;
