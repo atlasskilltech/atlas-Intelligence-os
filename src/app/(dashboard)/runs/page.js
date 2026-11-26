@@ -14,6 +14,7 @@ import { listAgents } from "@/lib/agents/agentRepo";
 import { projectStatusList } from "@/lib/connectors/projects/projectRepo";
 import { getPageActor } from "@/lib/context";
 import { listEvents, listRuns } from "@/lib/runs/runRepo";
+import { emailForActorId } from "@/lib/users/userRepo";
 
 export const metadata = { title: "Execution" };
 
@@ -165,6 +166,13 @@ export default async function ExecutionPage({ searchParams }) {
     .filter((r) => !connector || matchesConnector(r, connector, projects))
     .slice(0, SHOW_MAX);
 
+  // Who created each run's agent (by email). Newer runs store it; resolve older ones.
+  const ownerEmail = new Map();
+  for (const r of runs) if (r.ownerId && r.ownerEmail && !ownerEmail.has(r.ownerId)) ownerEmail.set(r.ownerId, r.ownerEmail);
+  const missing = [...new Set(runs.map((r) => r.ownerId))].filter((id) => id && !ownerEmail.has(id));
+  for (const [id, email] of await Promise.all(missing.map(async (id) => [id, await emailForActorId(id)]))) if (email) ownerEmail.set(id, email);
+  const runsWithOwner = runs.map((r) => ({ ...r, ownerEmail: r.ownerEmail || ownerEmail.get(r.ownerId) || null }));
+
   const agentName = agent && agentNameOf(agent);
   const emptyTitle =
     agent || connector
@@ -208,7 +216,7 @@ export default async function ExecutionPage({ searchParams }) {
           action={status === "all" && !agent && !connector && <Button href="/agents" variant="secondary">Go to My Agents</Button>}
         />
       ) : (
-        <RunTable runs={runs} projects={projects} />
+        <RunTable runs={runsWithOwner} projects={projects} />
       )}
     </>
   );

@@ -46,6 +46,7 @@ export function summarizeRun(run) {
     agentId: run.agentId,
     agentName: run.agentName,
     ownerId: run.ownerId,
+    ownerEmail: run.ownerEmail ?? null,
     mode: run.mode,
     trigger: run.trigger,
     status: run.status,

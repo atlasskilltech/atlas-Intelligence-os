@@ -21,6 +21,7 @@ export default function RunTable({ runs, showAgent = true, projects = null }) {
                 {showAgent && <span className="truncate font-semibold text-ink">{r.agentName}</span>}
                 <RunStatusBadge status={r.status} />
                 <ModeBadge mode={r.mode} />
+                {r.ownerEmail && <span className="truncate text-xs font-normal text-slate-400">by {r.ownerEmail}</span>}
               </div>
               <p className="mt-0.5 truncate text-xs text-slate-500">
                 {r.error ? <span className="text-red-600">{r.error}</span> : r.reportTitle ? `Report: ${r.reportTitle}` : r.id}
