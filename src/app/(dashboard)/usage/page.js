@@ -68,7 +68,8 @@ function Breakdown({ title, rows, labelFor = (k) => k, mono, inrRate }) {
 export default async function UsagePage() {
   await connection();
   const actor = await getPageActor();
-  const [u, agents, settings] = await Promise.all([getUsageSummary({ days: 30 }), listAgents(actor), getModelSettings()]);
+  const settings = await getModelSettings();
+  const [u, agents] = await Promise.all([getUsageSummary({ days: 30, pricingOverrides: settings.pricingOverrides }), listAgents(actor)]);
   const inrRate = settings.inrPerUsd || 88;
   const agentName = new Map(agents.map((a) => [a.id, a.config?.name || a.id]));
   const byAgent = u.byAgent.map((r) => ({ ...r, label: agentName.get(r.key) || `${r.key} (removed)` }));

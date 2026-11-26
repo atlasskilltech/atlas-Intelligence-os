@@ -1,4 +1,5 @@
 import "server-only";
+import { estimateCost } from "../ai/pricing.js";
 import { appendJsonLine, readJsonLines } from "../storage/jsonFile.js";
 
 /**
@@ -24,9 +25,16 @@ function add(acc, e) {
 }
 
 /** Totals, per-model, per-purpose and per-day breakdowns for the last `days` days. */
-export async function getUsageSummary({ days = 30, recent = 20 } = {}) {
+export async function getUsageSummary({ days = 30, recent = 20, pricingOverrides = {} } = {}) {
   const since = Date.now() - days * 86_400_000;
-  const entries = (await readJsonLines(FILE)).filter((e) => Date.parse(e.ts) >= since);
+  // Backfill cost for calls logged before a price was set, using current prices.
+  const entries = (await readJsonLines(FILE))
+    .filter((e) => Date.parse(e.ts) >= since)
+    .map((e) => {
+      if (e.costUsd != null) return e;
+      const cost = estimateCost(e.responseModel || e.model, e, pricingOverrides);
+      return cost == null ? e : { ...e, costUsd: cost };
+    });
 
   const totals = empty();
   const byModel = {};

@@ -18,7 +18,8 @@ export const metadata = { title: "Model Settings" };
 export default async function ModelSettingsPage() {
   await connection();
   const actor = await getPageActor();
-  const [settings, usage, agents] = await Promise.all([getModelSettings(), getUsageSummary({ days: 30 }), listAgents(actor)]);
+  const settings = await getModelSettings();
+  const [usage, agents] = await Promise.all([getUsageSummary({ days: 30, pricingOverrides: settings.pricingOverrides }), listAgents(actor)]);
   const status = getAIStatus();
 
   const inrRate = settings.inrPerUsd || 88;
