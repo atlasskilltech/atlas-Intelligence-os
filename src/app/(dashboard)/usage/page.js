@@ -17,6 +17,12 @@ export const metadata = { title: "API Usage" };
 
 const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
 
+/** "2026-11" → "Nov 2026". */
+const fmtMonth = (key) => {
+  const [y, m] = String(key).split("-");
+  return new Date(Date.UTC(Number(y), Number(m) - 1, 1)).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+};
+
 function Breakdown({ title, rows, labelFor = (k) => k, mono, inrRate }) {
   const max = Math.max(...rows.map((r) => r.inputTokens + r.outputTokens), 1);
   return (
@@ -123,6 +129,9 @@ export default async function UsagePage() {
         />
       ) : (
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
+          {u.byMonth?.length > 0 && (
+            <Breakdown title="By month (spend tracking, last 12 months)" rows={u.byMonth} labelFor={fmtMonth} inrRate={inrRate} />
+          )}
           {byAgent.length > 0 && (
             <Breakdown title="By agent (tokens & cost)" rows={byAgent} labelFor={(k) => agentName.get(k) || `${k} (removed)`} inrRate={inrRate} />
           )}

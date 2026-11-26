@@ -24,17 +24,17 @@ function add(acc, e) {
   return acc;
 }
 
-/** Totals, per-model, per-purpose and per-day breakdowns for the last `days` days. */
-export async function getUsageSummary({ days = 30, recent = 20, pricingOverrides = {} } = {}) {
-  const since = Date.now() - days * 86_400_000;
+/** Totals, per-model, per-purpose, per-day, per-agent and per-month breakdowns. */
+export async function getUsageSummary({ days = 30, recent = 20, pricingOverrides = {}, months = 12 } = {}) {
   // Backfill cost for calls logged before a price was set, using current prices.
-  const entries = (await readJsonLines(FILE))
-    .filter((e) => Date.parse(e.ts) >= since)
-    .map((e) => {
-      if (e.costUsd != null) return e;
-      const cost = estimateCost(e.responseModel || e.model, e, pricingOverrides);
-      return cost == null ? e : { ...e, costUsd: cost };
-    });
+  const priced = (e) => {
+    if (e.costUsd != null) return e;
+    const cost = estimateCost(e.responseModel || e.model, e, pricingOverrides);
+    return cost == null ? e : { ...e, costUsd: cost };
+  };
+  const all = (await readJsonLines(FILE)).map(priced);
+  const since = Date.now() - days * 86_400_000;
+  const entries = all.filter((e) => Date.parse(e.ts) >= since);
 
   const totals = empty();
   const byModel = {};
@@ -55,6 +55,14 @@ export async function getUsageSummary({ days = 30, recent = 20, pricingOverrides
     if (Date.parse(e.ts) >= monthStart.getTime()) add(thisMonth, e);
   }
 
+  // Per calendar month, over the last `months` months (for spend tracking).
+  const monthCut = new Date();
+  monthCut.setUTCDate(1);
+  monthCut.setUTCHours(0, 0, 0, 0);
+  monthCut.setUTCMonth(monthCut.getUTCMonth() - (months - 1));
+  const byMonth = {};
+  for (const e of all) if (Date.parse(e.ts) >= monthCut.getTime()) add((byMonth[e.ts.slice(0, 7)] ??= empty()), e);
+
   const round = (o) => ({ ...o, costUsd: Math.round(o.costUsd * 1e6) / 1e6 });
   const mapRound = (m) =>
     Object.entries(m)
@@ -69,6 +77,7 @@ export async function getUsageSummary({ days = 30, recent = 20, pricingOverrides
     byPurpose: mapRound(byPurpose),
     byAgent: mapRound(byAgent),
     byDay: mapRound(byDay).sort((a, b) => b.key.localeCompare(a.key)),
+    byMonth: mapRound(byMonth).sort((a, b) => b.key.localeCompare(a.key)),
     recent: entries.slice(-recent).reverse(),
   };
 }
