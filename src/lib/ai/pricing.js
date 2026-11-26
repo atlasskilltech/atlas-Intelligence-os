@@ -14,6 +14,10 @@ export const DEFAULT_PRICING = {
   "gpt-5": { input: 1.25, cachedInput: 0.125, output: 10 },
   "gpt-5-mini": { input: 0.25, cachedInput: 0.025, output: 2.0 },
   "gpt-5-nano": { input: 0.05, cachedInput: 0.005, output: 0.4 },
+  // GPT-5.4 / 5.5 family — OpenAI list prices (openai.com/api/pricing, Nov 2026). Verify, they change.
+  "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
+  "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
+  "gpt-5.5": { input: 5.0, cachedInput: 0.5, output: 30 },
 };
 
 /** Finds a price for e.g. "gpt-4o-mini-2024-07-18" by stripping a date suffix. */
