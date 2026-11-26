@@ -7,20 +7,37 @@ import { USER_MENU_ITEMS } from "@/components/layout/UserMenu";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
+const POPUP_HREFS = new Set(USER_MENU_ITEMS.map((i) => i.href));
+
 /**
  * Claude-style Settings popup: tabs on the left (Account for admins, Settings,
- * Usage), content on
- * the right. Opened from the account menu; the URL changes, so refresh shows the
- * full page and Back / Escape / the X / a click outside close it.
+ * Usage), content on the right. It is always a popup, never a page:
+ *  - opened from the account menu, it sits over the page you were on
+ *    (intercepted route) and Back / Escape / the X / a click outside go back;
+ *  - on a refresh or direct link (`standalone`), it opens over Home and closing
+ *    goes to Home. Links to another tab load that tab's popup the same way.
  */
-export default function SettingsModal({ active, isAdmin = false, children }) {
+export default function SettingsModal({ active, isAdmin = false, standalone = false, children }) {
   const router = useRouter();
   const panelRef = useRef(null);
-  const close = () => router.back();
+  const close = () => (standalone ? router.replace("/") : router.back());
+
+  // Standalone: a client-side link to another tab would open a second, intercepted
+  // popup on top of this one, so load it as a fresh standalone popup instead.
+  const onClickCapture = (e) => {
+    if (!standalone || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const a = e.target.closest?.("a[href]");
+    if (!a) return;
+    const url = new URL(a.href, window.location.href);
+    if (url.origin === window.location.origin && POPUP_HREFS.has(url.pathname)) {
+      e.preventDefault();
+      window.location.replace(url.pathname);
+    }
+  };
 
   useEffect(() => {
     panelRef.current?.focus();
-    const onKey = (e) => e.key === "Escape" && router.back();
+    const onKey = (e) => e.key === "Escape" && (standalone ? router.replace("/") : router.back());
     document.addEventListener("keydown", onKey);
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
@@ -28,10 +45,10 @@ export default function SettingsModal({ active, isAdmin = false, children }) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
     };
-  }, [router]);
+  }, [router, standalone]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6" onClickCapture={onClickCapture}>
       <div className="absolute inset-0 bg-navy-900/60 backdrop-blur-[2px]" onClick={close} aria-hidden="true" />
       <div
         ref={panelRef}
