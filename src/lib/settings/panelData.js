@@ -2,17 +2,19 @@ import "server-only";
 import { getAIStatus } from "../ai/index.js";
 import { DEFAULT_PRICING } from "../ai/pricing.js";
 import { listAgents } from "../agents/agentRepo.js";
-import { getGoogleAuth, getStorageInfo, isAuthEnabled } from "../config/env.js";
+import { getEmailConfig, getGoogleAuth, getStorageInfo, isAuthEnabled } from "../config/env.js";
 import { TABLE_PREFIX, dbStatus } from "../db/mysql.js";
+import { getSenderFor } from "../email/senderSettings.js";
 import { getUsageSummary } from "../usage/usageStore.js";
 import { listUsers } from "../users/userRepo.js";
 import { ELEVENLABS_MODELS, getModelSettings, LIMITS, MAX_ELEVENLABS_VOICES } from "./modelSettings.js";
 
 /**
- * Data for the Settings popup tabs (Settings, Usage, Account), as plain JSON.
- * Never includes secrets: API keys and the Google client secret stay here.
+ * Data for the Settings popup tabs (Account, Settings, Email sender, Usage), as
+ * plain JSON. Never includes secrets: API keys, the mail password and the Google
+ * client secret stay here.
  */
-export const PANEL_TABS = ["settings", "usage", "account"];
+export const PANEL_TABS = ["settings", "email", "usage", "account"];
 
 export async function settingsPanelData() {
   return {
@@ -24,6 +26,10 @@ export async function settingsPanelData() {
     elevenlabsModels: ELEVENLABS_MODELS,
     maxVoices: MAX_ELEVENLABS_VOICES,
   };
+}
+
+export async function emailPanelData(actor) {
+  return { sender: await getSenderFor(actor.id), configured: Boolean(getEmailConfig()), myEmail: actor.email || "" };
 }
 
 export async function usagePanelData(actor) {
@@ -64,6 +70,7 @@ export async function accountPanelData(actor) {
 
 export function panelData(tab, actor) {
   if (tab === "settings") return settingsPanelData();
+  if (tab === "email") return emailPanelData(actor);
   if (tab === "usage") return usagePanelData(actor);
   return accountPanelData(actor);
 }

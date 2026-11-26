@@ -36,9 +36,9 @@ export default async function ConnectorsPage() {
             <>
               {" "}
               Email isn&apos;t ready yet: {email.message}{" "}
-              <Link href="/settings/email" className="font-medium text-brand-600 hover:underline">
+              <a href="#settings/email" className="font-medium text-brand-600 hover:underline">
                 Email sender
-              </Link>
+              </a>
             </>
           )}
         </span>

@@ -92,14 +92,16 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
         <SidebarHistory recentAgents={recentAgents} onNavigate={onNavigate} />
       </div>
 
-      <div className="border-t border-white/10 px-3 py-3">
-        <ul className="space-y-px">
-          {SECONDARY_NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
-            <li key={item.href}>
-              <NavLink item={item} active={item.href === current} onNavigate={onNavigate} />
-            </li>
-          ))}
-        </ul>
+      <div className="border-t border-white/10 px-3 pb-3">
+        {SECONDARY_NAV.length > 0 && (
+          <ul className="space-y-px pt-3">
+            {SECONDARY_NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
+              <li key={item.href}>
+                <NavLink item={item} active={item.href === current} onNavigate={onNavigate} />
+              </li>
+            ))}
+          </ul>
+        )}
         <UserMenu user={user} aiConfigured={aiConfigured} onNavigate={onNavigate} />
       </div>
     </nav>

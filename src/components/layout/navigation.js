@@ -6,9 +6,8 @@ export const PRIMARY_NAV = [
   { href: "/connectors", label: "Connectors", icon: "plug" },
 ];
 
-export const SECONDARY_NAV = [
-  { href: "/settings/email", label: "Email sender", icon: "mail" },
-];
+// Settings, Email sender, Usage and Account are tabs of the Settings popup (account menu).
+export const SECONDARY_NAV = [];
 
 /** "+ New" opens Home, where you either chat or build an agent. */
 export const NEW_HREF = "/";

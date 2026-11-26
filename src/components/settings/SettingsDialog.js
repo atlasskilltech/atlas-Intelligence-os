@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import AccountView from "@/components/settings/panels/AccountView";
+import EmailView from "@/components/settings/panels/EmailView";
 import SettingsView from "@/components/settings/panels/SettingsView";
 import UsageView from "@/components/settings/panels/UsageView";
 import Icon from "@/components/ui/Icon";
@@ -12,12 +13,13 @@ import { Alert, Spinner } from "@/components/ui/States";
 export const SETTINGS_TABS = [
   { id: "account", label: "Account", icon: "user", adminOnly: true },
   { id: "settings", label: "Settings", icon: "settings" },
+  { id: "email", label: "Email sender", icon: "mail" },
   { id: "usage", label: "Usage", icon: "chart" },
 ];
 
 export const settingsHref = (tab) => `#settings/${tab}`;
 
-const VIEWS = { account: AccountView, settings: SettingsView, usage: UsageView };
+const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView };
 
 /** "#settings/usage" → "usage"; anything else → null. */
 function tabFromHash(hash, isAdmin) {
@@ -48,8 +50,13 @@ export default function SettingsDialog({ isAdmin = false }) {
       setTab(next);
     };
     sync();
+    // Next.js <Link> changes the hash with pushState (no "hashchange"), so also follow popstate.
     window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+    };
   }, [isAdmin]);
 
   const load = useCallback(async (id) => {
