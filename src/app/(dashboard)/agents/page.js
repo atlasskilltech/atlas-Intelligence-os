@@ -2,7 +2,6 @@ import Link from "next/link";
 import { connection } from "next/server";
 import AgentConnectors, { usesProjects } from "@/components/agents/AgentConnectors";
 import AgentRowActions from "@/components/agents/AgentRowActions";
-import AgentSearch from "@/components/agents/AgentSearch";
 import { StatusBadge } from "@/components/agents/AgentStatus";
 import ProjectCalls, { sumProjectCalls } from "@/components/runs/ProjectCalls";
 import Button from "@/components/ui/Button";
@@ -10,6 +9,7 @@ import { fmtDateTime } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
 import LinkSelect from "@/components/ui/LinkSelect";
 import PageHeader from "@/components/ui/PageHeader";
+import SearchSelect from "@/components/ui/SearchSelect";
 import { Alert, EmptyState } from "@/components/ui/States";
 import StorageNotice from "@/components/ui/StorageNotice";
 import { listAgents, summarize } from "@/lib/agents/agentRepo";
@@ -29,21 +29,18 @@ const FILTERS = [
   { id: "draft", label: "Drafts" },
 ];
 
-function listHref({ status, owner, query }) {
+function listHref({ status, owner }) {
   const p = new URLSearchParams();
   if (status !== "all") p.set("status", status);
   if (owner && owner !== "mine") p.set("owner", owner); // "mine" is the default — keep the URL clean
-  if (query) p.set("q", query);
   const qs = p.toString();
   return qs ? `/agents?${qs}` : "/agents";
 }
 
 export default async function AgentsPage({ searchParams }) {
   await connection();
-  const { status: raw, owner: rawOwner, q: rawQ, deleted } = await searchParams;
+  const { status: raw, owner: rawOwner, deleted } = await searchParams;
   const status = FILTERS.some((f) => f.id === raw) ? raw : "all";
-  const query = (typeof rawQ === "string" ? rawQ : "").slice(0, 100).trim();
-  const queryLower = query.toLowerCase();
 
   const actor = await getPageActor();
   const isAdmin = actor.role === "admin";
@@ -79,16 +76,14 @@ export default async function AgentsPage({ searchParams }) {
   const calledBy = new Map([...runsByAgent].map(([id, list]) => [id, new Map(sumProjectCalls(list).map((c) => [c.project, c]))]));
   const callsOf = (agentId) => [...(calledBy.get(agentId)?.values() || [])];
 
-  const hrefWith = (patch) => listHref({ status, owner, query, ...patch });
+  const hrefWith = (patch) => listHref({ status, owner, ...patch });
 
-  const matchesQuery = (a) => !queryLower || a.name.toLowerCase().includes(queryLower) || (a.description || "").toLowerCase().includes(queryLower);
-  const all = everything.filter(ownerMatch).filter(matchesQuery);
+  const all = everything.filter(ownerMatch);
   const counts = { all: all.length, active: 0, paused: 0, draft: 0 };
   for (const a of all) counts[a.status] += 1;
   const agents = status === "all" ? all : all.filter((a) => a.status === status);
 
   const statusWord = status === "all" ? "" : `${FILTERS.find((f) => f.id === status).label.toLowerCase()} `;
-  const emptyTitle = query ? `No ${statusWord}agents match “${query}”` : `No ${statusWord}agents`;
 
   // Dropdown options (value / label / href) for the status and "Created by" filters.
   const statusSelectOptions = FILTERS.map((f) => ({ value: f.id, label: `${f.label} (${counts[f.id]})`, href: hrefWith({ status: f.id }) }));
@@ -129,18 +124,15 @@ export default async function AgentsPage({ searchParams }) {
         />
       ) : (
         <>
-          <div className="mb-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <LinkSelect id="status-filter" label="Show" icon="bot" value={status} options={statusSelectOptions} />
-              {isAdmin && ownerOptions.length > 0 && (
-                <LinkSelect id="owner-filter" label="Created by" icon="user" value={owner} options={ownerSelectOptions} />
-              )}
-            </div>
-            <AgentSearch value={query} />
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <LinkSelect id="status-filter" label="Show" icon="bot" value={status} options={statusSelectOptions} />
+            {isAdmin && ownerOptions.length > 0 && (
+              <SearchSelect id="owner-filter" label="Created by" icon="user" value={owner} options={ownerSelectOptions} placeholder="Search people…" />
+            )}
           </div>
 
           {agents.length === 0 ? (
-            <EmptyState icon="bot" title={emptyTitle} />
+            <EmptyState icon="bot" title={`No ${statusWord}agents`} />
           ) : (
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
               {agents.map((a) => (
