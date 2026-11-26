@@ -51,6 +51,20 @@ out loud in the same language. It uses the same read-only connector lookups as H
 `OPENAI_API_KEY`; optional `OPENAI_STT_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`. Browsers only
 allow the microphone on `https://` (or `localhost`).
 
+## Emailing reports (Google Workspace)
+
+Agents can email their report to the **agent owner** (the signed-in user who owns the agent),
+never to anyone else. Ask for it in the request, e.g. "email the report to me".
+
+1. Pick a Workspace mailbox to send from (a shared one like `intelligenceos@…` is best) and turn on
+   2-Step Verification for it.
+2. Create an App Password for it at <https://myaccount.google.com/apppasswords>.
+3. Set `SMTP_USER` (the mailbox) and `SMTP_PASSWORD` (the App Password) in the server `.env`,
+   and `APP_URL` so emails link to the run. Restart the server.
+
+The Connectors page shows "Sends from …" when it is ready. Test runs also send the email, marked
+"[Test run]" in the subject, so you can check it.
+
 ## Scheduled agents
 
 On the always-on server (EC2 + PM2) the scheduler starts automatically with `npm run start` and

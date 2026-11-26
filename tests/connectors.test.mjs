@@ -124,7 +124,7 @@ test("defineConnector refuses actions that are not in the catalog", () => {
 
 test("only key-based project connectors and built-ins exist", async () => {
   const overview = await connectorOverview();
-  assert.deepEqual(overview.map((c) => c.id), ["report", "notify", "atlas_project"]);
+  assert.deepEqual(overview.map((c) => c.id), ["report", "notify", "email", "atlas_project"]);
   assert.equal(overview.find((c) => c.id === "atlas_project").ready, false, "no project connected yet");
   const { ready } = await resolveTools(["atlas_project.read", "report.create_report"], EXECUTORS);
   assert.deepEqual([...ready], ["report.create_report"], "project tools are skipped until a project is connected");

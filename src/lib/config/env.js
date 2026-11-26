@@ -139,6 +139,27 @@ export function getSessionSecret() {
   return enc ? `derived:session:${enc}` : undefined;
 }
 
+/**
+ * Outgoing email (agents emailing their owner). Built for Google Workspace:
+ * a sending mailbox on smtp.gmail.com with an App Password. Any SMTP server works.
+ * Null when SMTP_USER / SMTP_PASSWORD are not set.
+ */
+export function getMailConfig() {
+  const user = clean(process.env.SMTP_USER);
+  const password = clean(process.env.SMTP_PASSWORD)?.replace(/\s+/g, ""); // App Passwords are shown with spaces
+  if (!user || !password) return null;
+  const port = Number(clean(process.env.SMTP_PORT)) || 465;
+  return {
+    host: clean(process.env.SMTP_HOST) || "smtp.gmail.com",
+    port,
+    secure: port === 465,
+    user,
+    password,
+    from: clean(process.env.MAIL_FROM) || user,
+    fromName: clean(process.env.MAIL_FROM_NAME) || "ATLAS IntelligenceOS",
+  };
+}
+
 /** Secrets that only exist at run time (e.g. decrypted project keys) — redacted like env secrets. */
 const runtimeSecrets = new Set();
 export function registerSecret(value) {
@@ -153,6 +174,7 @@ export function getSecretValues() {
     getEncryptionKey(),
     getDbConfig()?.password,
     getGoogleAuth()?.clientSecret,
+    getMailConfig()?.password,
     pick("AUTH_SECRET", "SESSION_SECRET", "NEXTAUTH_SECRET").value,
     ...runtimeSecrets,
   ].filter(Boolean);
