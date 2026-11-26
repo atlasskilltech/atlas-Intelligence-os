@@ -252,3 +252,54 @@ export function validateAgentConfig(config) {
     errors: r.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// 4) One-click upgrade: add "email the report to me" to an agent planned
+//    before email existed (its notes still say email is not possible).
+// ---------------------------------------------------------------------------
+export const EMAIL_TOOL = "email.email_owner";
+const EMAIL_WORD = /e-?mail|inbox/i;
+
+/** True when the agent asked for email but has no email step yet. */
+export function agentWantsEmail(config) {
+  if (!config || (config.steps || []).some((s) => s?.tool === EMAIL_TOOL)) return false;
+  return (config.notes?.missingCapabilities || []).some((m) => EMAIL_WORD.test(m));
+}
+
+/**
+ * Returns a copy of the config (or draft) with an email step after the last
+ * report step (else at the end), email notes removed, and — when
+ * `preApprove` — email pre-approved so manual and scheduled runs send without
+ * pausing. Email only ever goes to the owner's own inbox.
+ */
+export function withEmailStep(config, { preApprove = true } = {}) {
+  if (!config || (config.steps || []).some((s) => s?.tool === EMAIL_TOOL)) return config;
+  const steps = [...(config.steps || [])];
+  const step = {
+    title: "Email the report to me",
+    details:
+      "Send the finished report to the agent owner's inbox with email.email_owner (includeReport: true). Use a clear subject with the date, and a 2–3 line message summarising the result. If sending fails, retry once, then mention the failure in the final summary.",
+    tool: EMAIL_TOOL,
+    successCriteria: "The email was sent to the owner's inbox with the report included.",
+  };
+  let at = -1;
+  steps.forEach((s, i) => {
+    if (s?.tool === "report.create_report") at = i;
+  });
+  if (at === -1) steps.push(step);
+  else steps.splice(at + 1, 0, step);
+  if (steps.length > LIMITS.maxPlanSteps) return config; // no room; leave it to Refine with AI
+
+  const notes = config.notes || {};
+  const drop = (list) => (list || []).filter((t) => !EMAIL_WORD.test(t));
+  const line = "\n\nWhen the report is ready, email it to the owner with email.email_owner (includeReport: true). The email always goes to the owner's own inbox.";
+  const instructions = String(config.instructions || "");
+  const preApproved = config.permissions?.preApproved || [];
+  return {
+    ...config,
+    steps,
+    instructions: instructions.includes("email.email_owner") ? instructions : (instructions + line).slice(0, LIMITS.instructions),
+    notes: { ...notes, missingCapabilities: drop(notes.missingCapabilities), assumptions: drop(notes.assumptions) },
+    permissions: { ...(config.permissions || {}), preApproved: preApprove ? [...new Set([...preApproved, EMAIL_TOOL])] : preApproved },
+  };
+}

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
 import ProjectCalls from "@/components/runs/ProjectCalls";
 import RunTable from "@/components/runs/RunTable";
+import { withEmailStep } from "@/lib/agents/agentConfig";
 import AgentWorkspace, { agentApi, downloadAgentJson, toDraft, toPayload, workspaceErrors } from "./AgentWorkspace";
 import AgentConnectors, { usesProjects } from "./AgentConnectors";
 import ConnectorFilter from "./ConnectorFilter";
@@ -79,6 +80,22 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
       const { agent } = await agentApi(`/api/agents/${rec.id}`, "PUT", { agent: toPayload(draft), expectedUpdatedAt: rec.updatedAt });
       setWarnings([]);
       adopt(agent, "Changes saved.");
+    } catch (err) {
+      setError(err.message);
+      setServerErrors(err.fields || {});
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** One click: add the email step to an agent planned before email existed, and save. */
+  async function addEmail() {
+    setBusy("email");
+    setError(null);
+    try {
+      const { agent } = await agentApi(`/api/agents/${rec.id}`, "PUT", { agent: withEmailStep(toPayload(draft)), expectedUpdatedAt: rec.updatedAt });
+      setWarnings([]);
+      adopt(agent, "Email added. Press Run now — the report will be emailed to you.");
     } catch (err) {
       setError(err.message);
       setServerErrors(err.fields || {});
@@ -242,6 +259,8 @@ export default function AgentDetail({ initial, justSaved, runs = [], schedule = 
         }}
         prompt={rec.config.source?.prompt}
         projects={projects}
+        onAddEmail={addEmail}
+        addingEmail={busy === "email"}
         warnings={warnings}
         meta={meta}
         onAIResult={(data) => {

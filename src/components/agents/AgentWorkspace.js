@@ -8,7 +8,7 @@ import { fmtInt, fmtUsd } from "@/components/ui/format";
 import Icon from "@/components/ui/Icon";
 import { Alert, Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
-import { LIMITS, canPreApprove, draftErrors, normalizeAgentConfig } from "@/lib/agents/agentConfig";
+import { EMAIL_TOOL, LIMITS, agentWantsEmail, canPreApprove, draftErrors, normalizeAgentConfig } from "@/lib/agents/agentConfig";
 import { describeTrigger } from "@/lib/agents/schedule";
 import { RISK_LEVELS, getTool, isToolAvailable } from "@/lib/catalog/toolCatalog";
 import AgentConnectors, { usesProjects } from "./AgentConnectors";
@@ -253,6 +253,8 @@ export default function AgentWorkspace({
   actions,
   footnote,
   projects = null, // [{ id, name, usable }] when known (agent page): shows connectors in the summary
+  onAddEmail = null, // agent page: one click adds the email step and saves
+  addingEmail = false,
 }) {
   const [refining, setRefining] = useState(false);
   const [refineText, setRefineText] = useState("");
@@ -288,6 +290,16 @@ export default function AgentWorkspace({
         </Alert>
       )}
 
+      {onAddEmail && agentWantsEmail(derived) && isToolAvailable(EMAIL_TOOL) && (
+        <Alert tone="success" className="mb-4" title="Email is now available">
+          <p>This agent was planned before email existed, so it still only notifies you on the dashboard.</p>
+          <p className="mt-1">One click adds an &quot;Email the report to me&quot; step and saves the agent. Emails only go to your own inbox.</p>
+          <Button size="sm" className="mt-3" onClick={onAddEmail} disabled={addingEmail}>
+            {addingEmail ? <Spinner className="size-3.5 border-white/40 border-t-white" /> : <Icon name="mail" className="size-3.5" />}
+            {addingEmail ? "Adding…" : "Add email to this agent"}
+          </Button>
+        </Alert>
+      )}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <Card>
@@ -450,7 +462,9 @@ export default function AgentWorkspace({
             tone="warning"
             title="Not possible yet"
             items={[
-              ...derived.notes.missingCapabilities,
+              ...(onAddEmail && agentWantsEmail(derived) && isToolAvailable(EMAIL_TOOL)
+                ? derived.notes.missingCapabilities.filter((m) => !/e-?mail|inbox/i.test(m))
+                : derived.notes.missingCapabilities),
               ...(unavailable.length
                 ? [`Some tools need connectors that are built in later milestones (${[...new Set(unavailable.map((id) => getTool(id).availableIn))].sort().map((m) => `M${m}`).join(", ")}).`]
                 : []),

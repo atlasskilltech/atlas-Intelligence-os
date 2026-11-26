@@ -148,3 +148,31 @@ test("a corrupt agents file reads as empty but is never overwritten", async () =
   await assert.rejects(repo.createAgent(alice, draft()), (e) => e.status === 503);
   assert.equal(await readFile(file, "utf8"), "{not json"); // data left for an admin to recover
 });
+
+test("withEmailStep: one-click email for agents planned before email existed", async () => {
+  const { normalizeAgentConfig, agentWantsEmail, withEmailStep } = await import("../src/lib/agents/agentConfig.js");
+  const { config: old } = normalizeAgentConfig({
+    name: "Faculty Free Report",
+    instructions: "You prepare a report.",
+    steps: [
+      { title: "Fetch", details: "", tool: "atlas_project.read", successCriteria: "" },
+      { title: "Report", details: "", tool: "report.create_report", successCriteria: "" },
+      { title: "Notify", details: "", tool: "notify.notify_owner", successCriteria: "" },
+    ],
+    notes: {
+      missingCapabilities: ["Email sending to the owner's inbox"],
+      assumptions: ["Use today's date.", "The dashboard notification will be used instead of email delivery."],
+      clarifyingQuestions: [],
+    },
+  });
+  assert.equal(agentWantsEmail(old), true);
+  const { config: upgraded } = normalizeAgentConfig(withEmailStep(old));
+  assert.deepEqual(upgraded.steps.map((s) => s.tool), ["atlas_project.read", "report.create_report", "email.email_owner", "notify.notify_owner"]);
+  assert.deepEqual(upgraded.notes.missingCapabilities, []);
+  assert.deepEqual(upgraded.notes.assumptions, ["Use today's date."]);
+  assert.deepEqual(upgraded.permissions.preApproved, ["email.email_owner"], "sends without pausing");
+  assert.deepEqual(upgraded.permissions.toolsRequiringApproval, []);
+  assert.match(upgraded.instructions, /email\.email_owner/);
+  assert.equal(agentWantsEmail(upgraded), false);
+  assert.equal(withEmailStep(upgraded), upgraded, "adding twice changes nothing");
+});
