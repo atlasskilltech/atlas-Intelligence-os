@@ -48,6 +48,22 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
   const router = useRouter();
   const [projects, setProjects] = useState(initialProjects);
   const [adding, setAdding] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const [toggleError, setToggleError] = useState(null);
+
+  async function toggleEnabled(p) {
+    setBusyId(p.id);
+    setToggleError(null);
+    try {
+      const data = await api(`/api/connectors/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ enabled: !p.enabled }) });
+      setProjects((list) => list.map((x) => (x.id === p.id ? data.project : x)).sort((a, b) => a.name.localeCompare(b.name)));
+      router.refresh();
+    } catch (err) {
+      setToggleError(`${p.name}: ${err.message}`);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <section className="mt-10" aria-labelledby="projects-title">
@@ -100,21 +116,30 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => {
-            const c = counts(p);
-            return (
-              <Link
-                key={p.id}
-                href={`/connectors/projects/${p.id}`}
-                className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-              >
-                <Card className="flex h-full flex-col p-5 transition-shadow group-hover:shadow-md group-hover:ring-1 group-hover:ring-brand-500/30">
+        <>
+          {toggleError && (
+            <Alert tone="error" className="mb-4" title="Couldn't change the connector">
+              {toggleError}
+            </Alert>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {projects.map((p) => {
+              const c = counts(p);
+              const busy = busyId === p.id;
+              return (
+                <Card
+                  key={p.id}
+                  className={`flex h-full flex-col p-5 transition-shadow hover:shadow-md ${!p.enabled ? "opacity-70" : ""}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <ProjectAvatar name={p.name} />
                     <ProjectStatus project={p} />
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-ink">{p.name}</h3>
+                  <h3 className="mt-4 text-sm font-semibold text-ink">
+                    <Link href={`/connectors/projects/${p.id}`} className="hover:text-brand-600">
+                      {p.name}
+                    </Link>
+                  </h3>
                   <p className="mt-0.5 truncate font-mono text-xs text-slate-500">{p.baseUrl}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <Badge tone="brand">{p.manifest.key.access || "Custom access"}</Badge>
@@ -125,13 +150,35 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
                   {p.status !== "connected" && p.lastError && <p className="mt-3 text-xs text-red-600">{p.lastError}</p>}
                   <p className="mt-auto flex items-center justify-between pt-4 text-xs text-slate-500">
                     <span>Key {p.keyHint}</span>
-                    <span className="font-medium text-brand-600 group-hover:underline">View access →</span>
+                    <Link href={`/connectors/projects/${p.id}`} className="font-medium text-brand-600 hover:underline">
+                      View access →
+                    </Link>
                   </p>
+                  {isAdmin && (
+                    <div className="mt-3 border-t border-slate-100 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleEnabled(p)}
+                        disabled={busy}
+                        aria-pressed={p.enabled}
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium disabled:opacity-60 ${
+                          p.enabled ? "text-slate-600 hover:text-red-600" : "text-brand-600 hover:text-brand-700"
+                        }`}
+                      >
+                        {busy ? (
+                          <Spinner className="size-3.5" />
+                        ) : (
+                          <Icon name={p.enabled ? "pause" : "play"} className="size-3.5" />
+                        )}
+                        {busy ? "Saving…" : p.enabled ? "Disable — agents can't use this" : "Enable — let agents use this"}
+                      </button>
+                    </div>
+                  )}
                 </Card>
-              </Link>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </section>
   );
