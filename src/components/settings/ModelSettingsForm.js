@@ -26,6 +26,13 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const resetPrice = (model) =>
+    setForm((f) => {
+      const next = { ...(f.pricingOverrides || {}) };
+      delete next[model];
+      return { ...f, pricingOverrides: next };
+    });
+
   async function onSave(e) {
     e.preventDefault();
     setSave({ state: "saving" });
@@ -233,7 +240,18 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
                     <td className="px-5 py-2.5 font-mono text-xs text-slate-700">
                       {model}{" "}
                       {inUse.has(model) && <Badge tone="success" className="ml-1">in use</Badge>}
-                      {form.pricingOverrides?.[model] && <Badge tone="brand" className="ml-1">custom</Badge>}
+                      {form.pricingOverrides?.[model] && (
+                        <>
+                          <Badge tone="brand" className="ml-1">custom</Badge>
+                          <button
+                            type="button"
+                            onClick={() => resetPrice(model)}
+                            className="ml-2 text-xs font-sans text-slate-400 underline hover:text-red-600"
+                          >
+                            reset
+                          </button>
+                        </>
+                      )}
                     </td>
                     <td className="px-5 py-2.5 text-right tabular-nums">{p ? `$${p.input}` : <span className="text-amber-700">not set</span>}</td>
                     <td className="px-5 py-2.5 text-right tabular-nums">{p ? `$${p.output}` : <span className="text-slate-400">—</span>}</td>
