@@ -8,11 +8,12 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
 /**
- * Claude-style Settings popup: tabs on the left (Settings, Usage), content on
+ * Claude-style Settings popup: tabs on the left (Account for admins, Settings,
+ * Usage), content on
  * the right. Opened from the account menu; the URL changes, so refresh shows the
  * full page and Back / Escape / the X / a click outside close it.
  */
-export default function SettingsModal({ active, children }) {
+export default function SettingsModal({ active, isAdmin = false, children }) {
   const router = useRouter();
   const panelRef = useRef(null);
   const close = () => router.back();
@@ -58,7 +59,7 @@ export default function SettingsModal({ active, children }) {
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <nav aria-label="Settings sections" className="shrink-0 border-b border-slate-200 p-2 sm:w-52 sm:border-b-0 sm:border-r sm:p-3">
             <ul className="flex gap-1 sm:flex-col">
-              {USER_MENU_ITEMS.map((item) => {
+              {USER_MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin).map((item) => {
                 const on = item.href === active;
                 return (
                   <li key={item.href}>

@@ -8,14 +8,14 @@ export const PRIMARY_NAV = [
 
 export const SECONDARY_NAV = [
   { href: "/settings/email", label: "Email sender", icon: "mail" },
-  { href: "/settings/users", label: "Users", icon: "user", adminOnly: true },
 ];
 
 /** "+ New" opens Home, where you either chat or build an agent. */
 export const NEW_HREF = "/";
 
-// Settings and Usage live in the account menu (UserMenu), not the sidebar list.
+// Account, Settings and Usage live in the account menu (UserMenu), not the sidebar list.
 const ACCOUNT_ITEMS = [
+  { href: "/settings/users", label: "Account" },
   { href: "/settings/models", label: "Settings" },
   { href: "/usage", label: "Usage" },
 ];

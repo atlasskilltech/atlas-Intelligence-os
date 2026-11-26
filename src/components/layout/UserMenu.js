@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 
 export const USER_MENU_ITEMS = [
+  { href: "/settings/users", label: "Account", icon: "user", adminOnly: true },
   { href: "/settings/models", label: "Settings", icon: "settings" },
   { href: "/usage", label: "Usage", icon: "chart" },
 ];
@@ -55,7 +56,7 @@ export default function UserMenu({ user, aiConfigured, onNavigate }) {
           className="absolute inset-x-0 bottom-full z-50 mb-2 rounded-xl border border-white/10 bg-navy-900 p-1.5 shadow-2xl"
         >
           {user?.email && <p className="truncate px-2.5 pb-1.5 pt-1 text-xs text-white/50">{user.email}</p>}
-          {USER_MENU_ITEMS.map((item) => (
+          {USER_MENU_ITEMS.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
             <Link
               key={item.href}
               href={item.href}
