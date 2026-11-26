@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
-import { HomeModeProvider } from "./HomeMode";
+import { HomeModeProvider, useHomeMode } from "./HomeMode";
 import Sidebar, { Logo } from "./Sidebar";
 import ThemeToggle from "./ThemeToggle";
 import { titleFor } from "./navigation";
@@ -28,7 +28,7 @@ const clampWidth = (w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(w))
  */
 export default function AppShell(props) {
   return (
-    <HomeModeProvider>
+    <HomeModeProvider initialChats={props.recentChats}>
       <Shell {...props} />
     </HomeModeProvider>
   );
@@ -41,7 +41,7 @@ function Shell({ aiConfigured = false, recentAgents = [], user = null, children 
   const [dragging, setDragging] = useState(false);
   const widthRef = useRef(DEFAULT_WIDTH);
   const pathname = usePathname();
-  const isHome = pathname === "/";
+  const isHome = pathname === "/" || pathname.startsWith("/chat/");
 
   // Remember the desktop collapse choice (per browser only; safe if storage is blocked).
   useEffect(() => {
@@ -239,14 +239,13 @@ function Shell({ aiConfigured = false, recentAgents = [], user = null, children 
               >
                 <Icon name="panel" />
               </button>
-              <Link
-                href="/"
+              <NewLink
                 className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-ink lg:block"
                 aria-label="New"
                 title="New chat or agent"
               >
                 <Icon name="plus" />
-              </Link>
+              </NewLink>
             </>
           )}
           <div className={cn("lg:hidden", isHome && "hidden")}>
@@ -271,4 +270,10 @@ function Shell({ aiConfigured = false, recentAgents = [], user = null, children 
       </div>
     </div>
   );
+}
+
+/** Link to Home that also clears the current chat (Home may already be open). */
+function NewLink(props) {
+  const { startNewChat } = useHomeMode();
+  return <Link href="/" onClick={startNewChat} {...props} />;
 }

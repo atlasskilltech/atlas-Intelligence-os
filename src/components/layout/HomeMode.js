@@ -14,10 +14,24 @@ export const HOME_MODES = [
   { id: "agent", label: "Agent", icon: "code", hint: "Agent: turn a task into an agent that runs on its own" },
 ];
 
-const HomeModeContext = createContext({ mode: "ask", setMode: () => {} });
+const HomeModeContext = createContext({
+  mode: "ask",
+  setMode: () => {},
+  chats: [],
+  upsertChat: () => {},
+  removeChat: () => {},
+  newChatNonce: 0,
+  startNewChat: () => {},
+});
 
-export function HomeModeProvider({ children }) {
+/**
+ * Shared by the sidebar and Home: the Chat / Agent mode, the saved chat list
+ * shown in the sidebar, and a "new chat" signal that clears the Home thread.
+ */
+export function HomeModeProvider({ initialChats = [], children }) {
   const [mode, setModeState] = useState("ask");
+  const [chats, setChats] = useState(initialChats);
+  const [newChatNonce, setNewChatNonce] = useState(0);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(MODE_KEY);
@@ -31,7 +45,14 @@ export function HomeModeProvider({ children }) {
       localStorage.setItem(MODE_KEY, m);
     } catch {}
   };
-  return <HomeModeContext.Provider value={{ mode, setMode }}>{children}</HomeModeContext.Provider>;
+  const upsertChat = (entry) => setChats((list) => [entry, ...list.filter((c) => c.id !== entry.id)]);
+  const removeChat = (id) => setChats((list) => list.filter((c) => c.id !== id));
+  const startNewChat = () => setNewChatNonce((n) => n + 1);
+  return (
+    <HomeModeContext.Provider value={{ mode, setMode, chats, upsertChat, removeChat, newChatNonce, startNewChat }}>
+      {children}
+    </HomeModeContext.Provider>
+  );
 }
 
 export const useHomeMode = () => useContext(HomeModeContext);
@@ -54,7 +75,10 @@ export function HomeModeToggle({ onNavigate }) {
           title={m.hint}
           onClick={() => {
             setMode(m.id);
-            if (pathname !== "/") {
+            if (m.id === "agent" && pathname.startsWith("/chat/")) {
+              router.push("/");
+              onNavigate?.();
+            } else if (pathname !== "/" && !pathname.startsWith("/chat/")) {
               router.push("/");
               onNavigate?.();
             }

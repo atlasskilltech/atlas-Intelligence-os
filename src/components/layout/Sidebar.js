@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
-import { HomeModeToggle } from "./HomeMode";
+import { HomeModeToggle, useHomeMode } from "./HomeMode";
+import SidebarHistory from "./SidebarHistory";
 import { NEW_HREF, PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
 
 /**
@@ -50,6 +51,7 @@ function NavLink({ item, active, onNavigate }) {
 export default function Sidebar({ aiConfigured, recentAgents = [], user = null, onNavigate }) {
   const pathname = usePathname();
   const current = activeHref(pathname);
+  const { startNewChat } = useHomeMode();
 
   return (
     <nav aria-label="Main" className="flex h-full flex-col bg-navy-800 text-white">
@@ -61,7 +63,10 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
       <div className="px-3 pt-3">
         <Link
           href={NEW_HREF}
-          onClick={onNavigate}
+          onClick={() => {
+            startNewChat();
+            onNavigate?.();
+          }}
           className={cn(
             "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors",
             current === NEW_HREF || current === "/agents/new"
@@ -83,39 +88,7 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
           ))}
         </ul>
 
-        <p className="mt-6 px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/40">Recent agents</p>
-        {recentAgents.length === 0 ? (
-          <p className="px-3 text-xs text-white/45">Agents you create will appear here.</p>
-        ) : (
-          <ul className="space-y-px">
-            {recentAgents.map((a) => {
-              const href = `/agents/${a.id}`;
-              const active = pathname === href;
-              return (
-                <li key={a.id}>
-                  <Link
-                    href={href}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition-colors",
-                      active ? "bg-white/10 font-semibold text-white" : "text-white/65 hover:bg-white/8 hover:text-white",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "size-1.5 shrink-0 rounded-full",
-                        a.status === "active" ? "bg-brand-500" : a.status === "paused" ? "bg-amber-400" : "bg-white/30",
-                      )}
-                      title={a.status}
-                    />
-                    <span className="truncate">{a.name}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <SidebarHistory recentAgents={recentAgents} onNavigate={onNavigate} />
       </div>
 
       <div className="border-t border-white/10 px-3 py-3">

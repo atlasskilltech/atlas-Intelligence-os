@@ -57,12 +57,22 @@ function Rich({ text }) {
 /**
  * Home prompt: a question gets a direct answer right here (read-only lookups
  * in the selected connectors); work to automate goes to the agent builder.
+ * Chats are saved and listed in the sidebar; `chatId` + `initialThread` reopen one.
+ * "+ New" in the sidebar remounts it (new key) to start a fresh chat.
  */
-export default function HomeAssistant({ suggestions = [] }) {
+export default function HomeAssistant(props) {
+  const { newChatNonce } = useHomeMode();
+  return <Assistant key={newChatNonce} {...props} />;
+}
+
+function Assistant({ suggestions = [], chatId: initialChatId = null, initialThread = [] }) {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
-  const { mode } = useHomeMode(); // picked with the Chat / Agent switch in the sidebar
-  const [thread, setThread] = useState([]); // { role: "user"|"assistant", content, sources?, error?, agentPrompt? }
+  const { mode: pickedMode, upsertChat, startNewChat } = useHomeMode(); // picked with the Chat / Agent switch in the sidebar
+  // A saved chat continues as a chat, whatever the switch says.
+  const mode = initialChatId ? "ask" : pickedMode;
+  const [chatId, setChatId] = useState(initialChatId);
+  const [thread, setThread] = useState(initialThread); // { role: "user"|"assistant", content, sources?, error?, agentPrompt? }
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
 
@@ -89,7 +99,7 @@ export default function HomeAssistant({ suggestions = [] }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history, projects, mode }),
+        body: JSON.stringify({ message: text, history, projects, mode, chatId, save: true }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message || "Something went wrong. Please try again.");
@@ -102,6 +112,14 @@ export default function HomeAssistant({ suggestions = [] }) {
         return;
       }
       setThread((t) => [...t, { role: "assistant", content: data.answer, sources: data.sources || [] }]);
+      if (data.chat) {
+        upsertChat(data.chat);
+        if (data.chat.id !== chatId) {
+          setChatId(data.chat.id);
+          // Give the new chat its own address without reloading the page.
+          window.history.replaceState(null, "", `/chat/${data.chat.id}`);
+        }
+      }
     } catch (err) {
       setThread((t) => [...t, { role: "assistant", content: err.message, error: true }]);
     } finally {
@@ -197,7 +215,14 @@ export default function HomeAssistant({ suggestions = [] }) {
               {mode === "agent" ? "Agent: your text opens the agent builder" : "Chat: answers only, nothing is changed"}
             </span>
             {thread.length > 0 && (
-              <button type="button" onClick={() => setThread([])} className="ml-2 rounded-full px-2.5 py-1 text-slate-500 hover:bg-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (chatId) router.push("/");
+                  startNewChat();
+                }}
+                className="ml-2 rounded-full px-2.5 py-1 text-slate-500 hover:bg-slate-100"
+              >
                 New chat
               </button>
             )}
