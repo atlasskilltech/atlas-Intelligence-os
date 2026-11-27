@@ -1,7 +1,7 @@
 // Single source of truth for the sidebar. Add new pages here.
 export const PRIMARY_NAV = [
-  { href: "/connectors", label: "Plugins", icon: "plug" },
   { href: "/voice", label: "Voice Agent", icon: "mic" },
+  { href: "/connectors", label: "Plugins", icon: "plug" },
 ];
 
 // Settings, Email sender, Usage and Account are tabs of the Settings popup (account menu).
