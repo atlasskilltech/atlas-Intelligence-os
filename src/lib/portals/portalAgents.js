@@ -18,10 +18,10 @@
  * falling back to the project name, so a renamed project still finds its agent.
  */
 
-// Hosts for portals whose URL is not fixed yet can be set at build time
-// (NEXT_PUBLIC_* — the Connect form runs in the browser, so Next inlines these
-// literal references). Without one the preset shows a placeholder host that
-// the admin must replace before connecting.
+// Portal hosts can be overridden at build time (NEXT_PUBLIC_* — the Connect
+// form runs in the browser, so Next inlines these literal references).
+// LearnX and Admissions default to their UAT hosts; International has no
+// default, so it gets no preset unless one is set.
 const ENV_HOSTS = {
   learnx: process.env.NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL,
   admissions: process.env.NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL,
@@ -113,8 +113,8 @@ export const PORTAL_AGENTS = [
     brainAction: "sage_brain",
     nameMatch: /learn\s*x/i,
     preset: {
-      baseUrl: ENV_HOSTS.learnx || "https://your-learnx-host/agent-api",
-      hostPlaceholder: !ENV_HOSTS.learnx,
+      baseUrl: ENV_HOSTS.learnx || "https://uat-learnx.atlasskilltech.app/agent-api",
+      hostPlaceholder: false,
       keyHint: "ATLAS LearnX → Admin → IntelligenceOS Connector → Generate API key.",
       delegated: true,
     },
@@ -129,8 +129,8 @@ export const PORTAL_AGENTS = [
     brainAction: "arya_brain",
     nameMatch: /admissions?\b/i,
     preset: {
-      baseUrl: ENV_HOSTS.admissions || "https://your-admissions-host/agent-api",
-      hostPlaceholder: !ENV_HOSTS.admissions,
+      baseUrl: ENV_HOSTS.admissions || "https://uat-admissions.atlasskilltech.app/agent-api",
+      hostPlaceholder: false,
       keyHint: "ATLAS Admissions → Admin → IntelligenceOS Connector → Generate API key.",
       delegated: true,
     },

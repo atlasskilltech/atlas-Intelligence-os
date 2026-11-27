@@ -42,10 +42,11 @@ test("presets: existing CRM / Career Services unchanged, four new portals delega
     assert.equal(by[id].name, by[id].label);
     assert.ok(by[id].keyHint);
   }
-  // Unknown hosts are placeholders, flagged so the form asks for the real one.
-  for (const id of ["learnx", "admissions"]) {
-    if (by[id].hostPlaceholder) assert.match(by[id].baseUrl, /^https:\/\/your-/);
-  }
+  // LearnX and Admissions default to their UAT hosts (env overrides).
+  if (!process.env.NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL) assert.equal(by.learnx.baseUrl, "https://uat-learnx.atlasskilltech.app/agent-api");
+  if (!process.env.NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL) assert.equal(by.admissions.baseUrl, "https://uat-admissions.atlasskilltech.app/agent-api");
+  assert.equal(by.learnx.hostPlaceholder, false);
+  assert.equal(by.admissions.hostPlaceholder, false);
   assert.equal(by.dashboard.hostPlaceholder, false);
   // No International preset unless a host is configured.
   if (!process.env.NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL) assert.equal(by.international, undefined);

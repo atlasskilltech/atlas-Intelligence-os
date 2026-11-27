@@ -26,16 +26,16 @@ Adding a portal is one entry in the registry plus its example chips in
 | **VOYA** | ATLAS International | Set by the portal team (not confirmed here) | per install — `NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL` (no preset otherwise) | Yes | `ask_voya` | `voya_brain` |
 | **NOVA** | ATLAS Dashboard | Navigating Operations, Visibility & Academics | `https://uat-dashboard.atlasskilltech.app/agent-api` | Yes | `ask_nova` | `nova_brain` |
 | **MIRA** | ATLAS HRMS | My Intelligent Resource Assistant | `https://uat-hr.atlasskilltech.app/agent-api` | Yes | `ask_mira` | `mira_brain` |
-| **SAGE** | ATLAS LearnX | Smart Academic Guide for Education | `/agent-api` on the LearnX host — `NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL`, else a placeholder | Yes | `ask_sage` | `sage_brain` |
-| **ARYA** | ATLAS Admissions | Admissions Response & Yield Assistant | `/agent-api` on the Admissions host — `NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL`, else a placeholder | Yes | `ask_arya` | `arya_brain` |
+| **SAGE** | ATLAS LearnX | Smart Academic Guide for Education | `https://uat-learnx.atlasskilltech.app/agent-api` (override: `NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL`) | Yes | `ask_sage` | `sage_brain` |
+| **ARYA** | ATLAS Admissions | Admissions Response & Yield Assistant | `https://uat-admissions.atlasskilltech.app/agent-api` (override: `NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL`) | Yes | `ask_arya` | `arya_brain` |
 
 KAIRO's and VOYA's ask action may be published as a generic `ask` / `agent_ask` on older portal
 builds; the project is then matched to its agent by name, and the planner is told to accept those ids.
 
 Name meanings are recorded in the registry (`meaning`); KAIRO and VOYA are left blank until those portal teams confirm theirs — never
-invent one. The `NEXT_PUBLIC_*` hosts are read at **build time** (the Connect form runs in the
-browser). With no value the preset shows `https://your-<portal>-host/agent-api`, which the admin
-must replace before connecting.
+invent one. The `NEXT_PUBLIC_*` host overrides are read at **build time** (the Connect form runs in the
+browser); set them for production. Without one, LearnX and Admissions use their UAT hosts and
+International gets no preset.
 
 ## What each portal covers
 
@@ -58,7 +58,7 @@ Exact scope names are those on each portal's IntelligenceOS key screen.
    **Acts as the signed-in user** on.
 2. **IntelligenceOS → Connectors → Connect project**: click the portal's chip (e.g.
    *ATLAS HRMS · MIRA*). Name, URL and the *acts as the signed-in user* box are filled; fix the
-   host if it differs (LearnX / Admissions: replace the placeholder), paste the key, **Connect**.
+   host if it differs, paste the key, **Connect**.
    IntelligenceOS fetches `GET <url>/manifest`, which lists `ask_<agent>`, `<agent>_brain`,
    `list_agents`, `activate_agent`, `deactivate_agent`, `run_agent` and the portal's own actions.
 3. **Two-way sync (§2b):** IntelligenceOS calls `POST <url>/connect` with its callback URL and
