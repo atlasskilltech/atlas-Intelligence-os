@@ -81,7 +81,7 @@ gets a dashboard notification. Short-lived confirm links are fine; the run page 
 
 ## 2b. Two-way sync of the project's own agents (optional)
 
-Projects that run agents of their own (ATLAS CRM: Aila missions and workflows; ATLAS Career
+Projects that run agents of their own (ATLAS CRM: AILA missions and workflows; ATLAS Career
 Services: Uni-AI Agent routines and Placement CRM workflows) can keep IntelligenceOS in sync.
 Their manifest adds:
 

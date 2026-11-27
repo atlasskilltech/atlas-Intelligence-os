@@ -32,7 +32,7 @@ export const PORTAL_AGENTS = [
   {
     id: "crm",
     portal: "ATLAS CRM",
-    persona: "Aila",
+    persona: "AILA",
     meaning: "Artificial Intelligence & Learning Assistant",
     focus: "admissions leads, counsellors, follow-ups, applications, payments and campaigns",
     askAction: "ask_aila",
@@ -182,7 +182,7 @@ export function portalAgentFor(project) {
   return null;
 }
 
-/** One line for prompts: `ATLAS CRM → Aila (ask_aila, aila_brain)` … */
+/** One line for prompts: `ATLAS CRM → AILA (ask_aila, aila_brain)` … */
 export function portalAgentsSummary() {
   return PORTAL_AGENTS.map((p) => `${p.portal} → ${p.persona} (ask: ${p.askAction}, brain: ${p.brainAction}; covers ${p.focus})`).join("\n");
 }

@@ -21,7 +21,7 @@ Adding a portal is one entry in the registry plus its example chips in
 
 | Agent | Portal | Name meaning | Connect URL (UAT) | Acts as signed-in user | Ask action | Brain action |
 |---|---|---|---|---|---|---|
-| **Aila** | ATLAS CRM | Artificial Intelligence & Learning Assistant | `https://uat-crm.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_aila` | `aila_brain` |
+| **AILA** | ATLAS CRM | Artificial Intelligence & Learning Assistant | `https://uat-crm.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_aila` | `aila_brain` |
 | **KAIRO** | ATLAS Career Services | Set by the portal team (not confirmed here) | `https://uat-careerconnect.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_kairo` | `kairo_brain` |
 | **VOYA** | ATLAS International | Set by the portal team (not confirmed here) | per install — `NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL` (no preset otherwise) | Yes | `ask_voya` | `voya_brain` |
 | **NOVA** | ATLAS Dashboard | Navigating Operations, Visibility & Academics | `https://uat-dashboard.atlasskilltech.app/agent-api` | Yes | `ask_nova` | `nova_brain` |
@@ -41,7 +41,7 @@ International gets no preset.
 
 | Agent | Data it owns | Key scopes to tick on the portal's key |
 |---|---|---|
-| Aila | Admissions leads, counsellors, follow-ups, applications, payments, campaigns | Read leads / reports; Aila ask; agents (list, activate, run) |
+| AILA | Admissions leads, counsellors, follow-ups, applications, payments, campaigns | Read leads / reports; AILA ask; agents (list, activate, run) |
 | KAIRO | Placements, internships, recruiters, drives, student applications, offers | Read; KAIRO ask; agents |
 | VOYA | International applicants, partner universities, exchange, visa progress | Read; VOYA ask; agents |
 | NOVA | Timetable, exams & invigilation, attendance, rooms, events, tickets, admissions figures | Read areas; Drafts (optional); NOVA ask & brain; agents |
@@ -85,6 +85,6 @@ Exact scope names are those on each portal's IntelligenceOS key screen.
 | ARYA | Daily admissions brief | Daily 18:30 — applications, payments, documents, flags |
 | ARYA | Document backlog watch | Weekdays 11:00 — documents waiting > 2 days by school |
 | ARYA | Bot leads not pushed | Daily 19:00 — chatbot leads not yet in the CRM, with confirm link |
-| Aila | Daily admission lead report, Counsellor workload report, Follow-up reminders | CRM recipes |
+| AILA | Daily admission lead report, Counsellor workload report, Follow-up reminders | CRM recipes |
 
 Chips live in `src/components/agents/suggestions.js`.

@@ -6,7 +6,7 @@ const reg = await import("../src/lib/portals/portalAgents.js");
 const { plannerSystemPrompt } = await import("../src/lib/planner/prompts.js");
 const { PROMPT_SUGGESTIONS } = await import("../src/components/agents/suggestions.js");
 
-const PERSONAS = { crm: "Aila", career_services: "KAIRO", international: "VOYA", dashboard: "NOVA", hrms: "MIRA", learnx: "SAGE", admissions: "ARYA" };
+const PERSONAS = { crm: "AILA", career_services: "KAIRO", international: "VOYA", dashboard: "NOVA", hrms: "MIRA", learnx: "SAGE", admissions: "ARYA" };
 
 test("registry: seven portal agents, unique ids and actions, ask_/_brain naming", () => {
   assert.equal(reg.PORTAL_AGENTS.length, 7);
@@ -60,7 +60,7 @@ test("portalAgentFor: actions win over the name, name is the fallback", () => {
   assert.equal(reg.portalAgentFor({ name: "ATLAS Admissions" }).persona, "ARYA");
   assert.equal(reg.portalAgentFor({ name: "ATLAS HRMS" }).persona, "MIRA");
   assert.equal(reg.portalAgentFor({ name: "ATLAS Dashboard" }).persona, "NOVA");
-  assert.equal(reg.portalAgentFor({ name: "ATLAS CRM" }).persona, "Aila");
+  assert.equal(reg.portalAgentFor({ name: "ATLAS CRM" }).persona, "AILA");
   assert.equal(reg.portalAgentFor({ name: "ATLAS Career Services" }).persona, "KAIRO");
   assert.equal(reg.portalAgentFor({ name: "ATLAS Procurement" }), null);
   assert.equal(reg.portalAgentFor(null), null);
