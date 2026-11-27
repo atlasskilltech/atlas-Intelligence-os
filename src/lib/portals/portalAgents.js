@@ -10,8 +10,7 @@
  *
  * Plain data, no server-only imports: the client components import it too.
  *
- * `meaning` is filled only where the portal has published what its agent's
- * name stands for; null means "ask the portal team" — never invent one.
+ * `meaning` is what each agent's name stands for (operator-approved, Nov 2026).
  *
  * Adding a portal is one entry here. A connected project is matched to its
  * entry by the manifest actions it exposes (`<agent>_brain` / `ask_<agent>`),
@@ -28,12 +27,18 @@ const ENV_HOSTS = {
   international: process.env.NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL,
 };
 
+/** IntelligenceOS's own super agent, which works across every portal agent below. */
+export const SUPER_AGENT = Object.freeze({
+  name: "NEXUS",
+  meaning: "Networked Executive for Unified Systems",
+});
+
 export const PORTAL_AGENTS = [
   {
     id: "crm",
     portal: "ATLAS CRM",
     persona: "AILA",
-    meaning: "Artificial Intelligence & Learning Assistant",
+    meaning: "ATLAS Intelligent Lead Assistant",
     focus: "admissions leads, counsellors, follow-ups, applications, payments and campaigns",
     askAction: "ask_aila",
     brainAction: "aila_brain",
@@ -48,7 +53,7 @@ export const PORTAL_AGENTS = [
     id: "career_services",
     portal: "ATLAS Career Services",
     persona: "KAIRO",
-    meaning: null,
+    meaning: "Knowledge & AI for Internships, Recruitment & Opportunities",
     focus: "placements, internships, recruiters, drives, student applications and offers",
     askAction: "ask_kairo",
     brainAction: "kairo_brain",
@@ -63,7 +68,7 @@ export const PORTAL_AGENTS = [
     id: "international",
     portal: "ATLAS International",
     persona: "VOYA",
-    meaning: null,
+    meaning: "Virtual Overseas & Year-Abroad Assistant",
     focus: "international applicants, partner universities, exchange and visa progress",
     askAction: "ask_voya",
     brainAction: "voya_brain",

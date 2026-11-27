@@ -90,3 +90,10 @@ test("suggestions: chips for every new portal agent, unique labels", () => {
     assert.ok(labels.includes(l), l);
   }
 });
+
+test("every agent records what its name stands for, plus the NEXUS super agent", async () => {
+  const reg = await import("../src/lib/portals/portalAgents.js");
+  for (const p of reg.PORTAL_AGENTS) assert.ok(typeof p.meaning === "string" && p.meaning.length > 5, p.persona);
+  assert.equal(reg.SUPER_AGENT.name, "NEXUS");
+  assert.equal(reg.SUPER_AGENT.meaning, "Networked Executive for Unified Systems");
+});

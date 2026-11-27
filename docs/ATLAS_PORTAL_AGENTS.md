@@ -17,13 +17,19 @@ The list below lives in ONE registry: `src/lib/portals/portalAgents.js`. It driv
 Adding a portal is one entry in the registry plus its example chips in
 `src/components/agents/suggestions.js`.
 
+## The super agent
+
+IntelligenceOS's own assistant is **NEXUS** (Networked Executive for Unified Systems). It sits
+above the seven portal agents: it reads each portal's `*_brain`, asks the portal's own agent
+through `ask_*`, and builds IntelligenceOS agents that use them (`SUPER_AGENT` in the registry).
+
 ## The seven agents
 
 | Agent | Portal | Name meaning | Connect URL (UAT) | Acts as signed-in user | Ask action | Brain action |
 |---|---|---|---|---|---|---|
-| **AILA** | ATLAS CRM | Artificial Intelligence & Learning Assistant | `https://uat-crm.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_aila` | `aila_brain` |
-| **KAIRO** | ATLAS Career Services | Set by the portal team (not confirmed here) | `https://uat-careerconnect.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_kairo` | `kairo_brain` |
-| **VOYA** | ATLAS International | Set by the portal team (not confirmed here) | per install — `NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL` (no preset otherwise) | Yes | `ask_voya` | `voya_brain` |
+| **AILA** | ATLAS CRM | ATLAS Intelligent Lead Assistant | `https://uat-crm.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_aila` | `aila_brain` |
+| **KAIRO** | ATLAS Career Services | Knowledge & AI for Internships, Recruitment & Opportunities | `https://uat-careerconnect.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_kairo` | `kairo_brain` |
+| **VOYA** | ATLAS International | Virtual Overseas & Year-Abroad Assistant | per install — `NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL` (no preset otherwise) | Yes | `ask_voya` | `voya_brain` |
 | **NOVA** | ATLAS Dashboard | Navigating Operations, Visibility & Academics | `https://uat-dashboard.atlasskilltech.app/agent-api` | Yes | `ask_nova` | `nova_brain` |
 | **MIRA** | ATLAS HRMS | My Intelligent Resource Assistant | `https://uat-hr.atlasskilltech.app/agent-api` | Yes | `ask_mira` | `mira_brain` |
 | **SAGE** | ATLAS LearnX | Smart Academic Guide for Education | `https://uat-learnx.atlasskilltech.app/agent-api` (override: `NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL`) | Yes | `ask_sage` | `sage_brain` |
@@ -32,8 +38,7 @@ Adding a portal is one entry in the registry plus its example chips in
 KAIRO's and VOYA's ask action may be published as a generic `ask` / `agent_ask` on older portal
 builds; the project is then matched to its agent by name, and the planner is told to accept those ids.
 
-Name meanings are recorded in the registry (`meaning`); KAIRO and VOYA are left blank until those portal teams confirm theirs — never
-invent one. The `NEXT_PUBLIC_*` host overrides are read at **build time** (the Connect form runs in the
+Name meanings are recorded in the registry (`meaning`). The `NEXT_PUBLIC_*` host overrides are read at **build time** (the Connect form runs in the
 browser); set them for production. Without one, LearnX and Admissions use their UAT hosts and
 International gets no preset.
 

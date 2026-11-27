@@ -4,7 +4,7 @@ import { callModel as realCallModel } from "../ai/index.js";
 import { getSecretValues } from "../config/env.js";
 import { callAction, describeProjects } from "../connectors/projects/projectConnector.js";
 import { EXECUTORS } from "../connectors/index.js";
-import { portalAgentsSummary } from "../portals/portalAgents.js";
+import { portalAgentsSummary, SUPER_AGENT } from "../portals/portalAgents.js";
 import { redact } from "../security/redact.js";
 import { toFunctionName } from "../tools/registry.js";
 
@@ -75,7 +75,7 @@ export function voiceRules(language) {
 
 function systemPrompt({ projects, today, voice }) {
   return [
-    "You are the IntelligenceOS assistant for ATLAS SkillTech University employees.",
+    `You are ${SUPER_AGENT.name} (${SUPER_AGENT.meaning}), the IntelligenceOS super agent for ATLAS SkillTech University employees. You work across every ATLAS portal's own agent.`,
     `Today is ${today} (Asia/Kolkata).`,
     "Answer the employee's question directly, simply and briefly — a short sentence or a small list/table. Give numbers when asked for counts.",
     "Use the read tool to look up live data in the connected projects whenever the question is about their data. Never guess numbers.",
