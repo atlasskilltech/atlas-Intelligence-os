@@ -54,6 +54,12 @@ export const PROMPT_SUGGESTIONS = [
       "Every Friday at 5:00 PM, use the ATLAS Dashboard room usage for each day from Monday to Friday this week to report, per building, how many rooms were used and idle each day, and list the 10 busiest rooms of the week. Create a report and notify me.",
   },
 
+  {
+    label: "Ask NOVA: what needs attention",
+    prompt:
+      "Ask NOVA, the ATLAS Dashboard's own agent, what needs attention on campus today (timetable gaps, exams without invigilators, low attendance, open tickets), using its brain first, and summarise the answer with the key numbers.",
+  },
+
   // ── ATLAS Dashboard: Admissions (/admissions/dashboard) ──
   {
     label: "Admissions today",
@@ -85,6 +91,47 @@ export const PROMPT_SUGGESTIONS = [
     label: "Follow-up reminders",
     prompt: "Every evening, list CRM leads with overdue follow-ups, group them by counsellor and notify me with a summary.",
   },
+  // ── ATLAS HRMS (MIRA) ──
+  {
+    label: "Pending approvals nudge",
+    prompt:
+      "Every weekday at 10:00 AM, read MIRA's brain in ATLAS HRMS and list the leave and attendance-regularisation requests waiting for approval for more than 2 days, grouped by approver with the oldest first. Create a report and notify me with the number pending. Do not approve or reject anything.",
+  },
+  {
+    label: "Weekly attendance irregularities",
+    prompt:
+      "Every Monday at 9:00 AM, ask MIRA in ATLAS HRMS for last week's attendance irregularities (late marks, missed punches, absences without leave) by department, highlight employees with three or more, create a report and notify me.",
+  },
+
+  // ── ATLAS LearnX (SAGE) ──
+  {
+    label: "Grading queue",
+    prompt:
+      "Every weekday at 5:00 PM, ask SAGE in ATLAS LearnX which assignment submissions are waiting to be graded, grouped by course and faculty with the oldest first and anything past the grading deadline highlighted. Create a report and notify me.",
+  },
+  {
+    label: "At-risk students",
+    prompt:
+      "Every Monday at 8:30 AM, read SAGE's brain in ATLAS LearnX and list students at risk (missed submissions, low scores or no activity in the last 14 days) by course, with the reason for each. Create a report and notify me with the number of at-risk students.",
+  },
+
+  // ── ATLAS Admissions (ARYA) ──
+  {
+    label: "Daily admissions brief",
+    prompt:
+      "Every day at 6:30 PM, read ARYA's brain in ATLAS Admissions and build today's admissions brief: new applications, payments, documents submitted and verified, and anything ARYA flags as needing attention. Keep the key numbers first, create a report and notify me.",
+  },
+  {
+    label: "Document backlog watch",
+    prompt:
+      "Every weekday at 11:00 AM, ask ARYA in ATLAS Admissions for applications whose documents have been waiting for verification for more than 2 days, grouped by school with the oldest first. If there are none, finish without notifying; otherwise create a report and notify me.",
+  },
+  {
+    label: "Bot leads not pushed",
+    prompt:
+      "Every evening at 7:00 PM, ask ARYA in ATLAS Admissions which chatbot leads from today have not yet been pushed to the CRM, with the reason for each. Notify me with the count and the list. If ARYA proposes pushing them, include its confirm link so I can approve it in ATLAS Admissions.",
+  },
+
   {
     label: "Research submission check",
     prompt: "When a new research paper is submitted, check that the required fields are filled in and notify the reviewer.",

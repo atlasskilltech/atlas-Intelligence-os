@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { Alert, Spinner } from "@/components/ui/States";
 import { api } from "./ProjectsSection";
+import { portalAgentFor } from "@/lib/portals/portalAgents";
 
 const when = (iso) =>
   iso ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(iso)) : "—";
@@ -26,6 +27,7 @@ export default function ProjectAgents({ project, isAdmin }) {
   const ids = new Set(project.manifest.actions.map((a) => a.id));
   const can = { activate: ids.has("activate_agent"), deactivate: ids.has("deactivate_agent"), run: ids.has("run_agent") };
   const ev = project.events || null;
+  const persona = portalAgentFor(project);
 
   useEffect(() => {
     let live = true;
@@ -74,7 +76,7 @@ export default function ProjectAgents({ project, isAdmin }) {
     <Card>
       <CardHeader
         title={`Agents in ${project.name}`}
-        description={`${project.name} reports every change to its own agents here as a signed event, so this list stays in sync without polling.`}
+        description={`${persona ? `${persona.persona} is ${project.name}'s own AI agent. ` : ""}${project.name} reports every change to its own agents here as a signed event, so this list stays in sync without polling.`}
       />
       <CardBody className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">

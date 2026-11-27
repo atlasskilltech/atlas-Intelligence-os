@@ -4,6 +4,7 @@ import { redact } from "../../security/redact.js";
 import { defineConnector } from "../defineConnector.js";
 import { parseBody } from "../http/parseBody.js";
 import { safeFetch } from "../http/safeFetch.js";
+import { portalAgentTag } from "../../portals/portalAgents.js";
 import { checkParams } from "./manifest.js";
 import { USER_AGENT, USER_HEADER, fetchManifest, getProject, listProjects, markProjectError, projectKey } from "./projectRepo.js";
 
@@ -198,7 +199,7 @@ export async function describeProjects(kind, { userEmail = null, onlyIds = null 
     const { actions } = await actionsFor(p, userEmail);
     const acts = actions.filter(ofKind(kind));
     if (!acts.length) continue;
-    lines.push(`Project "${p.id}" — ${p.name}`);
+    lines.push(`Project "${p.id}" — ${p.name}${portalAgentTag({ name: p.name, actions })}`);
     for (const a of acts) lines.push(`  - action "${a.id}": ${a.name}${a.description ? ` — ${a.description}` : ""}${paramText(a)}`);
   }
   return lines.length ? `Connected projects (* = required):\n${lines.join("\n")}` : "";

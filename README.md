@@ -27,6 +27,7 @@ Open http://localhost:3000, then go to **Model Settings → Test connection** to
 - [Architecture](docs/ARCHITECTURE.md)
 - [Implementation checklist](docs/CHECKLIST.md)
 - [ATLAS Agent API spec](docs/AGENT_API_SPEC.md) — how other ATLAS projects connect with a key
+- [ATLAS portal agents](docs/ATLAS_PORTAL_AGENTS.md) — Aila, KAIRO, VOYA, NOVA, MIRA, SAGE, ARYA: presets, ask/brain actions, recipes
 
 ## Sign-in (Google) and users
 

@@ -134,6 +134,11 @@ agent ─► atlas_project.read / .write { project, action, params }
 
 Contract: `docs/AGENT_API_SPEC.md`. Reference add-on: `examples/agent-api-node/`.
 
+**Portal agents:** each ATLAS portal's own AI agent (Aila, KAIRO, VOYA, NOVA, MIRA, SAGE, ARYA) is
+declared once in `lib/portals/portalAgents.js` — Connect-form presets, the persona on the project
+card, the planner/assistant routing and the per-project tag in tool descriptions all read it.
+See `docs/ATLAS_PORTAL_AGENTS.md`.
+
 **Acting as the user (v1.1):** a project connected with `delegated: true` receives
 `X-IntelligenceOS-User: <agent owner's email>` on every call. IntelligenceOS fetches that user's
 manifest (cached 10 min) so the planner and the run only offer what the owner may do there; the

@@ -10,6 +10,7 @@ import { Field, Input } from "@/components/ui/Field";
 import Icon from "@/components/ui/Icon";
 import { Alert, EmptyState, Spinner } from "@/components/ui/States";
 import { pluginLogo } from "./pluginLogos";
+import { portalAgentFor, portalPresets } from "@/lib/portals/portalAgents";
 
 export async function api(path, options) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -57,6 +58,8 @@ const FILTERS = [
 export function pluginSummary(p) {
   const c = counts(p);
   const parts = ["Connector", "By ATLAS", p.manifest.key.access || "Custom access"];
+  const agent = portalAgentFor(p);
+  if (agent) parts.push(`Agent ${agent.persona}`);
   if (c.write > 0) parts.push(`${c.write} change data`);
   return parts.join(" · ");
 }
@@ -281,28 +284,12 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
   );
 }
 
-// Two-way ATLAS portals that speak the IntelligenceOS connector contract
-// (`/api/intos/v1`). Picking one fills the name and URL; the admin edits the
-// host if theirs differs and pastes the key generated on that portal's
-// IntelligenceOS Connector settings page.
-export const PROJECT_PRESETS = [
-  {
-    id: "career_services",
-    label: "ATLAS Career Services",
-    name: "ATLAS Career Services",
-    baseUrl: "https://uat-careerconnect.atlasskilltech.app/api/intos/v1",
-    keyHint: "Career Services → Admin → Settings → IntelligenceOS Connector → Generate API key.",
-    delegated: false,
-  },
-  {
-    id: "crm",
-    label: "ATLAS CRM",
-    name: "ATLAS CRM",
-    baseUrl: "https://uat-crm.atlasskilltech.app/api/intos/v1",
-    keyHint: "CRM → Settings → IntelligenceOS Connector → Generate API key.",
-    delegated: false,
-  },
-];
+// Two-way ATLAS portals that speak the IntelligenceOS connector contract.
+// Picking one fills the name, URL and the "acts as the signed-in user" box; the
+// admin edits the host if theirs differs and pastes the key generated on that
+// portal's IntelligenceOS Connector settings page. The list lives in ONE
+// registry (src/lib/portals/portalAgents.js) with each portal's own agent.
+export const PROJECT_PRESETS = portalPresets();
 
 function ConnectForm({ onCancel, onConnected }) {
   const [form, setForm] = useState({ name: "", baseUrl: "https://", key: "", delegated: false });
@@ -348,12 +335,17 @@ function ConnectForm({ onCancel, onConnected }) {
                   }`}
                 >
                   {pr.label}
+                  {pr.persona && <span className="ml-1 text-slate-400">· {pr.persona}</span>}
                 </button>
               ))}
             </div>
             {preset && (
               <p className="mt-1.5 text-xs text-slate-500">
-                Get the key from {preset.keyHint} Change the URL if your {preset.label} lives elsewhere. Its agents will appear on the project page and stay in sync.
+                Get the key from {preset.keyHint}{" "}
+                {preset.hostPlaceholder
+                  ? `Replace the placeholder host with your ${preset.label} address.`
+                  : `Change the URL if your ${preset.label} lives elsewhere.`}{" "}
+                {preset.persona ? `Its agent ${preset.persona} and the portal's other agents` : "Its agents"} will appear on the project page and stay in sync.
               </p>
             )}
           </div>
