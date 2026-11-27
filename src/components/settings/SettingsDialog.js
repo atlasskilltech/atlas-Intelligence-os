@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import AccountView from "@/components/settings/panels/AccountView";
 import AgentsView from "@/components/settings/panels/AgentsView";
 import EmailView from "@/components/settings/panels/EmailView";
+import PluginsView from "@/components/settings/panels/PluginsView";
 import SettingsView from "@/components/settings/panels/SettingsView";
 import UsageView from "@/components/settings/panels/UsageView";
 import Icon from "@/components/ui/Icon";
@@ -20,13 +21,14 @@ export const SETTINGS_TABS = [
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "email", label: "Email sender", icon: "mail" },
   { id: "usage", label: "Usage", icon: "chart" },
+  { id: "plugins", label: "Plugins", icon: "plug", divider: true },
 ];
 const OWN_POPUPS = { agents: "All Agents" };
 
 export const settingsHref = (tab) => (OWN_POPUPS[tab] ? `#${tab}` : `#settings/${tab}`);
 const POPUP_LINK = 'a[href*="#settings/"], a[href$="#agents"]';
 
-const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, agents: AgentsView };
+const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, plugins: PluginsView, agents: AgentsView };
 
 /** "#settings/usage" → "usage", "#agents" → "agents"; anything else → null. */
 function tabFromHash(hash, isAdmin) {
@@ -177,7 +179,7 @@ export default function SettingsDialog({ isAdmin = false }) {
             <nav aria-label="Settings sections" className="shrink-0 overflow-x-auto border-b border-slate-200 p-2 sm:w-52 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
               <ul className="flex gap-1 sm:flex-col">
                 {SETTINGS_TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
-                  <li key={t.id}>
+                  <li key={t.id} className={t.divider ? "sm:mt-2 sm:border-t sm:border-slate-200 sm:pt-2" : undefined}>
                     <button
                       type="button"
                       onClick={() => pick(t.id)}

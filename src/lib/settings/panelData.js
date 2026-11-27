@@ -2,7 +2,8 @@ import "server-only";
 import { getAIStatus } from "../ai/index.js";
 import { DEFAULT_PRICING } from "../ai/pricing.js";
 import { listAgents } from "../agents/agentRepo.js";
-import { getEmailConfig, getGoogleAuth, getStorageInfo, isAuthEnabled } from "../config/env.js";
+import { getEmailConfig, getEncryptionKey, getGoogleAuth, getStorageInfo, isAuthEnabled } from "../config/env.js";
+import { listProjects, publicProject } from "../connectors/projects/projectRepo.js";
 import { TABLE_PREFIX, dbStatus } from "../db/mysql.js";
 import { getSenderFor } from "../email/senderSettings.js";
 import { getUsageSummary } from "../usage/usageStore.js";
@@ -14,7 +15,7 @@ import { ELEVENLABS_MODELS, getModelSettings, LIMITS, MAX_ELEVENLABS_VOICES } fr
  * plain JSON. Never includes secrets: API keys, the mail password and the Google
  * client secret stay here.
  */
-export const PANEL_TABS = ["settings", "email", "usage", "agents", "account"];
+export const PANEL_TABS = ["settings", "email", "usage", "plugins", "agents", "account"];
 
 export async function settingsPanelData() {
   return {
@@ -25,6 +26,15 @@ export async function settingsPanelData() {
     defaultPricing: DEFAULT_PRICING,
     elevenlabsModels: ELEVENLABS_MODELS,
     maxVoices: MAX_ELEVENLABS_VOICES,
+  };
+}
+
+/** Plugins tab: the connected ATLAS apps (keys never included; publicProject drops them). */
+export async function pluginsPanelData(actor) {
+  return {
+    isAdmin: actor.role === "admin",
+    canStoreKeys: (getEncryptionKey() || "").length >= 16,
+    projects: (await listProjects()).map(publicProject),
   };
 }
 
@@ -152,6 +162,7 @@ export async function accountPanelData(actor) {
 export function panelData(tab, actor) {
   if (tab === "settings") return settingsPanelData();
   if (tab === "email") return emailPanelData(actor);
+  if (tab === "plugins") return pluginsPanelData(actor);
   if (tab === "usage") return usagePanelData(actor);
   if (tab === "agents") return agentsPanelData(actor);
   return accountPanelData(actor);

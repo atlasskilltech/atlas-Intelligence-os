@@ -54,7 +54,7 @@ const FILTERS = [
 ];
 
 /** One line under the plugin's name: type, maker and what its key allows. */
-function pluginSummary(p) {
+export function pluginSummary(p) {
   const c = counts(p);
   const parts = ["Connector", "By ATLAS", p.manifest.key.access || "Custom access"];
   if (c.write > 0) parts.push(`${c.write} change data`);
@@ -62,7 +62,7 @@ function pluginSummary(p) {
 }
 
 /** The "···" menu on a plugin row: details, and enable / disable for admins. */
-function RowMenu({ p, isAdmin, busy, onToggle }) {
+export function RowMenu({ p, isAdmin, busy, onToggle }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
