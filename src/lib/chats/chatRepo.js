@@ -98,3 +98,29 @@ export async function deleteChat(actor, id) {
     return { value: { chats: chats.filter((c) => c.id !== id) }, result: true };
   });
 }
+
+/**
+ * Your chats whose title or messages contain `q` (case-insensitive), newest first,
+ * each with a short snippet around the first match. Empty `q` → most recent chats.
+ */
+export async function searchChats(actor, q, { limit = 20 } = {}) {
+  const { chats = [] } = (await readJson(FILE, EMPTY)) || {};
+  const needle = String(q || "").trim().toLowerCase();
+  const mine = chats.filter((c) => c.ownerId === actor.id).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  const out = [];
+  for (const c of mine) {
+    if (out.length >= limit) break;
+    let snippet = "";
+    if (needle) {
+      if (!c.title.toLowerCase().includes(needle)) {
+        const m = c.messages.find((x) => x.content.toLowerCase().includes(needle));
+        if (!m) continue;
+        const i = m.content.toLowerCase().indexOf(needle);
+        const start = Math.max(0, i - 40);
+        snippet = `${start > 0 ? "…" : ""}${m.content.slice(start, i + needle.length + 60).replace(/\s+/g, " ").trim()}…`;
+      }
+    }
+    out.push({ id: c.id, title: c.title, updatedAt: c.updatedAt, snippet });
+  }
+  return out;
+}

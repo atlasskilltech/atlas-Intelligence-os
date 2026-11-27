@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { HomeModeToggle, useHomeMode } from "./HomeMode";
+import { openSearch } from "./SearchDialog";
 import SidebarHistory from "./SidebarHistory";
 import UserMenu from "./UserMenu";
 import { NEW_HREF, PRIMARY_NAV, SECONDARY_NAV, activeHref } from "./navigation";
@@ -82,6 +83,20 @@ export default function Sidebar({ aiConfigured, recentAgents = [], user = null, 
 
       <div className="flex-1 overflow-y-auto px-3 py-3 [scrollbar-color:rgba(255,255,255,.25)_transparent] [scrollbar-width:thin]">
         <ul className="space-y-px">
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate?.();
+                openSearch();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-white/65 transition-colors hover:bg-white/8 hover:text-white"
+            >
+              <Icon name="search" className="size-[18px] shrink-0 opacity-80" />
+              <span className="flex-1 truncate">Search</span>
+              <kbd className="hidden rounded border border-white/15 px-1 font-sans text-[10px] text-white/40 lg:inline">Ctrl K</kbd>
+            </button>
+          </li>
           {PRIMARY_NAV.map((item) => (
             <li key={item.href}>
               <NavLink item={item} active={item.href === current} onNavigate={onNavigate} />

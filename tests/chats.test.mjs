@@ -7,7 +7,7 @@ import path from "node:path";
 
 process.env.DATA_DIR = await mkdtemp(path.join(tmpdir(), "atlas-chats-"));
 
-const { appendToChat, deleteChat, getChat, listChats, ChatNotFound } = await import("../src/lib/chats/chatRepo.js");
+const { appendToChat, deleteChat, getChat, listChats, searchChats, ChatNotFound } = await import("../src/lib/chats/chatRepo.js");
 
 const alice = { id: "u_1", role: "user" };
 const bob = { id: "u_2", role: "admin" };
@@ -48,4 +48,16 @@ test("newest chat first; delete removes it", async () => {
   await deleteChat(alice, second.id);
   assert.ok(!(await listChats(alice)).some((c) => c.id === second.id));
   await assert.rejects(getChat(alice, "../../etc"), ChatNotFound);
+});
+
+test("search finds your chats by title or by what was said, never other people's", async () => {
+  await appendToChat(alice, null, [{ role: "user", content: "Faculty free in block B?" }, { role: "assistant", content: "Dr. Rao is free at 3 pm." }]);
+  const byTitle = await searchChats(alice, "block b");
+  assert.equal(byTitle.length, 1);
+  assert.equal(byTitle[0].snippet, "", "title matches need no snippet");
+  const byText = await searchChats(alice, "dr. rao");
+  assert.equal(byText.length, 1);
+  assert.match(byText[0].snippet, /Dr\. Rao is free/);
+  assert.deepEqual(await searchChats(bob, "rao"), []);
+  assert.ok((await searchChats(alice, "")).length >= 2, "empty search lists recent chats");
 });

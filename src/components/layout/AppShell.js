@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import { HomeModeProvider, useHomeMode } from "./HomeMode";
+import SearchDialog from "./SearchDialog";
 import Sidebar, { Logo } from "./Sidebar";
 import SettingsDialog, { settingsHref } from "@/components/settings/SettingsDialog";
 import ThemeToggle from "./ThemeToggle";
@@ -269,6 +270,7 @@ function Shell({ aiConfigured = false, recentAgents = [], user = null, children 
           {children}
         </main>
         <SettingsDialog isAdmin={user?.role === "admin"} />
+        <SearchDialog />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import AccountView from "@/components/settings/panels/AccountView";
 import AgentsView from "@/components/settings/panels/AgentsView";
 import EmailView from "@/components/settings/panels/EmailView";
+import ExecutionView from "@/components/settings/panels/ExecutionView";
 import PluginsView from "@/components/settings/panels/PluginsView";
 import SettingsView from "@/components/settings/panels/SettingsView";
 import UsageView from "@/components/settings/panels/UsageView";
@@ -21,6 +22,7 @@ export const SETTINGS_TABS = [
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "email", label: "Email sender", icon: "mail" },
   { id: "usage", label: "Usage", icon: "chart" },
+  { id: "execution", label: "Execution", icon: "history" },
   { id: "plugins", label: "Plugins", icon: "plug", divider: true },
 ];
 const OWN_POPUPS = { agents: "All Agents" };
@@ -28,7 +30,7 @@ const OWN_POPUPS = { agents: "All Agents" };
 export const settingsHref = (tab) => (OWN_POPUPS[tab] ? `#${tab}` : `#settings/${tab}`);
 const POPUP_LINK = 'a[href*="#settings/"], a[href$="#agents"]';
 
-const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, plugins: PluginsView, agents: AgentsView };
+const VIEWS = { account: AccountView, settings: SettingsView, email: EmailView, usage: UsageView, execution: ExecutionView, plugins: PluginsView, agents: AgentsView };
 
 /** "#settings/usage" → "usage", "#agents" → "agents"; anything else → null. */
 function tabFromHash(hash, isAdmin) {

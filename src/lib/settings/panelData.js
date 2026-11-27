@@ -3,7 +3,8 @@ import { getAIStatus } from "../ai/index.js";
 import { DEFAULT_PRICING } from "../ai/pricing.js";
 import { listAgents } from "../agents/agentRepo.js";
 import { getEmailConfig, getEncryptionKey, getGoogleAuth, getStorageInfo, isAuthEnabled } from "../config/env.js";
-import { listProjects, publicProject } from "../connectors/projects/projectRepo.js";
+import { listProjects, projectStatusList, publicProject } from "../connectors/projects/projectRepo.js";
+import { listRuns } from "../runs/runRepo.js";
 import { TABLE_PREFIX, dbStatus } from "../db/mysql.js";
 import { getSenderFor } from "../email/senderSettings.js";
 import { getUsageSummary } from "../usage/usageStore.js";
@@ -15,7 +16,7 @@ import { ELEVENLABS_MODELS, getModelSettings, LIMITS, MAX_ELEVENLABS_VOICES } fr
  * plain JSON. Never includes secrets: API keys, the mail password and the Google
  * client secret stay here.
  */
-export const PANEL_TABS = ["settings", "email", "usage", "plugins", "agents", "account"];
+export const PANEL_TABS = ["settings", "email", "usage", "execution", "plugins", "agents", "account"];
 
 export async function settingsPanelData() {
   return {
@@ -27,6 +28,17 @@ export async function settingsPanelData() {
     elevenlabsModels: ELEVENLABS_MODELS,
     maxVoices: MAX_ELEVENLABS_VOICES,
   };
+}
+
+/** Execution tab: the latest agent runs (filters and logs are on the full /runs page). */
+export async function executionPanelData(actor) {
+  const [runs, projects] = await Promise.all([listRuns(actor, { limit: 100 }), projectStatusList()]);
+  // Who created each run's agent. Newer runs store it; look up older ones.
+  const email = new Map();
+  for (const r of runs) if (r.ownerId && r.ownerEmail && !email.has(r.ownerId)) email.set(r.ownerId, r.ownerEmail);
+  const missing = [...new Set(runs.map((r) => r.ownerId))].filter((id) => id && !email.has(id));
+  for (const [id, e] of await Promise.all(missing.map(async (id) => [id, await emailForActorId(id)]))) if (e) email.set(id, e);
+  return { runs: runs.map((r) => ({ ...r, ownerEmail: r.ownerEmail || email.get(r.ownerId) || null })), projects };
 }
 
 /** Plugins tab: the connected ATLAS apps (keys never included; publicProject drops them). */
@@ -163,6 +175,7 @@ export function panelData(tab, actor) {
   if (tab === "settings") return settingsPanelData();
   if (tab === "email") return emailPanelData(actor);
   if (tab === "plugins") return pluginsPanelData(actor);
+  if (tab === "execution") return executionPanelData(actor);
   if (tab === "usage") return usagePanelData(actor);
   if (tab === "agents") return agentsPanelData(actor);
   return accountPanelData(actor);
