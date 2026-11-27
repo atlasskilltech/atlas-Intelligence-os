@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { agentApi, postGenerate } from "@/components/agents/AgentWorkspace";
 import { loadSelectedConnectors } from "@/components/agents/ConnectorPicker";
+import { useHomeMode } from "@/components/layout/HomeMode";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "./ParticleOrb";
@@ -63,6 +65,7 @@ const MAX_UTTERANCE_MS = 60_000;
 const IDLE_RESTART_MS = 20_000; // restart the recorder if nobody speaks, keeps files small
 
 const PREFS_KEY = "atlas.voice.prefs";
+const CHAT_OPEN_KEY = "atlas.voice.chatOpen";
 const isDevanagari = (s) => /[ऀ-ॿ]/.test(s);
 
 function pickMimeType() {
@@ -92,7 +95,9 @@ export default function VoiceAgent() {
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState("");
   const [messages, setMessages] = useState([]); // { role, content, agentPrompt? }
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [showChat, setShowChat] = useState(false); // the Meet-style chat panel on the right
+  const [chatId, setChatId] = useState(null); // this conversation, saved under Chats
+  const { upsertChat } = useHomeMode();
   const [showSettings, setShowSettings] = useState(false);
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState("");
@@ -108,6 +113,7 @@ export default function VoiceAgent() {
     audioEl: null,
     recorder: null,
     chunks: [],
+    chatId: null,
     vadTimer: 0,
     abort: null,
     active: false,
@@ -146,6 +152,21 @@ export default function VoiceAgent() {
       /* storage unavailable */
     }
   }, [language, voice]);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CHAT_OPEN_KEY) === "1") setShowChat(true);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const toggleChat = (open) => {
+    setShowChat(open);
+    try {
+      localStorage.setItem(CHAT_OPEN_KEY, open ? "1" : "0");
+    } catch {
+      /* storage unavailable */
+    }
+  };
   useEffect(() => {
     r.current.messages = messages;
     transcriptEnd.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -258,22 +279,45 @@ export default function VoiceAgent() {
             projects: loadSelectedConnectors(),
             mode: "auto",
             voice: { language: s.language || undefined },
+            // Saved under Chats like a typed chat (the same conversation keeps one entry).
+            chatId: s.chatId,
+            save: true,
           }),
           signal: controller.signal,
         });
         if (!res.ok) throw await apiError(res);
         const data = await res.json();
+        if (data.chat) {
+          s.chatId = data.chat.id;
+          setChatId(data.chat.id);
+          upsertChat(data.chat); // shows up in the sidebar's chat list right away
+        }
+        const hindi = isDevanagari(userText) || s.language === "hi";
         let reply;
         let agentPrompt;
+        let agent;
         if (data.route === "agent") {
-          agentPrompt = userText;
-          reply = isDevanagari(userText) || s.language === "hi"
-            ? "यह काम एक एजेंट से ऑटोमेट हो सकता है। नीचे 'Create agent' दबाइए, मैं उसे आपके लिए तैयार कर दूँगी।"
-            : "This sounds like work to automate. Tap 'Create agent' below and I'll set up an agent for it.";
+          // Work to automate: plan it and save it as a draft agent (it never runs until someone switches it on).
+          try {
+            const plan = await postGenerate({ prompt: userText, projects: loadSelectedConnectors() });
+            if (controller.signal.aborted) return;
+            const saved = await agentApi("/api/agents", "POST", { agent: plan.agent, activate: false });
+            agent = { id: saved.agent.id, name: saved.agent.config?.name || plan.agent.name };
+            router.refresh(); // the sidebar's agent list
+            reply = hindi
+              ? `मैंने "${agent.name}" नाम का एक ड्राफ्ट एजेंट बनाकर आपके एजेंट्स में सेव कर दिया है। उसे खोलकर देख लीजिए और फिर चालू कीजिए।`
+              : `I've saved a draft agent, "${agent.name}", in your agents. Open it to review the plan, then switch it on.`;
+          } catch {
+            if (controller.signal.aborted) return;
+            agentPrompt = userText;
+            reply = hindi
+              ? "यह काम एक एजेंट से ऑटोमेट हो सकता है। नीचे 'Create agent' दबाइए, मैं उसे आपके लिए तैयार कर दूँगी।"
+              : "This sounds like work to automate. Tap 'Create agent' below and I'll set up an agent for it.";
+          }
         } else {
           reply = String(data.answer || "").trim() || "Sorry, I couldn't find an answer to that.";
         }
-        setMessages((m) => [...m, { role: "assistant", content: reply, agentPrompt }]);
+        setMessages((m) => [...m, { role: "assistant", content: reply, agentPrompt, agent }]);
         if (!s.active) return;
         await speak(reply, controller.signal);
       } catch (err) {
@@ -285,7 +329,7 @@ export default function VoiceAgent() {
       }
       if (s.active && !controller.signal.aborted) listenRef.current();
     },
-    [setP, speak],
+    [setP, speak, router, upsertChat],
   );
 
   const transcribe = useCallback(
@@ -484,15 +528,14 @@ export default function VoiceAgent() {
         e.preventDefault();
         onOrb();
       } else if (e.key === "Escape") {
-        if (showTranscript || showSettings) {
-          setShowTranscript(false);
+        if (showSettings) {
           setShowSettings(false);
         } else if (r.current.active) end();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [end, onOrb, showSettings, showTranscript]);
+  }, [end, onOrb, showSettings]);
 
   // Clean up on leave.
   useEffect(
@@ -520,7 +563,8 @@ export default function VoiceAgent() {
   const statusText = error && (phase === "error" || !active) ? error : STATUS[phase];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#030816] text-white">
+    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#030816] text-white">
+      <div className="relative flex min-w-0 flex-1 flex-col">
       {/* backdrop */}
       <div
         aria-hidden="true"
@@ -539,7 +583,7 @@ export default function VoiceAgent() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1">
-          <IconButton label="Transcript" icon="chat" onClick={() => setShowTranscript((v) => !v)} active={showTranscript} />
+          <IconButton label={showChat ? "Hide chat" : "Show chat"} icon="chat" onClick={() => toggleChat(!showChat)} active={showChat} />
           <IconButton label="Voice settings" icon="settings" onClick={() => setShowSettings((v) => !v)} active={showSettings} />
           <IconButton label="Close voice mode" icon="close" onClick={close} />
         </div>
@@ -574,6 +618,15 @@ export default function VoiceAgent() {
             <p className={cn("mt-3 line-clamp-4 max-w-xl text-base leading-relaxed", lastAssistant.error ? "text-red-200" : "text-white/85")}>
               {lastAssistant.content}
             </p>
+          )}
+          {lastAssistant?.agent && (
+            <Link
+              href={`/agents/${lastAssistant.agent.id}`}
+              onClick={end}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-1.5 text-sm font-semibold text-navy-800 hover:bg-brand-400"
+            >
+              <Icon name="bot" className="size-4" /> Review agent
+            </Link>
           )}
           {lastAssistant?.agentPrompt && (
             <Link
@@ -679,35 +732,25 @@ export default function VoiceAgent() {
         </Sheet>
       )}
 
-      {/* transcript sheet */}
-      {showTranscript && (
-        <Sheet title="Transcript" onClose={() => setShowTranscript(false)} wide>
-          {messages.length === 0 ? (
-            <p className="text-sm text-white/50">Your conversation will appear here.</p>
-          ) : (
-            <div className="space-y-3">
-              {messages.map((m, i) => (
-                <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-                  <p
-                    className={cn(
-                      "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm",
-                      m.role === "user" ? "rounded-br-md bg-brand-500 text-navy-800" : "rounded-bl-md bg-white/8 text-white/90",
-                      m.error && "bg-red-500/15 text-red-200",
-                    )}
-                  >
-                    {m.content}
-                  </p>
-                </div>
-              ))}
-              <div ref={transcriptEnd} />
-            </div>
-          )}
-          {messages.length > 0 && (
-            <button type="button" onClick={() => setMessages([])} className="mt-4 text-xs font-medium text-white/50 hover:text-white">
-              Clear conversation
-            </button>
-          )}
-        </Sheet>
+      </div>
+
+      {/* chat panel (Google Meet style): docked on the right, collapsible */}
+      {showChat && (
+        <ChatPanel
+          messages={messages}
+          chatId={chatId}
+          draft={draft}
+          setDraft={setDraft}
+          onSend={sendTyped}
+          onClose={() => toggleChat(false)}
+          onNew={() => {
+            setMessages([]);
+            setChatId(null);
+            r.current.chatId = null;
+          }}
+          endRef={transcriptEnd}
+          onOpenLink={end}
+        />
       )}
     </div>
   );
@@ -782,3 +825,124 @@ function Dots() {
     </span>
   );
 }
+
+/**
+ * Google Meet style chat panel for voice mode, docked on the right (full screen
+ * on phones). Shows the conversation as text, lets you type, and says where it
+ * is saved: this conversation is under Chats, agents it creates are under Agents.
+ */
+function ChatPanel({ messages, chatId, draft, setDraft, onSend, onClose, onNew, endRef, onOpenLink }) {
+  return (
+    <aside
+      aria-label="Chat"
+      className="absolute inset-0 z-30 flex flex-col border-l border-white/10 bg-[#0a1224] sm:static sm:inset-auto sm:z-auto sm:w-[380px] sm:shrink-0"
+    >
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-white/10 px-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[15px] font-semibold">Chat</h2>
+          <p className="truncate text-[11px] text-white/45">
+            {chatId ? "Saved in your chats" : "Saved in your chats after the first answer"}
+          </p>
+        </div>
+        {chatId && (
+          <Link
+            href={`/chat/${chatId}`}
+            onClick={onOpenLink}
+            title="Open this chat"
+            className="rounded-full px-2.5 py-1 text-xs font-medium text-brand-300 hover:bg-white/10"
+          >
+            Open
+          </Link>
+        )}
+        {messages.length > 0 && (
+          <button type="button" onClick={onNew} title="Start a new conversation" className="rounded-full px-2.5 py-1 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white">
+            New
+          </button>
+        )}
+        <button type="button" onClick={onClose} aria-label="Hide chat" title="Hide chat" className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
+          <Icon name="close" className="size-5" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        {messages.length === 0 ? (
+          <div className="mt-10 text-center">
+            <span className="mx-auto grid size-11 place-items-center rounded-full bg-white/5 text-white/50 ring-1 ring-white/10">
+              <Icon name="chat" className="size-5" />
+            </span>
+            <p className="mt-3 text-sm font-medium text-white/80">No messages yet</p>
+            <p className="mx-auto mt-1 max-w-[16rem] text-xs leading-relaxed text-white/45">
+              Talk or type. The conversation is saved in your chats, and any agent you ask for is saved as a draft in your agents.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((m, i) => (
+              <div key={i} className={cn("flex flex-col", m.role === "user" ? "items-end" : "items-start")}>
+                <span className="mb-1 px-1 text-[11px] font-medium text-white/40">{m.role === "user" ? "You" : "Agent A"}</span>
+                <p
+                  className={cn(
+                    "max-w-[90%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                    m.role === "user" ? "rounded-br-md bg-brand-500 text-navy-800" : "rounded-bl-md bg-white/[0.07] text-white/90",
+                    m.error && "bg-red-500/15 text-red-200",
+                  )}
+                >
+                  {m.content}
+                </p>
+                {m.agent && (
+                  <Link
+                    href={`/agents/${m.agent.id}`}
+                    onClick={onOpenLink}
+                    className="mt-2 flex w-full max-w-[90%] items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 hover:border-brand-400/50"
+                  >
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-500/15 text-brand-300">
+                      <Icon name="bot" className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-white">{m.agent.name}</span>
+                      <span className="block text-[11px] text-white/45">Draft agent · saved in your agents</span>
+                    </span>
+                    <span className="text-xs font-medium text-brand-300">Review →</span>
+                  </Link>
+                )}
+                {m.agentPrompt && (
+                  <Link
+                    href={`/agents/new?prompt=${encodeURIComponent(m.agentPrompt)}`}
+                    onClick={onOpenLink}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-3 py-1 text-xs font-semibold text-navy-800 hover:bg-brand-400"
+                  >
+                    <Icon name="bot" className="size-3.5" /> Create agent
+                  </Link>
+                )}
+              </div>
+            ))}
+            <div ref={endRef} />
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={onSend} className="shrink-0 border-t border-white/10 p-3">
+        <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1 pl-4 pr-1 focus-within:border-brand-400/70">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Send a message"
+            aria-label="Send a message"
+            maxLength={4000}
+            className="min-w-0 flex-1 bg-transparent py-1.5 text-sm text-white placeholder:text-white/40 outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            aria-label="Send"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-500 text-navy-800 disabled:opacity-40"
+          >
+            <Icon name="arrowUp" className="size-4" />
+          </button>
+        </div>
+        <p className="mt-1.5 px-2 text-[10px] text-white/35">Replies are spoken too. Press Esc to end the conversation.</p>
+      </form>
+    </aside>
+  );
+}
+
