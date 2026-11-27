@@ -8,6 +8,7 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { Alert, Spinner } from "@/components/ui/States";
 import ElevenLabsCredits from "./ElevenLabsCredits";
 import ElevenLabsVoices from "./ElevenLabsVoices";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
 async function api(path, options) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -129,7 +130,7 @@ export default function ModelSettingsForm({ initialSettings, status, limits, def
             </CardBody>
 
             <CardHeader
-              title="Voice assistant"
+              title={`${SUPER_AGENT.name} voice`}
               description="Who speaks the replies on the Voice page. Listening (speech-to-text) always uses OpenAI."
               className="border-t"
             />

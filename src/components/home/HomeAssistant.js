@@ -9,6 +9,7 @@ import Icon from "@/components/ui/Icon";
 import { Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import { useHomeMode } from "@/components/layout/HomeMode";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
 
 /** Minimal safe text renderer: paragraphs, "- " bullets and **bold**. No HTML injection. */
@@ -190,8 +191,8 @@ function Assistant({ suggestions = [], chatId: initialChatId = null, initialThre
           mode === "agent"
             ? "Describe the task the agent should do…"
             : thread.length
-              ? "Ask a follow-up…"
-              : "Ask a question…"
+              ? `Ask ${SUPER_AGENT.name} a follow-up…`
+              : `Ask ${SUPER_AGENT.name} a question…`
         }
         onSubmit={send}
         toolbar={
@@ -199,7 +200,7 @@ function Assistant({ suggestions = [], chatId: initialChatId = null, initialThre
             <ConnectorPicker value={projects} onChange={setProjects} disabled={busy} />
             <Link
               href="/voice"
-              title="Talk to the assistant (Hindi, English and more)"
+              title={`Talk to ${SUPER_AGENT.name} (Hindi, English and more)`}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy-700 dark:bg-brand-600 dark:hover:bg-brand-500"
             >
               <Icon name="mic" className="size-3.5" />
@@ -212,7 +213,7 @@ function Assistant({ suggestions = [], chatId: initialChatId = null, initialThre
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 text-slate-500">
               <Icon name={mode === "agent" ? "code" : "chatSearch"} className="size-3.5" />
-              {mode === "agent" ? "Agent: your text opens the agent builder" : "Chat: answers only, nothing is changed"}
+              {mode === "agent" ? "Agent: your text opens the agent builder" : `Chat with ${SUPER_AGENT.name}: answers only, nothing is changed`}
             </span>
             {thread.length > 0 && (
               <button

@@ -7,6 +7,7 @@ import { loadSelectedConnectors } from "@/components/agents/ConnectorPicker";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import Avatar3D from "./Avatar3D";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
 /**
  * Voice assistant v2 — same conversation loop as VoiceAgent, but with a talking 3D avatar
@@ -553,7 +554,7 @@ export default function VoiceAgentV2() {
         <button
           type="button"
           onClick={onOrb}
-          aria-label={active ? (phase === "speaking" ? "Interrupt" : "Voice assistant") : "Start talking"}
+          aria-label={active ? (phase === "speaking" ? "Interrupt" : SUPER_AGENT.name) : `Talk to ${SUPER_AGENT.name}`}
           className="relative aspect-square w-[min(92vw,60vh,600px)] cursor-pointer rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
         >
           <Avatar3D state={orbState} getLevel={getLevel} className="pointer-events-none absolute inset-0 size-full [mask-image:linear-gradient(to_bottom,black_72%,transparent)]" />
@@ -589,7 +590,7 @@ export default function VoiceAgentV2() {
           )}
           {!active && !messages.length && (
             <p className="mt-3 max-w-md text-sm text-white/45">
-              Ask anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
+              Ask {SUPER_AGENT.name} anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
             </p>
           )}
         </div>
@@ -659,7 +660,7 @@ export default function VoiceAgentV2() {
           </select>
           <p className="mt-1.5 text-xs text-white/45">Auto understands and replies in whatever language you speak, including Hinglish.</p>
 
-          <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-white/50">Assistant voice</label>
+          <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-white/50">{SUPER_AGENT.name} voice</label>
           <div className="mt-1.5 grid grid-cols-2 gap-2">
             {VOICES.map((v) => (
               <button

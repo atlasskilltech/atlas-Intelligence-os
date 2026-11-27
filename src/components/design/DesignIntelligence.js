@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "@/components/voice/ParticleOrb";
 import "./designintelligence.css";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
 /**
  * Design Intelligence — preview of a calm, professional dark look for IntelligenceOS
@@ -75,7 +76,7 @@ const TOP_AGENTS = [
 
 const NAV = [
   { section: null, items: [{ label: "Overview", icon: "home", active: true }, { label: "Agents", icon: "bot", count: 24 }, { label: "Runs", icon: "history" }, { label: "Logs", icon: "terminal" }, { label: "Connectors", icon: "plug", count: 9 }] },
-  { section: "Assistant", items: [{ label: "Agent A", icon: "mic", href: "/voice", badge: "Voice" }] },
+  { section: "Super agent", items: [{ label: SUPER_AGENT.name, icon: "mic", href: "/voice", badge: "Voice" }] },
   { section: "Admin", items: [{ label: "API usage", icon: "chart" }, { label: "Models", icon: "cpu" }, { label: "Users", icon: "user" }] },
 ];
 
@@ -490,8 +491,8 @@ function AgentAPanel() {
     <div className="di-panel di-in flex flex-col overflow-hidden" style={anim(260)}>
       <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3.5">
         <div>
-          <p className="text-[13px] font-semibold">Agent A</p>
-          <p className="text-[11px] text-[var(--faint)]">Voice & chat assistant</p>
+          <p className="text-[13px] font-semibold">{SUPER_AGENT.name}</p>
+          <p className="text-[11px] text-[var(--faint)]">{SUPER_AGENT.meaning}</p>
         </div>
         <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
           <span className="di-live size-1.5 rounded-full bg-emerald-400 text-emerald-400" />

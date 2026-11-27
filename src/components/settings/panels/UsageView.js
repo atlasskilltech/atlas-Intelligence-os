@@ -6,8 +6,9 @@ import PanelHeader from "./PanelHeader";
 import StatCard from "@/components/ui/StatCard";
 import StorageNoticeView from "@/components/ui/StorageNoticeView";
 import { Alert, EmptyState } from "@/components/ui/States";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
-const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: "Voice assistant", test: "Connection tests", other: "Other" };
+const PURPOSE_LABEL = { planner: "Agent planning", agent: "Agent runs", agent_run: "Agent runs", chat: "Questions", voice: `${SUPER_AGENT.name} voice`, test: "Connection tests", other: "Other" };
 
 /** "2026-11" → "Nov 2026". */
 const fmtMonth = (key) => {

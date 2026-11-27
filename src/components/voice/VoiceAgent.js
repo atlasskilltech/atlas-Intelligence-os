@@ -9,6 +9,7 @@ import { useHomeMode } from "@/components/layout/HomeMode";
 import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "./ParticleOrb";
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 
 /**
  * Voice assistant, in the style of ChatGPT's voice mode:
@@ -594,7 +595,7 @@ export default function VoiceAgent() {
         <button
           type="button"
           onClick={onOrb}
-          aria-label={active ? (phase === "speaking" ? "Interrupt" : "Voice assistant") : "Start talking"}
+          aria-label={active ? (phase === "speaking" ? "Interrupt" : SUPER_AGENT.name) : `Talk to ${SUPER_AGENT.name}`}
           className="relative aspect-square w-[min(88vw,58vh,560px)] cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
         >
           <ParticleOrb state={orbState} getLevel={getLevel} className="pointer-events-none absolute inset-[-12%] size-[124%]" />
@@ -639,7 +640,7 @@ export default function VoiceAgent() {
           )}
           {!active && !messages.length && (
             <p className="mt-3 max-w-md text-sm text-white/45">
-              Ask anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
+              Ask {SUPER_AGENT.name} anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
             </p>
           )}
         </div>
@@ -709,7 +710,7 @@ export default function VoiceAgent() {
           </select>
           <p className="mt-1.5 text-xs text-white/45">Auto understands and replies in whatever language you speak, including Hinglish.</p>
 
-          <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-white/50">Assistant voice</label>
+          <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-white/50">{SUPER_AGENT.name} voice</label>
           <div className="mt-1.5 grid grid-cols-2 gap-2">
             {VOICES.map((v) => (
               <button

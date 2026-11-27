@@ -1,6 +1,7 @@
+import { SUPER_AGENT } from "@/lib/portals/portalAgents";
 // Single source of truth for the sidebar. Add new pages here.
 export const PRIMARY_NAV = [
-  { href: "/voice", label: "Voice Agent", icon: "mic" },
+  { href: "/voice", label: SUPER_AGENT.name, icon: "mic" },
   { href: "/connectors", label: "Plugins", icon: "plug" },
 ];
 
