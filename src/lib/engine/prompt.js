@@ -1,4 +1,5 @@
 import { RISK_LEVELS, getTool } from "../catalog/toolCatalog.js";
+import { ETIQUETTE_RULES } from "../assistant/etiquette.js";
 
 /** System + first user message for an agent run (pure). */
 
@@ -47,6 +48,13 @@ export function runSystemPrompt(config, { mode, executable, now = new Date() }) 
     "- If a tool fails, you may retry once with corrected input; then continue and report the failure.",
     `- Large results: when a tool result holds a {"dataset": "ds_…", "totalRows": …, "preview": […]} stub, only a preview is shown and the FULL rows are stored. Read them with query_data (filter, select fields, distinct, groupBy, excludeMatching, and page with offset until nextOffset is null). Never report data as missing, truncated or incomplete before querying the dataset.`,
     "- Record progress with update_plan: after you finish, skip or fail a step, call it with that step's id (e.g. s2). You may record several steps in one call. AI steps count too. Before your final summary, every step must be recorded.",
+    "",
+    "## Etiquette (ATLAS agent etiquette v1 — for everything you write to people: reports, notifications, emails)",
+    // Rule 1 (greet at the start of a chat) is for conversations; a report or email greets by its send time.
+    ...ETIQUETTE_RULES.slice(1).map((r) => `- ${r}`),
+    "- A report or email you write may open with a time-of-day greeting for the current time above (Good morning 05:00–11:59, Good afternoon 12:00–16:59, Good evening 17:00–21:59, otherwise Hello).",
+    "",
+    "## Finish",
     "- When you are done, reply with a short plain-text summary of what you did, what you found and anything that needs attention. Do not call a tool in that final reply.",
   ];
   return lines.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");

@@ -5,6 +5,7 @@ import { defineConnector } from "../defineConnector.js";
 import { parseBody } from "../http/parseBody.js";
 import { safeFetch } from "../http/safeFetch.js";
 import { portalAgentTag } from "../../portals/portalAgents.js";
+import { resolveTimeZone } from "../../assistant/greeting.js";
 import { checkParams } from "./manifest.js";
 import { USER_AGENT, USER_HEADER, fetchManifest, getProject, listProjects, markProjectError, projectKey } from "./projectRepo.js";
 
@@ -19,6 +20,8 @@ import { USER_AGENT, USER_HEADER, fetchManifest, getProject, listProjects, markP
  * every call carries X-IntelligenceOS-User: <owner email>, and the actions an
  * agent may see and use come from the manifest fetched for that user.
  */
+
+export const TZ_HEADER = "X-IntelligenceOS-Timezone";
 
 const clean = (s) => redact(String(s ?? ""), getSecretValues());
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}… [truncated]` : s);
@@ -105,9 +108,10 @@ export function extractLinks(data, project) {
  * Runs one action. `tool` is "read" / "write" from the agent, or null for the admin test.
  * `userEmail` is the agent owner's (or, for the admin test, the admin's) email;
  * delegated projects require it.
+ * `timeZone` is the acting person's IANA zone (sent as X-IntelligenceOS-Timezone; IST when unknown).
  * Returns { status, data, truncated, durationMs, links, project }; throws Error with a plain message.
  */
-export async function callAction({ projectId, actionId, tool = null, params = {}, run = null, userEmail = null, allowDisabled = false }) {
+export async function callAction({ projectId, actionId, tool = null, params = {}, run = null, userEmail = null, timeZone = null, allowDisabled = false }) {
   let p;
   try {
     p = await getProject(projectId);
@@ -142,6 +146,8 @@ export async function callAction({ projectId, actionId, tool = null, params = {}
     "User-Agent": USER_AGENT,
     ...(run ? { "X-IntelligenceOS-Agent": headerSafe(run.agentName), "X-IntelligenceOS-Run": headerSafe(run.id) } : {}),
     ...(p.delegated ? { [USER_HEADER]: headerSafe(email) } : {}),
+    // Acting as a person: their clock, so the portal agent greets and says "today" correctly (etiquette A1).
+    ...(email ? { [TZ_HEADER]: resolveTimeZone(timeZone || run?.timeZone) } : {}),
   };
   let body;
   if (action.method === "POST") {

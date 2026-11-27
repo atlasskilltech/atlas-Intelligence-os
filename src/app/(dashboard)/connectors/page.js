@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import Link from "next/link";
 import ProjectsSection from "@/components/connectors/ProjectsSection";
+import SuperMemorySection from "@/components/connectors/SuperMemorySection";
 import Icon from "@/components/ui/Icon";
 import StorageNotice from "@/components/ui/StorageNotice";
 import { getEncryptionKey } from "@/lib/config/env";
@@ -46,6 +47,7 @@ export default async function ConnectorsPage() {
           </p>
         }
       />
+      {isAdmin && <SuperMemorySection />}
     </div>
   );
 }

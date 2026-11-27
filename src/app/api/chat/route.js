@@ -6,7 +6,7 @@ import { BadRequest, fail, ok, readJsonBody } from "@/lib/http/respond";
 export const maxDuration = 120;
 
 /**
- * POST { message, history?, projects?: string[], mode?: "auto" | "ask" | "agent", voice?: { language?: string }, chatId?, save? }
+ * POST { message, history?, projects?: string[], mode?: "auto" | "ask" | "agent", voice?: { language?: string }, tz?: string, chatId?, save? }
  *   → { route: "answer", answer, sources, meta, chat? }   a direct answer (read-only lookups)
  *     With save: true the question and answer are saved to the person's chat
  *     history (a new chat, or `chatId`); `chat` is its sidebar entry.
@@ -29,6 +29,8 @@ export async function POST(request) {
       mode,
       actor,
       voice: body.voice && typeof body.voice === "object" ? { language: body.voice.language } : null,
+      // The browser's IANA zone (validated server-side; IST when missing). The hour is computed here, never taken from the client.
+      tz: typeof body.tz === "string" ? body.tz.slice(0, 64) : null,
     });
     if (body.save === true && result.route === "answer") {
       try {

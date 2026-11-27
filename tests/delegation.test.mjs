@@ -48,7 +48,7 @@ before(async () => {
     req.on("data", (c) => (body += c));
     req.on("end", () => {
       const user = req.headers["x-intelligenceos-user"] || null;
-      hits.push({ method: req.method, url: req.url, user, agent: req.headers["x-intelligenceos-agent"] || null, body });
+      hits.push({ method: req.method, url: req.url, user, agent: req.headers["x-intelligenceos-agent"] || null, tz: req.headers["x-intelligenceos-timezone"] || null, body });
       const json = (status, data) => {
         res.writeHead(status, { "Content-Type": "application/json" });
         res.end(JSON.stringify(data));
@@ -135,6 +135,13 @@ test("calls carry the owner's email; a per-user 403 doesn't break the project", 
   await assert.rejects(conn.callAction({ projectId: "atlas_procurement", actionId: "search_products", tool: "read", params: { q: "x" }, run: { ownerEmail: "stranger@example.edu" } }), /refused stranger@example\.edu/);
   await assert.rejects(conn.callAction({ projectId: "atlas_procurement", actionId: "search_products", tool: "read", params: { q: "x" } }), /acts as the signed-in user, but this agent's owner has no email/);
   assert.equal((await repo.getProject("atlas_procurement")).status, "connected", "per-user refusals never mark the project as broken");
+});
+
+test("acting as a person sends their time zone (X-IntelligenceOS-Timezone); a bad zone falls back to IST", async () => {
+  await conn.callAction({ projectId: "atlas_procurement", actionId: "search_products", tool: "read", params: { q: "a" }, userEmail: "staff@example.edu", timeZone: "Europe/London" });
+  assert.equal(hits.at(-1).tz, "Europe/London");
+  await conn.callAction({ projectId: "atlas_procurement", actionId: "search_products", tool: "read", params: { q: "b" }, userEmail: "staff@example.edu", timeZone: "Mars/Olympus" });
+  assert.equal(hits.at(-1).tz, "Asia/Kolkata");
 });
 
 test("links: only https/own-site draft and confirm links are kept", () => {

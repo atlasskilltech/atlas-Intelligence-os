@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/States";
 import { cn } from "@/components/ui/cn";
 import { useHomeMode } from "@/components/layout/HomeMode";
 import { SUPER_AGENT } from "@/lib/portals/portalAgents";
+import { browserTimeZone } from "@/components/home/WelcomeGreeting";
 
 
 /** Minimal safe text renderer: paragraphs, "- " bullets and **bold**. No HTML injection. */
@@ -100,7 +101,7 @@ function Assistant({ suggestions = [], chatId: initialChatId = null, initialThre
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history, projects, mode, chatId, save: true }),
+        body: JSON.stringify({ message: text, history, projects, mode, chatId, save: true, tz: browserTimeZone() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error?.message || "Something went wrong. Please try again.");

@@ -42,6 +42,7 @@ export const PORTAL_AGENTS = [
     focus: "admissions leads, counsellors, follow-ups, applications, payments and campaigns",
     askAction: "ask_aila",
     brainAction: "aila_brain",
+    memoryAction: "aila_memory",
     nameMatch: /\bcrm\b/i,
     preset: {
       baseUrl: "https://uat-crm.atlasskilltech.app/api/intos/v1",
@@ -57,6 +58,7 @@ export const PORTAL_AGENTS = [
     focus: "placements, internships, recruiters, drives, student applications and offers",
     askAction: "ask_kairo",
     brainAction: "kairo_brain",
+    memoryAction: "kairo_memory",
     nameMatch: /career\s*(services|connect)/i,
     preset: {
       baseUrl: "https://uat-careerconnect.atlasskilltech.app/api/intos/v1",
@@ -72,6 +74,7 @@ export const PORTAL_AGENTS = [
     focus: "international applicants, partner universities, exchange and visa progress",
     askAction: "ask_voya",
     brainAction: "voya_brain",
+    memoryAction: "voya_memory",
     nameMatch: /international/i,
     // No preset yet: the International host is set per install.
     preset: ENV_HOSTS.international
@@ -86,6 +89,7 @@ export const PORTAL_AGENTS = [
     focus: "timetable, exams and invigilation, attendance, rooms, student events, tickets and admissions figures",
     askAction: "ask_nova",
     brainAction: "nova_brain",
+    memoryAction: "nova_memory",
     nameMatch: /\bdashboard\b/i,
     preset: {
       baseUrl: "https://uat-dashboard.atlasskilltech.app/agent-api",
@@ -101,6 +105,7 @@ export const PORTAL_AGENTS = [
     focus: "employees, attendance and irregularities, leave balances and pending approvals",
     askAction: "ask_mira",
     brainAction: "mira_brain",
+    memoryAction: "mira_memory",
     nameMatch: /\b(hrms|hr)\b/i,
     preset: {
       baseUrl: "https://uat-hr.atlasskilltech.app/agent-api",
@@ -116,6 +121,7 @@ export const PORTAL_AGENTS = [
     focus: "courses, assignments and the grading queue, learner progress and at-risk students",
     askAction: "ask_sage",
     brainAction: "sage_brain",
+    memoryAction: "sage_memory",
     nameMatch: /learn\s*x/i,
     preset: {
       baseUrl: ENV_HOSTS.learnx || "https://uat-learnx.atlasskilltech.app/agent-api",
@@ -132,6 +138,7 @@ export const PORTAL_AGENTS = [
     focus: "applications, documents and verification backlog, chatbot leads and the admissions pipeline",
     askAction: "ask_arya",
     brainAction: "arya_brain",
+    memoryAction: "arya_memory",
     nameMatch: /admissions?\b/i,
     preset: {
       baseUrl: ENV_HOSTS.admissions || "https://uat-admissions.atlasskilltech.app/agent-api",
@@ -146,6 +153,7 @@ const BY_ACTION = new Map();
 for (const p of PORTAL_AGENTS) {
   BY_ACTION.set(p.askAction, p);
   BY_ACTION.set(p.brainAction, p);
+  BY_ACTION.set(p.memoryAction, p);
 }
 
 /** Connect-form presets, in display order (only portals with a known or placeholder URL). */
@@ -166,7 +174,7 @@ export const getPortalAgent = (id) => PORTAL_AGENTS.find((p) => p.id === id) || 
 
 /**
  * The portal agent behind a connected project, or null.
- * Matches the manifest's ask/brain action ids first (exact), then the name.
+ * Matches the manifest's ask/brain/memory action ids first (exact), then the name.
  * Accepts a project ({ name, manifest: { actions } }) or { name, actions }.
  */
 export function portalAgentFor(project) {
@@ -189,7 +197,7 @@ export function portalAgentFor(project) {
 
 /** One line for prompts: `ATLAS CRM → AILA (ask_aila, aila_brain)` … */
 export function portalAgentsSummary() {
-  return PORTAL_AGENTS.map((p) => `${p.portal} → ${p.persona} (ask: ${p.askAction}, brain: ${p.brainAction}; covers ${p.focus})`).join("\n");
+  return PORTAL_AGENTS.map((p) => `${p.portal} → ${p.persona} (ask: ${p.askAction}, brain: ${p.brainAction}, memory: ${p.memoryAction}; covers ${p.focus})`).join("\n");
 }
 
 /** Short tag appended to a connected project's line in tool descriptions. */
@@ -200,5 +208,6 @@ export function portalAgentTag(project) {
   const parts = [`portal agent ${p.persona}`];
   if (ids.has(p.askAction)) parts.push(`ask via "${p.askAction}"`);
   if (ids.has(p.brainAction)) parts.push(`brain "${p.brainAction}"`);
+  if (ids.has(p.memoryAction)) parts.push(`memory "${p.memoryAction}"`);
   return ` [${parts.join(", ")}]`;
 }

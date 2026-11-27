@@ -1,3 +1,4 @@
+import { scheduleSuperMemory } from "@/lib/memory/superMemory";
 import { pushSnapshot } from "@/lib/connectors/projects/agentPush";
 import { registerEvents } from "@/lib/connectors/projects/projectEvents";
 import { connectProject, getProject, listProjects, publicProject } from "@/lib/connectors/projects/projectRepo";
@@ -24,6 +25,8 @@ export async function POST(request) {
     if (rec.manifest?.events) await registerEvents(rec.id).catch(() => null);
     // Projects that list our agents (§2c) get them now.
     if (rec.manifest?.intosAgents) await pushSnapshot(rec.id).catch(() => null);
+    // NEXUS super memory: fetch this portal's memory/brain in the background (never on this request).
+    scheduleSuperMemory({ projectIds: [rec.id], reason: "connected" });
     return ok({ project: publicProject(rec.manifest?.events || rec.manifest?.intosAgents ? await getProject(rec.id) : rec) }, 201);
   } catch (err) {
     return fail(err);

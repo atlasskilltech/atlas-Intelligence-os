@@ -1,3 +1,4 @@
+import { scheduleSuperMemory } from "@/lib/memory/superMemory";
 import { clearUserManifestCache } from "@/lib/connectors/projects/projectConnector";
 import { pushSnapshot } from "@/lib/connectors/projects/agentPush";
 import { registerEvents } from "@/lib/connectors/projects/projectEvents";
@@ -17,6 +18,8 @@ export async function POST(_request, { params }) {
     if (p.status === "connected" && p.manifest?.events) await registerEvents(id).catch(() => null);
     // …and re-sends our agents to projects that list them (§2c).
     if (p.status === "connected" && p.manifest?.intosAgents) await pushSnapshot(id).catch(() => null);
+    // NEXUS super memory: fetch this portal's memory/brain in the background (never on this request).
+    if (p.status === "connected") scheduleSuperMemory({ projectIds: [id], reason: "synced" });
     return ok({ project: publicProject(p.manifest?.events || p.manifest?.intosAgents ? await getProject(id) : p) });
   } catch (err) {
     return fail(err);

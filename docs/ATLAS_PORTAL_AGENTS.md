@@ -23,6 +23,12 @@ IntelligenceOS's own assistant is **NEXUS** (Networked Executive for Unified Sys
 above the seven portal agents: it reads each portal's `*_brain`, asks the portal's own agent
 through `ask_*`, and builds IntelligenceOS agents that use them (`SUPER_AGENT` in the registry).
 
+Every agent (the seven below and NEXUS) follows the same **etiquette** (time-of-day greeting,
+Indian formats, privacy, confirm-before-change …) and keeps a **memory**; each portal exposes it
+as `<agent>_memory` (e.g. `aila_memory`, `memoryAction` in the registry), and NEXUS consolidates
+them into its **super memory**. The canonical reference is
+[AGENT_ETIQUETTE_AND_MEMORY.md](AGENT_ETIQUETTE_AND_MEMORY.md).
+
 ## The seven agents
 
 | Agent | Portal | Name meaning | Connect URL (UAT) | Acts as signed-in user | Ask action | Brain action |

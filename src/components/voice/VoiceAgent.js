@@ -10,6 +10,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import ParticleOrb from "./ParticleOrb";
 import { SUPER_AGENT } from "@/lib/portals/portalAgents";
+import WelcomeGreeting, { browserTimeZone } from "@/components/home/WelcomeGreeting";
 
 /**
  * Voice assistant, in the style of ChatGPT's voice mode:
@@ -280,6 +281,7 @@ export default function VoiceAgent() {
             projects: loadSelectedConnectors(),
             mode: "auto",
             voice: { language: s.language || undefined },
+            tz: browserTimeZone(),
             // Saved under Chats like a typed chat (the same conversation keeps one entry).
             chatId: s.chatId,
             save: true,
@@ -638,8 +640,9 @@ export default function VoiceAgent() {
               <Icon name="bot" className="size-4" /> Create agent
             </Link>
           )}
+          {!active && !messages.length && <WelcomeGreeting className="mt-3 text-base font-semibold text-white/80" />}
           {!active && !messages.length && (
-            <p className="mt-3 max-w-md text-sm text-white/45">
+            <p className="mt-1 max-w-md text-sm text-white/45">
               Ask {SUPER_AGENT.name} anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
             </p>
           )}

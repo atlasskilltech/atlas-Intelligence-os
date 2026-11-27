@@ -8,6 +8,7 @@ import Icon from "@/components/ui/Icon";
 import { cn } from "@/components/ui/cn";
 import Avatar3D from "./Avatar3D";
 import { SUPER_AGENT } from "@/lib/portals/portalAgents";
+import WelcomeGreeting, { browserTimeZone } from "@/components/home/WelcomeGreeting";
 
 /**
  * Voice assistant v2 — same conversation loop as VoiceAgent, but with a talking 3D avatar
@@ -262,6 +263,7 @@ export default function VoiceAgentV2() {
             projects: loadSelectedConnectors(),
             mode: "auto",
             voice: { language: s.language || undefined },
+            tz: browserTimeZone(),
           }),
           signal: controller.signal,
         });
@@ -588,8 +590,9 @@ export default function VoiceAgentV2() {
               <Icon name="bot" className="size-4" /> Create agent
             </Link>
           )}
+          {!active && !messages.length && <WelcomeGreeting className="mt-3 text-base font-semibold text-white/80" />}
           {!active && !messages.length && (
-            <p className="mt-3 max-w-md text-sm text-white/45">
+            <p className="mt-1 max-w-md text-sm text-white/45">
               Ask {SUPER_AGENT.name} anything in Hindi, English or your own language — “Aaj kitni admissions pending hain?”, “How do I create an agent?”
             </p>
           )}
