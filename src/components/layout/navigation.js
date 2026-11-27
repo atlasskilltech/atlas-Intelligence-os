@@ -2,7 +2,7 @@
 export const PRIMARY_NAV = [
   { href: "/voice", label: "Voice Assistant", icon: "mic" },
   { href: "/runs", label: "Execution", icon: "history" },
-  { href: "/connectors", label: "Connectors", icon: "plug" },
+  { href: "/connectors", label: "Plugins", icon: "plug" },
 ];
 
 // Settings, Email sender, Usage and Account are tabs of the Settings popup (account menu).

@@ -72,12 +72,12 @@ export default function ProjectDetail({ initialProject, isAdmin }) {
   return (
     <>
       <Link href="/connectors" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-ink">
-        ← Connectors
+        ← Plugins
       </Link>
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <ProjectAvatar name={p.name} className="size-14 text-lg" />
+          <ProjectAvatar name={p.name} baseUrl={p.baseUrl} className="size-14" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-extrabold text-brand-600">{p.name}</h1>

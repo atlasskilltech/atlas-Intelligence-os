@@ -87,7 +87,7 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
         className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-500/50 hover:text-brand-700 disabled:opacity-50"
       >
         <Icon name="plug" className="size-3.5" />
-        {selected.length ? "Connectors" : "All connectors"}
+        {selected.length ? "Plugins" : "All plugins"}
       </button>
       {selected.map((id) => (
         <span key={id} className="inline-flex max-w-[200px] items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700">
@@ -134,7 +134,7 @@ export default function ConnectorPicker({ value = [], onChange, disabled = false
             href="/connectors"
             className={cn("mt-1 flex items-center gap-1.5 border-t border-slate-100 px-2 pt-2 pb-1 text-xs font-medium text-brand-600 hover:text-brand-700")}
           >
-            <Icon name="plus" className="size-3.5" /> Connect a new connector
+            <Icon name="plus" className="size-3.5" /> Add a plugin
           </Link>
         </div>
       )}

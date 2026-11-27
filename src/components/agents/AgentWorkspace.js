@@ -351,7 +351,7 @@ export default function AgentWorkspace({
           {usesProjects(derived.tools) && (
             <Card>
               <CardHeader
-                title="Connectors"
+                title="Plugins"
                 description="Which ATLAS projects this agent may use when it runs. Leave it on all connectors, or pick some to lock the agent to them."
               />
               <CardBody>
@@ -427,7 +427,7 @@ export default function AgentWorkspace({
               </div>
               {projects && usesProjects(derived.tools) && (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Connectors</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Plugins</p>
                   <AgentConnectors className="mt-1.5" ids={derived.connectors.projects} projects={projects} />
                 </div>
               )}

@@ -41,6 +41,8 @@ const PATHS = {
   code: "M8 8l-4 4 4 4m8-8 4 4-4 4m-2.5-10-3 12",
   logout: "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10",
   chevronsUpDown: "M8 9l4-4 4 4M8 15l4 4 4-4",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
+  verified: "M12 3l2.1 1.5 2.6-.2.8 2.5 2.1 1.5-.8 2.5.8 2.5-2.1 1.5-.8 2.5-2.6-.2L12 21l-2.1-1.5-2.6.2-.8-2.5-2.1-1.5.8-2.5-.8-2.5 2.1-1.5.8-2.5 2.6.2L12 3Zm-3 9 2 2 4-4",
 };
 
 export default function Icon({ name, className = "size-5", ...props }) {

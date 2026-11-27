@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import Icon from "@/components/ui/Icon";
 import { Alert, EmptyState, Spinner } from "@/components/ui/States";
+import { pluginLogo } from "./pluginLogos";
 
 export async function api(path, options) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -29,14 +30,16 @@ export function ProjectStatus({ project }) {
   return <Badge tone="danger">Needs attention</Badge>;
 }
 
-export function ProjectAvatar({ name, className = "size-11 text-base" }) {
-  const initials = String(name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-  return <span className={`grid shrink-0 place-items-center rounded-xl bg-navy-800 font-bold text-white ${className}`}>{initials}</span>;
+/** The plugin's logo (see pluginLogos.js); a placeholder until its own logo is added. */
+export function ProjectAvatar({ name, baseUrl = "", className = "size-11" }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- small static logo
+    <img
+      src={pluginLogo({ name, baseUrl })}
+      alt=""
+      className={`shrink-0 rounded-xl object-cover ring-1 ring-slate-200 ${className}`}
+    />
+  );
 }
 
 export const counts = (p) => {
@@ -44,12 +47,88 @@ export const counts = (p) => {
   return { read, write: p.manifest.actions.length - read };
 };
 
-export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys }) {
+const FILTERS = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Active" },
+  { id: "off", label: "Disabled" },
+];
+
+/** One line under the plugin's name: type, maker and what its key allows. */
+function pluginSummary(p) {
+  const c = counts(p);
+  const parts = ["Connector", "By ATLAS", p.manifest.key.access || "Custom access"];
+  if (c.write > 0) parts.push(`${c.write} change data`);
+  return parts.join(" · ");
+}
+
+/** The "···" menu on a plugin row: details, and enable / disable for admins. */
+function RowMenu({ p, isAdmin, busy, onToggle }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const item = "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100";
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`More for ${p.name}`}
+        className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-ink"
+      >
+        {busy ? <Spinner className="size-4" /> : <Icon name="more" className="size-5" strokeWidth={3} />}
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-surface p-1.5 shadow-xl">
+          <Link href={`/connectors/projects/${p.id}`} role="menuitem" className={item}>
+            <Icon name="search" className="size-4 text-slate-500" /> View details
+          </Link>
+          {isAdmin && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy}
+              onClick={() => {
+                setOpen(false);
+                onToggle(p);
+              }}
+              className={`${item} ${p.enabled ? "hover:text-red-600" : ""}`}
+            >
+              <Icon name={p.enabled ? "pause" : "play"} className="size-4 text-slate-500" />
+              {p.enabled ? "Disable (agents can't use it)" : "Enable for agents"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Plugins page, in the style of Claude's plugins page: search, filter, Add,
+ * and "Your plugins" as a list. Each plugin is an ATLAS app connected with a key
+ * from that app; click one to see exactly what its key allows.
+ */
+export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys, notice = null }) {
   const router = useRouter();
   const [projects, setProjects] = useState(initialProjects);
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [toggleError, setToggleError] = useState(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
 
   async function toggleEnabled(p) {
     setBusyId(p.id);
@@ -65,120 +144,138 @@ export default function ProjectsSection({ initialProjects, isAdmin, canStoreKeys
     }
   }
 
+  const q = query.trim().toLowerCase();
+  const shown = projects.filter(
+    (p) =>
+      (filter === "all" || (filter === "active" ? p.enabled : !p.enabled)) &&
+      (!q || `${p.name} ${p.baseUrl} ${p.manifest.key.access || ""}`.toLowerCase().includes(q)),
+  );
+
   return (
-    <section className="mt-8" aria-labelledby="projects-title">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 id="projects-title" className="text-lg font-bold text-ink">
-            Connected apps
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            ATLAS apps (CRM, HRMS, Procurement…) your agents can use. Each app is connected with a key created in that app, and the key
-            decides what agents may read or change there. Click an app to see exactly what its key allows.
-          </p>
+    <section aria-labelledby="plugins-title">
+      <h1 id="plugins-title" className="text-2xl font-semibold tracking-tight text-ink">
+        Plugins
+      </h1>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <label className="relative min-w-0 flex-1 basis-60">
+          <span className="sr-only">Search plugins</span>
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="h-9 w-full rounded-lg border border-slate-200 bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
+          />
+        </label>
+        <div role="radiogroup" aria-label="Show" className="inline-flex rounded-lg border border-slate-200 bg-surface p-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={filter === f.id}
+              onClick={() => setFilter(f.id)}
+              className={`rounded-md px-3 py-1 text-sm transition-colors ${
+                filter === f.id ? "bg-slate-100 font-medium text-ink" : "text-slate-500 hover:text-ink"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-        {isAdmin && !adding && (
-          <Button onClick={() => setAdding(true)}>
-            <Icon name="plus" className="size-4" /> Connect project
+        {isAdmin && (
+          <Button onClick={() => setAdding(true)} disabled={adding} className="h-9">
+            <Icon name="plus" className="size-4" /> Add
           </Button>
         )}
       </div>
 
+      {notice && <div className="mt-4">{notice}</div>}
+
       {!canStoreKeys && (
-        <Alert tone="warning" className="mb-6" title="Keys can't be saved yet">
+        <Alert tone="warning" className="mt-4" title="Keys can't be saved yet">
           Set <code className="font-mono">CONNECTOR_ENCRYPTION_KEY</code> on the server (for example the output of{" "}
-          <code className="font-mono">openssl rand -base64 32</code>) and restart the app. Project keys are stored encrypted with it.
+          <code className="font-mono">openssl rand -base64 32</code>) and restart the app. Plugin keys are stored encrypted with it.
         </Alert>
       )}
 
       {adding && (
-        <ConnectForm
-          onCancel={() => setAdding(false)}
-          onConnected={(p) => {
-            setProjects((list) => [...list, p].sort((a, b) => a.name.localeCompare(b.name)));
-            setAdding(false);
-            router.refresh();
-          }}
-        />
+        <div className="mt-6">
+          <ConnectForm
+            onCancel={() => setAdding(false)}
+            onConnected={(p) => {
+              setProjects((list) => [...list, p].sort((a, b) => a.name.localeCompare(b.name)));
+              setAdding(false);
+              router.refresh();
+            }}
+          />
+        </div>
+      )}
+
+      <div className="mt-8 flex items-baseline justify-between">
+        <h2 className="text-base font-semibold text-ink">Your plugins</h2>
+        <span className="text-sm text-slate-500">
+          {shown.length === projects.length ? `${projects.length}` : `${shown.length} of ${projects.length}`}
+        </span>
+      </div>
+
+      {toggleError && (
+        <Alert tone="error" className="mt-3" title="Couldn't change the plugin">
+          {toggleError}
+        </Alert>
       )}
 
       {projects.length === 0 && !adding ? (
         <EmptyState
+          className="mt-3"
           icon="plug"
-          title="No projects connected yet"
-          description="In the other ATLAS app, create a key for IntelligenceOS and choose what it may access. Then connect it here."
+          title="No plugins yet"
+          description="In the other ATLAS app, create a key for IntelligenceOS and choose what it may access. Then add it here."
           action={
             isAdmin && (
               <Button onClick={() => setAdding(true)}>
-                <Icon name="plus" className="size-4" /> Connect project
+                <Icon name="plus" className="size-4" /> Add plugin
               </Button>
             )
           }
         />
+      ) : shown.length === 0 ? (
+        <p className="mt-6 text-sm text-slate-500">No plugins match.</p>
       ) : (
-        <>
-          {toggleError && (
-            <Alert tone="error" className="mb-4" title="Couldn't change the connector">
-              {toggleError}
-            </Alert>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {projects.map((p) => {
-              const c = counts(p);
-              const busy = busyId === p.id;
-              return (
-                <Card
-                  key={p.id}
-                  className={`flex h-full flex-col p-5 transition-shadow hover:shadow-md ${!p.enabled ? "opacity-70" : ""}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <ProjectAvatar name={p.name} />
-                    <ProjectStatus project={p} />
-                  </div>
-                  <h3 className="mt-4 text-sm font-semibold text-ink">
-                    <Link href={`/connectors/projects/${p.id}`} className="hover:text-brand-600">
+        <ul className="mt-2 divide-y divide-slate-200 border-y border-slate-200">
+          {shown.map((p) => {
+            const busy = busyId === p.id;
+            const problem = p.enabled && p.status !== "connected";
+            return (
+              <li key={p.id} className={`group relative flex items-center gap-3 py-3 ${!p.enabled ? "opacity-60" : ""}`}>
+                <ProjectAvatar name={p.name} baseUrl={p.baseUrl} className="size-10" />
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                    {/* The name is the row's link: the whole row is clickable. */}
+                    <Link href={`/connectors/projects/${p.id}`} className="truncate after:absolute after:inset-0 group-hover:text-brand-600">
                       {p.name}
                     </Link>
-                  </h3>
-                  <p className="mt-0.5 truncate font-mono text-xs text-slate-500">{p.baseUrl}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    <Badge tone="brand">{p.manifest.key.access || "Custom access"}</Badge>
-                    <Badge>{c.read} read</Badge>
-                    {p.delegated && <Badge tone="neutral">Acts as user</Badge>}
-                    {c.write > 0 && <Badge tone="warning">{c.write} change data</Badge>}
-                  </div>
-                  {p.status !== "connected" && p.lastError && <p className="mt-3 text-xs text-red-600">{p.lastError}</p>}
-                  <p className="mt-auto flex items-center justify-between pt-4 text-xs text-slate-500">
-                    <span>Key {p.keyHint}</span>
-                    <Link href={`/connectors/projects/${p.id}`} className="font-medium text-brand-600 hover:underline">
-                      View access →
-                    </Link>
+                    {p.enabled && p.status === "connected" && (
+                      <span title="Connected" className="shrink-0">
+                        <Icon name="verified" className="size-4 text-slate-400" />
+                        <span className="sr-only">Connected</span>
+                      </span>
+                    )}
+                    {!p.enabled && <Badge>Disabled</Badge>}
+                    {problem && <Badge tone="danger">Needs attention</Badge>}
                   </p>
-                  {isAdmin && (
-                    <div className="mt-3 border-t border-slate-100 pt-3">
-                      <button
-                        type="button"
-                        onClick={() => toggleEnabled(p)}
-                        disabled={busy}
-                        aria-pressed={p.enabled}
-                        className={`inline-flex items-center gap-1.5 text-xs font-medium disabled:opacity-60 ${
-                          p.enabled ? "text-slate-600 hover:text-red-600" : "text-brand-600 hover:text-brand-700"
-                        }`}
-                      >
-                        {busy ? (
-                          <Spinner className="size-3.5" />
-                        ) : (
-                          <Icon name={p.enabled ? "pause" : "play"} className="size-3.5" />
-                        )}
-                        {busy ? "Saving…" : p.enabled ? "Disable — agents can't use this" : "Enable — let agents use this"}
-                      </button>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-        </>
+                  <p className="truncate text-xs text-slate-500">{pluginSummary(p)}</p>
+                  {problem && p.lastError && <p className="mt-0.5 truncate text-xs text-red-600">{p.lastError}</p>}
+                </div>
+                <div className="relative z-10">
+                  <RowMenu p={p} isAdmin={isAdmin} busy={busy} onToggle={toggleEnabled} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );
