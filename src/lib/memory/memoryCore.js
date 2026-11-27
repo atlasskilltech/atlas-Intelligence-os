@@ -204,7 +204,7 @@ const listOf = (payloads, re, n) => {
 /** One portal's fetched payloads → the bounded entry stored in super memory. */
 // ---------------------------------------------------------------------------
 // The REAL <agent>_memory shapes (Nov 2026), all carrying status { builtAt, building, version, collections, gaps }:
-//   AILA   { status, data: { collections: [{ name, count, purpose, fields: [{ path, type, fill, values: [{value,count}] }], relations }], gaps: [{name,error}] }, orgRules: [{ topic, rule }] }
+//   AILA   { status, data: { collections: [{ name, count, purpose, fields: [{ path, type, fill, values: [{value,count}], ref }], relations: [{ field, to }] }], gaps: [{name,error}] }, orgRules: [{ topic, rule }] }
 //   KAIRO  { status, memory: { tables: [{ name, rows, purpose, columns: [{ name, type, fill, values }], relations }], gaps: [{table,error}] }, orgRules: [{ text }] }
 //   VOYA   { status, dataMemory: { tables: [{ table, rows?, purpose, columns: [{ name, type, fill?, values? }], links }], gaps }, orgRules: [{ about, instruction }] }
 //   NOVA   { status, tables: [{ table, estRows, purpose, columns: [{ name, type, fill, top }], links }], gaps, org_rules: [{ text }] }
@@ -262,7 +262,8 @@ export function normalizeMemoryPayload(d) {
     }
     for (const r of (firstArray(t.relations, t.links, t.relationships) || []).slice(0, 10)) {
       const to = r?.to || r?.table || r?.refers || r?.references || r?.ref;
-      if (r?.column && to) relations.push(`${name}.${r.column} → ${clip(String(to), 60)}`);
+      const col = r?.column || r?.field; // AILA: { field, to }; the SQL portals: { column, … }
+      if (col && to) relations.push(`${name}.${col} → ${clip(String(to), 60)}`);
     }
   }
   const rawGaps = d?.data?.gaps ?? d?.memory?.gaps ?? d?.dataMemory?.gaps ?? (Array.isArray(d?.gaps) || (d?.gaps && typeof d.gaps === "object") ? d.gaps : null);

@@ -17,14 +17,14 @@ const { encryptSecret } = await import("../src/lib/security/secretBox.js");
 const STATUS = { builtAt: "2026-11-27T21:30:00.000Z", building: false, version: 1, collections: 2, gaps: 0 };
 const VAL = (...v) => v.map((value, i) => ({ value, count: 10 - i }));
 
-// Built from each portal's producing code (Nov 2026).
+// Built from each portal's producing code (Nov 2026; AILA uat-crm c63ab1f and MIRA uat-hr 59d5825 are final).
 const FIXTURES = {
   aila: {
     portal: "ATLAS CRM", agent: "AILA", status: { ...STATUS, state: "complete", gaps: [] },
     data: {
       version: 3, builtAt: STATUS.builtAt, gaps: [{ name: "auditlogs", error: "timed out" }],
       collections: [
-        { name: "leads", count: 52310, purpose: "Admissions enquiries", fields: [{ path: "leadStage", type: "string", fill: 99, values: VAL("Untouched", "Counselling Given") }, { path: "email", type: "string", fill: 88 }], relations: [{ column: "assignedCounselorId", to: "users" }] },
+        { name: "leads", count: 52310, purpose: "Admissions enquiries", fields: [{ path: "leadStage", type: "string", fill: 99, values: VAL("Untouched", "Counselling Given") }, { path: "email", type: "string", fill: 88 }, { path: "assignedCounselorId", type: "objectId", fill: 95, ref: "users" }], relations: [{ field: "assignedCounselorId", to: "users" }] },
         { name: "applications", count: 4100, purpose: "Applications", fields: [] },
       ],
     },
