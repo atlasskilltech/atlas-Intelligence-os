@@ -144,6 +144,14 @@ those vocabularies are exactly what the agents need. Match on TOKENS instead:
 Add tests: `company`, `program_name`, `school_name` keep values; `pan_number`, `first_name`,
 `fatherMobile`, `api_key` do not.
 
+## Amendment 2 — "session" means an academic term in these portals
+`session` is NOT a secret token on its own: `academic_session_id`, `session_name`, `session_year`
+are academic terms (the vocabulary agents most need). Treat as SECRET only: a table named
+`sessions` / `*_sessions` that stores web sessions (has a `data`/`expires`/`sess` column), or a
+column whose tokens include session + (token|key|cookie|secret|data) e.g. `session_token`,
+`sessionKey`, `sess_data`. Tests: `academic_session_id`, `session_name` keep values;
+`session_token` does not.
+
 ## Checks every repo ships (offline, stubbed DB / model)
 Greeting bands + time-zone fallback, client/server greeting agreement, etiquette text present in
 every prompt path (chat, mission, IntelligenceOS ask), scan redaction (a password / email field is
@@ -161,7 +169,7 @@ forget, and the manifest `<agent>_memory` action gated by scope. Commits carry n
 | B2 learned memory | `src/lib/memory/learnedMemory.js` → `DATA_DIR/nexus-memory.json` (org ≤ 200 items, admins only; personal ≤ 50 per user; deduped; secrets, emails, phones and ID numbers refused) |
 | B3 prompt + tools | `assistant.js`: compact super-memory summary (≤ 9,000 chars ≈ 2,500 tokens) + learned memory in the system prompt; tools `memory_lookup` (≤ 12 matches, ≤ 600 chars each), `remember(scope: me\|org, text)`, `forget(id\|text)` |
 | B5 super memory | `src/lib/memory/superMemory.js` (I/O) + `src/lib/memory/memoryCore.js` (pure rules) → `DATA_DIR/super-memory.json` |
-| Admin view | Plugins page → **NEXUS super memory** card (`SuperMemorySection.js`, `GET/POST /api/memory/super`, admin only) |
+| Admin view | Plugins page → **NEXUS super memory** card (`SuperMemorySection.js`, `GET/POST/PATCH /api/memory/super`, admin only): status per portal, Rebuild now, "Rebuild portal memories too", "Super memory runs as" per project |
 | CLI | `scripts/build-super-memory.mjs` (`npm run memory:build`) |
 
 ### How the super memory is built
@@ -169,13 +177,15 @@ forget, and the manifest `<agent>_memory` action gated by scope. Commits carry n
   `<agent>_memory` / `<agent>_brain` (GET, risk read, no required params) are fetched, with the
   project's own connecting key and **no** `X-IntelligenceOS-User` header (20 s / 3 MB per call,
   5 min total budget; a portal past the budget is recorded as a gap and fetched next run).
-- Each payload is redacted before storage with the Amendment 1 token rules
+- Each payload is redacted before storage with the Amendment 1 + 2 token rules
   (`memoryCore.classifyField` / `fieldTokens`): SECRET fields dropped entirely, PERSONAL fields keep
   type / fill rate only, sampled values (`topValues`, `samples`, `values` …) pass the value-level
   filter (no email, ≥ 8-digit number, Aadhaar / PAN, > 80 chars), and emails, phone numbers,
   12-digit IDs and PAN patterns are scrubbed from free text. One adaptation for portal payloads: a
   bare `name` inside a schema descriptor (an object that also carries count / type / fields /
-  purpose …) names a collection or field and is kept; on any other object it is personal. Then
+  purpose …) names a collection or field and is kept; on any other object it is personal. A field
+  is secret for "session" only together with token / key / cookie / secret / data (Amendment 2);
+  the table-level rule does not apply here (NEXUS stores no tables, only portal summaries). Then
   condensed per portal: collections + counts + purpose, vocabularies, observations, rules, plus a
   bounded searchable text (24 KB) for `memory_lookup`. Status per portal: `ok`, `partial`, `error`,
   or `stale` (this run failed, the earlier good memory is kept). Gaps name the action and the error.
@@ -187,6 +197,19 @@ forget, and the manifest `<agent>_memory` action gated by scope. Commits carry n
   after a project connects or re-syncs (that project only), and on **Rebuild now**. Never on a
   request path. Single-flight per process (promise) and across processes (`super-memory.lock`,
   stale after 15 min). Off with `SUPER_MEMORY_ENABLED=false` (and on serverless hosts).
+- **Portal shapes.** `memoryCore.normalizeMemoryPayload` reads each portal's real `<agent>_memory`
+  answer: AILA `data.collections[].fields[]` (`path`, `values`), KAIRO `memory.tables[].columns[]`,
+  VOYA `dataMemory.tables[]` (`table`, `links`), NOVA top-level `tables[]` (`estRows`, `top`), MIRA
+  `tables[].fields[]` (`entity`, `top`, `kind: secret` skipped, `gaps` as an object), SAGE / ARYA
+  `tables[].vocab` (`[[value, count]]` / `[{ value, count }]`); org rules from `orgRules` / `org_rules`
+  (`rule` / `text` / `instruction` with `topic` / `about`); the common `status` block gives the
+  portal's own `builtAt` / `building`. Brain payloads keep the generic observation reading.
+  `tests/portalMemoryShapes.test.mjs` holds one fixture per portal built from the producing code.
+- **Super memory runs as** (per project, admin-set on the super-memory card, stored on the project
+  as `superMemoryRunAs`): when set, the memory / brain fetch sends it as `X-IntelligenceOS-User`.
+  HRMS requires it (a university-wide HR admin) and other portals may scope by user. A 403, or a
+  status-only answer (no tables, e.g. HRMS `scope: "limited"`), is recorded as status `limited`
+  with the gap "set 'Super memory runs as' to an admin's email" — not as an error.
 - **Rebuild portal memories too** (checkbox next to Rebuild now, default off; `refreshPortals`):
   first calls each portal's `<agent>_memory?refresh=1` so the portal rebuilds its OWN memory,
   waits 45 s, then fetches as usual. `<agent>_brain` is never refreshed.

@@ -54,7 +54,7 @@ const KPIS = {
 };
 
 const AGENTS = ["Admissions Daily Digest", "Lead Follow-up Nudger", "Fee Reminder", "Attendance Watch", "Placement Drive Sync", "Hostel Request Triage"];
-const TRIGGERS = ["Schedule", "Manual", "Webhook", "Agent A"];
+const TRIGGERS = ["Schedule", "Manual", "Webhook", SUPER_AGENT.name];
 const STATUSES = ["succeeded", "succeeded", "succeeded", "succeeded", "running", "failed", "approval"];
 
 const INITIAL_RUNS = [
@@ -63,7 +63,7 @@ const INITIAL_RUNS = [
   { id: 7, agent: "Fee Reminder", trigger: "Webhook", status: "approval", duration: "18s", started: "11 min ago" },
   { id: 6, agent: "Placement Drive Sync", trigger: "Manual", status: "succeeded", duration: "1m 06s", started: "23 min ago" },
   { id: 5, agent: "Attendance Watch", trigger: "Schedule", status: "failed", duration: "9s", started: "38 min ago" },
-  { id: 4, agent: "Hostel Request Triage", trigger: "Agent A", status: "succeeded", duration: "27s", started: "52 min ago" },
+  { id: 4, agent: "Hostel Request Triage", trigger: SUPER_AGENT.name, status: "succeeded", duration: "27s", started: "52 min ago" },
 ];
 
 const TOP_AGENTS = [
@@ -509,8 +509,8 @@ function AgentAPanel() {
       </div>
       <div className="px-5 pt-4">
         <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-black/20 py-1.5 pl-3 pr-1.5 transition-colors focus-within:border-emerald-500/50">
-          <input placeholder="Ask Agent A…" className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-[var(--faint)] outline-none" />
-          <Link href="/voice" aria-label="Talk to Agent A" className="grid size-7 place-items-center rounded-md text-[var(--muted)] transition-colors hover:bg-white/[0.06] hover:text-white">
+          <input placeholder={`Ask ${SUPER_AGENT.name}…`} className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-[var(--faint)] outline-none" />
+          <Link href="/voice" aria-label={`Talk to ${SUPER_AGENT.name}`} className="grid size-7 place-items-center rounded-md text-[var(--muted)] transition-colors hover:bg-white/[0.06] hover:text-white">
             <Icon name="mic" className="size-4" />
           </Link>
         </div>
@@ -612,7 +612,7 @@ export default function DesignIntelligence() {
             <Kpi i={3} label="Hours saved" value={k.saved} suffix="h" delta={k.d[3]} spark={s.ok} hint="Estimated from manual task time" />
           </section>
 
-          {/* Chart + Agent A */}
+          {/* Chart + NEXUS (SUPER_AGENT) */}
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="di-panel di-in min-w-0" style={anim(200)}>
               <PanelHeader

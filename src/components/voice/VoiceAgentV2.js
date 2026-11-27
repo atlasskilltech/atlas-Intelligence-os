@@ -52,7 +52,7 @@ const VOICES = [
 ];
 
 const STATUS = {
-  idle: "Tap Agent A to start talking",
+  idle: `Tap ${SUPER_AGENT.name} to start talking`,
   listening: "Listening…",
   hearing: "Listening…",
   thinking: "Thinking…",
@@ -540,7 +540,7 @@ export default function VoiceAgentV2() {
             <Icon name="mic" className="size-4" />
           </span>
           <div className="leading-tight">
-            <p className="text-sm font-semibold">Agent A <span className="ml-1 rounded bg-brand-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-300">3D</span></p>
+            <p className="text-sm font-semibold">{SUPER_AGENT.name} <span className="ml-1 rounded bg-brand-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-300">3D</span></p>
             <p className="text-[11px] text-white/50">{LANGUAGES.find((l) => l.code === language)?.label}</p>
           </div>
         </div>

@@ -11,8 +11,41 @@ import { api } from "./ProjectsSection";
 
 const when = (iso) =>
   iso ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date(iso)) + " IST" : "—";
-const TONE = { ok: "success", partial: "warning", stale: "warning", error: "danger" };
-const LABEL = { ok: "Up to date", partial: "Partly fetched", stale: "Last fetch failed (older memory kept)", error: "Not available" };
+const TONE = { ok: "success", partial: "warning", stale: "warning", limited: "warning", error: "danger" };
+const LABEL = { ok: "Up to date", partial: "Partly fetched", stale: "Last fetch failed (older memory kept)", limited: "Status only — set “runs as”", error: "Not available" };
+
+/** "Super memory runs as": the admin email sent as X-IntelligenceOS-User when reading this portal's memory. */
+function RunAs({ project, onSaved }) {
+  const [value, setValue] = useState(project.runAs || "");
+  const [state, setState] = useState(null);
+  async function save() {
+    setState("saving");
+    try {
+      await api("/api/memory/super", { method: "PATCH", body: JSON.stringify({ projectId: project.id, runAs: value }) });
+      setState("saved");
+      onSaved?.();
+    } catch (err) {
+      setState(err.message);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="w-40 truncate font-medium text-slate-600">{project.name}</span>
+      <input
+        type="email"
+        value={value}
+        onChange={(e) => (setValue(e.target.value), setState(null))}
+        placeholder={project.delegated ? "admin@atlasuniversity.edu.in (required)" : "optional — admin email"}
+        className="min-w-0 flex-1 rounded-md border border-slate-200 px-2 py-1"
+        aria-label={`Super memory runs as, for ${project.name}`}
+      />
+      <Button size="sm" variant="secondary" onClick={save} disabled={state === "saving" || value === (project.runAs || "")}>
+        Save
+      </Button>
+      {state && state !== "saving" && <span className={state === "saved" ? "text-emerald-700" : "text-red-700"}>{state === "saved" ? "Saved — rebuild to use it" : state}</span>}
+    </div>
+  );
+}
 
 /**
  * NEXUS super memory (admin): what each connected portal's agent shared
@@ -20,6 +53,7 @@ const LABEL = { ok: "Up to date", partial: "Partly fetched", stale: "Last fetch 
  */
 export default function SuperMemorySection() {
   const [memory, setMemory] = useState(null);
+  const [projects, setProjects] = useState([]);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [refreshPortals, setRefreshPortals] = useState(false);
@@ -28,6 +62,7 @@ export default function SuperMemorySection() {
     try {
       const d = await api("/api/memory/super");
       setMemory(d.memory);
+      setProjects(d.projects || []);
       setError(null);
       return d.memory;
     } catch (err) {
@@ -108,6 +143,19 @@ export default function SuperMemorySection() {
               </li>
             ))}
           </ul>
+        )}
+        {projects.length > 0 && (
+          <details className="rounded-xl border border-slate-200 px-4 py-3" open={projects.some((p) => p.delegated && !p.runAs)}>
+            <summary className="cursor-pointer text-sm font-medium text-ink">Super memory runs as</summary>
+            <p className="mt-1 text-xs text-slate-500">
+              Portals that scope their memory by user (HRMS needs a university-wide HR admin) read it as this person. Leave empty to use the connecting key alone.
+            </p>
+            <div className="mt-2 space-y-2">
+              {projects.map((p) => (
+                <RunAs key={p.id} project={p} onSaved={load} />
+              ))}
+            </div>
+          </details>
         )}
         {memory?.links?.length > 0 && (
           <details className="text-xs text-slate-500">

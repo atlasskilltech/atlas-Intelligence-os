@@ -581,7 +581,7 @@ export default function VoiceAgent() {
             <Icon name="mic" className="size-4" />
           </span>
           <div className="leading-tight">
-            <p className="text-sm font-semibold">Agent A</p>
+            <p className="text-sm font-semibold">{SUPER_AGENT.name}</p>
             <p className="text-[11px] text-white/50">{LANGUAGES.find((l) => l.code === language)?.label}</p>
           </div>
         </div>
@@ -883,7 +883,7 @@ function ChatPanel({ messages, chatId, draft, setDraft, onSend, onClose, onNew, 
           <div className="space-y-4">
             {messages.map((m, i) => (
               <div key={i} className={cn("flex flex-col", m.role === "user" ? "items-end" : "items-start")}>
-                <span className="mb-1 px-1 text-[11px] font-medium text-white/40">{m.role === "user" ? "You" : "Agent A"}</span>
+                <span className="mb-1 px-1 text-[11px] font-medium text-white/40">{m.role === "user" ? "You" : SUPER_AGENT.name}</span>
                 <p
                   className={cn(
                     "max-w-[90%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed",

@@ -114,6 +114,9 @@ test("Amendment 1: field names are matched on tokens", () => {
     assert.equal(core.classifyField(f), k, f);
   }
   assert.deepEqual(core.fieldTokens("fatherMobileNo"), ["father", "mobile", "no"]);
+  // Amendment 2: academic sessions keep values; web-session fields do not.
+  for (const keep of ["academic_session_id", "session_name", "session_year", "session"]) assert.equal(core.classifyField(keep), null, keep);
+  for (const f of ["session_token", "sessionKey", "sess_data", "session_cookie"]) assert.equal(core.classifyField(f), "secret", f);
   const out = core.redactPayload({ company: "Infosys", program_name: "BBA", pan_number: "ABCDE1234F", first_name: "Priya", fields: { school_name: { topValues: ["ISDI", "priya@x.com", "98765 43210", "y".repeat(90)] } } });
   assert.equal(out.company, "Infosys");
   assert.equal(out.program_name, "BBA");

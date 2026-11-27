@@ -18,7 +18,7 @@ export const ORG_ITEMS_MAX = 200;
 export const ITEM_TEXT_MAX = 300;
 
 // Field-name classification on TOKENS (spec Amendment 1): "company" ≠ pan, "program_name" ≠ a person.
-const SECRET_TOKENS = new Set(["password", "passwd", "pwd", "pass", "token", "secret", "apikey", "otp", "hash", "salt", "session", "cookie", "credential", "credentials", "aadhaar", "aadhar", "pan", "bank", "ifsc", "salary", "ctc", "dob", "birth", "birthdate"]);
+const SECRET_TOKENS = new Set(["password", "passwd", "pwd", "pass", "token", "secret", "apikey", "otp", "hash", "salt", "cookie", "credential", "credentials", "aadhaar", "aadhar", "pan", "bank", "ifsc", "salary", "ctc", "dob", "birth", "birthdate"]);
 const SECRET_PAIRS = [["api", "key"], ["access", "key"], ["private", "key"], ["account", "number"]];
 const PERSONAL_TOKENS = new Set(["email", "mail", "phone", "mobile", "contact", "address", "pincode", "whatsapp"]);
 const PERSON_WORDS = new Set(["first", "last", "middle", "full", "father", "mother", "guardian", "parent", "student", "applicant", "candidate", "employee", "user", "contact", "person", "spouse", "nominee"]);
@@ -38,6 +38,8 @@ export function classifyField(name) {
   const t = fieldTokens(name);
   if (t.some((x) => SECRET_TOKENS.has(x))) return "secret";
   for (let i = 0; i + 1 < t.length; i++) if (SECRET_PAIRS.some(([a, b]) => t[i] === a && t[i + 1] === b)) return "secret";
+  // Amendment 2: "session" alone is an academic term (academic_session_id, session_name); only a web-session field is secret.
+  if (t.some((x) => x === "session" || x === "sess") && t.some((x) => ["token", "key", "cookie", "secret", "data"].includes(x))) return "secret";
   if (t.some((x) => PERSONAL_TOKENS.has(x))) return "personal";
   const joined = t.join("");
   if (["name", "fullname", "username"].includes(joined)) return "personal";
@@ -46,7 +48,7 @@ export function classifyField(name) {
 }
 
 // Keys describing an object that holds sampled values (top values / samples): stricter value filter.
-const SAMPLE_KEYS = /^(topvalues|top|values|samples?|examples?)$/i;
+const SAMPLE_KEYS = /^(topvalues|top|values|samples?|examples?|vocab|vocabulary)$/i;
 
 const fold = (s) => String(s ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -106,7 +108,7 @@ export function redactPayload(value, depth = 0, { sample = false } = {}) {
 }
 
 const DROP = Symbol("drop");
-const DESCRIPTOR_KEYS = /^(count|estimatedcount|rows|rowcount|total|type|fields|columns|purpose|description|fillrate|fill|values|topvalues|collection|table|newest|oldest|relationships|lowcardinality|kind|meaning|path)$/i;
+const DESCRIPTOR_KEYS = /^(error|count|estimatedcount|rows|rowcount|total|type|fields|columns|purpose|description|fillrate|fill|values|topvalues|collection|table|newest|oldest|relationships|lowcardinality|kind|meaning|path)$/i;
 const isDescriptor = (o) => Object.keys(o).some((k) => DESCRIPTOR_KEYS.test(k.replace(/[_\s-]/g, "")));
 
 /** A sampled value may be kept: not an email, phone (≥ 8 digits), Aadhaar / PAN, and ≤ 80 chars. */
@@ -143,7 +145,7 @@ export function redactValueText(s) {
 const COLL_KEYS = /^(collections|tables|entities|schema|datasets|models)$/i;
 const OBS_KEYS = /^(observations|insights|attention|alerts|highlights|needsattention|focus)$/i;
 const VOCAB_KEYS = /^(vocabularies|vocabulary|stages|statuses|values|enums|lookups)$/i;
-const RULE_KEYS = /^(rules|orgrules|orgmemory|taught|definitions)$/i;
+const RULE_KEYS = /^(rules|orgmemory|taught|definitions)$/i;
 
 function findArrays(node, re, out = [], depth = 0) {
   if (!node || typeof node !== "object" || depth > 5) return out;
@@ -200,24 +202,147 @@ const listOf = (payloads, re, n) => {
 };
 
 /** One portal's fetched payloads → the bounded entry stored in super memory. */
+// ---------------------------------------------------------------------------
+// The REAL <agent>_memory shapes (Nov 2026), all carrying status { builtAt, building, version, collections, gaps }:
+//   AILA   { status, data: { collections: [{ name, count, purpose, fields: [{ path, type, fill, values: [{value,count}] }], relations }], gaps: [{name,error}] }, orgRules: [{ topic, rule }] }
+//   KAIRO  { status, memory: { tables: [{ name, rows, purpose, columns: [{ name, type, fill, values }], relations }], gaps: [{table,error}] }, orgRules: [{ text }] }
+//   VOYA   { status, dataMemory: { tables: [{ table, rows?, purpose, columns: [{ name, type, fill?, values? }], links }], gaps }, orgRules: [{ about, instruction }] }
+//   NOVA   { status, tables: [{ table, estRows, purpose, columns: [{ name, type, fill, top }], links }], gaps, org_rules: [{ text }] }
+//   MIRA   { status, built, tables: [{ name, entity, rows, purpose, fields: [{ name, type, kind, fill, top }], relations }], gaps: { table: error }, org_rules }   (scope "limited" → status + rules only)
+//   SAGE   { status, tables: [{ table, rows, purpose, columns, vocab: { col: [[value,count]] }, relationships }], gaps: [{table,error}], orgRules: [{ text }] }
+//   ARYA   { status, tables: [{ table, rows, purpose, columns, vocab: { col: [{value,count}] }, relations }], gaps, orgRules: [{ text }] }
+// ---------------------------------------------------------------------------
+
+const firstArray = (...xs) => xs.find((x) => Array.isArray(x)) || null;
+const VOCAB_COL = /status|stage|type|state|mode|category|level|source|kind|priority|channel|term|session|programme?|course|school|degree|department/i;
+
+/** The table / collection list of a memory payload, whichever portal shape it is. */
+export function memoryTables(d) {
+  if (!d || typeof d !== "object") return null;
+  return firstArray(d.data?.collections, d.memory?.tables, d.dataMemory?.tables, d.tables, d.collections, d.data?.tables);
+}
+
+const valueList = (vals) =>
+  (Array.isArray(vals) ? vals : [])
+    .map((v) => (Array.isArray(v) ? (v.length >= 2 ? v[0] : null) : v && typeof v === "object" ? v.value : v))
+    .filter((v) => v != null && v !== "" && typeof v !== "object")
+    .map((v) => clip(String(v), 60))
+    .slice(0, 15);
+
+/** One memory payload → { collections, vocabularies, relations, gaps, rules, status, limited }. Pure. */
+export function normalizeMemoryPayload(d) {
+  const tables = memoryTables(d);
+  const collections = [];
+  const vocabularies = [];
+  const relations = [];
+  for (const t of (tables || []).slice(0, 200)) {
+    if (!t || typeof t !== "object") continue;
+    const name = String(t.name || t.table || t.entity || t.collection || "").slice(0, 80);
+    if (!name) continue;
+    const count = Number(t.count ?? t.rows ?? t.estRows ?? t.rowCount);
+    const cols = firstArray(t.fields, t.columns) || [];
+    collections.push({
+      name,
+      count: t.count == null && t.rows == null && t.estRows == null && t.rowCount == null ? null : Number.isFinite(count) ? count : null,
+      purpose: clip(String(t.purpose || t.description || ""), 160),
+      columns: cols.length,
+      ...(t.newest || t.newestAt ? { newest: String(t.newest || t.newestAt).slice(0, 40) } : {}),
+    });
+    for (const c of cols) {
+      if (!c || c.personal || c.redacted || c.kind === "secret" || c.kind === "personal") continue;
+      const col = String(c.name || c.path || "");
+      const vals = valueList(c.values || c.top);
+      if (col && vals.length && (vocabularies.length < 40 || VOCAB_COL.test(col))) vocabularies.push({ name: `${name}.${col}`, values: vals });
+    }
+    if (t.vocab && typeof t.vocab === "object") {
+      for (const [col, vals] of Object.entries(t.vocab).slice(0, 20)) {
+        const list = valueList(vals);
+        if (list.length) vocabularies.push({ name: `${name}.${col}`, values: list });
+      }
+    }
+    for (const r of (firstArray(t.relations, t.links, t.relationships) || []).slice(0, 10)) {
+      const to = r?.to || r?.table || r?.refers || r?.references || r?.ref;
+      if (r?.column && to) relations.push(`${name}.${r.column} → ${clip(String(to), 60)}`);
+    }
+  }
+  const rawGaps = d?.data?.gaps ?? d?.memory?.gaps ?? d?.dataMemory?.gaps ?? (Array.isArray(d?.gaps) || (d?.gaps && typeof d.gaps === "object") ? d.gaps : null);
+  const gaps = (Array.isArray(rawGaps) ? rawGaps.map((g) => (g && typeof g === "object" ? `${g.table || g.name || "?"}: ${g.error || "not scanned"}` : String(g))) : rawGaps && typeof rawGaps === "object" ? Object.entries(rawGaps).map(([k, v]) => `${k}: ${typeof v === "string" ? v : "not scanned"}`) : [])
+    .slice(0, 20)
+    .map((g) => clip(g, 200));
+  const rules = (firstArray(d?.orgRules, d?.org_rules) || [])
+    .map((r) => (typeof r === "string" ? r : [r?.topic || r?.about, r?.rule || r?.instruction || r?.text].filter(Boolean).join(": ")))
+    .filter(Boolean)
+    .slice(0, 30)
+    .map((r) => clip(String(r), 240));
+  const st = d?.status && typeof d.status === "object" ? d.status : {};
+  return {
+    isMemory: !!(tables || d?.status || d?.orgRules || d?.org_rules),
+    collections,
+    vocabularies: vocabularies.slice(0, 60),
+    relations: relations.slice(0, 40),
+    gaps,
+    rules,
+    builtAt: st.builtAt || d?.builtAt || d?.data?.builtAt || d?.memory?.builtAt || null,
+    building: !!(st.building || st.refreshQueued || st.queued),
+    // Status only, no tables: the portal scoped the memory to the acting user (e.g. HRMS for a non-HR-admin) or has not built it yet.
+    limited: !tables || d?.scope === "limited" || d?.scope === "structure" || d?.level === "structure",
+    scope: typeof d?.scope === "string" ? d.scope : typeof d?.level === "string" ? d.level : null,
+  };
+}
+
+export const RUN_AS_GAP = (portal) => `${portal} shared only its status (no tables). Set "Super memory runs as" to an admin's email (for HRMS: a university-wide HR admin) on the super-memory card.`;
+
+/** One portal's fetched payloads → the bounded entry stored in super memory. */
 export function condensePortal({ project, agent, results }) {
-  const payloads = results.filter((r) => r.ok).map((r) => redactPayload(r.data));
-  const text = clip(payloads.map((p) => JSON.stringify(p)).join("\n"), PORTAL_TEXT_MAX);
+  const okResults = results.filter((r) => r.ok);
+  const payloads = okResults.map((r) => ({ action: r.action, data: redactPayload(r.data) }));
+  const text = clip(payloads.map((p) => JSON.stringify(p.data)).join("\n"), PORTAL_TEXT_MAX);
+  const portal = agent?.portal || project.name;
+  const mem = payloads.filter((p) => /_memory$/.test(p.action)).map((p) => normalizeMemoryPayload(p.data));
+  const legacy = payloads.map((p) => p.data);
+  const collections = new Map();
+  for (const m of mem) for (const c of m.collections) if (!collections.has(c.name)) collections.set(c.name, c);
+  for (const c of collectionsOf(legacy)) if (!collections.has(c.name)) collections.set(c.name, c);
+  const vocab = [...mem.flatMap((m) => m.vocabularies), ...vocabulariesOf(legacy)];
+  const gaps = results.filter((r) => !r.ok && !r.needsRunAs).map((r) => `${r.action}: ${clip(String(r.error || "failed"), 200)}`);
+  const refused = results.filter((r) => r.needsRunAs);
+  if (refused.length) {
+    gaps.unshift(
+      `${portal} refused ${refused.map((r) => r.action).join(", ")} for ${project.superMemoryRunAs ? project.superMemoryRunAs : "the connecting key alone"}. Set "Super memory runs as" to an admin's email (for HRMS: a university-wide HR admin) on the super-memory card.`,
+    );
+  }
+  for (const m of mem) gaps.push(...m.gaps.map((g) => `portal reports: ${g}`));
+  const limited = mem.length && mem.every((m) => m.limited) && !mem.some((m) => m.collections.length);
+  if (limited) gaps.unshift(RUN_AS_GAP(portal));
+  const hardFail = results.some((r) => !r.ok && !r.needsRunAs);
+  const status = !payloads.length ? (refused.length && !hardFail ? "limited" : "error") : limited || refused.length ? "limited" : hardFail ? "partial" : "ok";
   return {
     projectId: project.id,
     projectName: project.name,
-    portal: agent?.portal || project.name,
+    portal,
     persona: agent?.persona || null,
     agentId: agent?.id || null,
     actions: results.map((r) => r.action),
-    status: payloads.length ? (results.every((r) => r.ok) ? "ok" : "partial") : "error",
-    gaps: results.filter((r) => !r.ok).map((r) => `${r.action}: ${clip(String(r.error || "failed"), 200)}`),
-    collections: collectionsOf(payloads),
-    vocabularies: vocabulariesOf(payloads),
-    observations: listOf(payloads, OBS_KEYS, 15),
-    rules: listOf(payloads, RULE_KEYS, 20),
+    status,
+    gaps: gaps.slice(0, 30),
+    collections: [...collections.values()].slice(0, 120),
+    vocabularies: vocab.filter((v, i) => vocab.findIndex((x) => x.name === v.name) === i).slice(0, 60),
+    relations: mem.flatMap((m) => m.relations).slice(0, 40),
+    observations: listOf(legacy, OBS_KEYS, 15),
+    rules: [...new Set([...mem.flatMap((m) => m.rules), ...listOf(legacy, RULE_KEYS, 20)])].slice(0, 30),
+    portalBuiltAt: mem.find((m) => m.builtAt)?.builtAt || null,
+    portalBuilding: mem.some((m) => m.building),
+    runAs: project.superMemoryRunAs || null,
     text,
   };
+}
+
+const EMAIL_RE = /^[^\s@<>"]{1,64}@[^\s@<>"]{1,190}\.[a-z]{2,}$/i;
+/** "Super memory runs as": a valid email, "" to clear, or { error }. */
+export function cleanRunAs(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return { value: "" };
+  return EMAIL_RE.test(s) && s.length <= 200 ? { value: s } : { error: "Enter the email of a portal admin (or leave it empty)." };
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +381,8 @@ export function summarizeSuperMemory(store, { maxChars = SUMMARY_MAX_CHARS } = {
     const colls = (p.collections || []).slice(0, 12).map((c) => `${c.name} ${fmtCount(c.count)}${c.purpose ? ` (${clip(c.purpose, 60)})` : ""}`).join("; ");
     const vocab = (p.vocabularies || []).slice(0, 4).map((v) => `${v.name}: ${v.values.slice(0, 8).join(", ")}`).join(" | ");
     const obs = (p.observations || []).slice(0, 3).join(" / ");
-    parts.push([head, colls && `  data: ${colls}`, vocab && `  values: ${vocab}`, obs && `  noticed: ${obs}`].filter(Boolean).join("\n"));
+    const rules = (p.rules || []).slice(0, 3).join(" / ");
+    parts.push([head, colls && `  data: ${colls}`, vocab && `  values: ${vocab}`, obs && `  noticed: ${obs}`, rules && `  org rules: ${rules}`].filter(Boolean).join("\n"));
   }
   if (store.links?.length) parts.push(`Cross-portal: ${store.links.join(" ")}`);
   parts.push("For more detail call memory_lookup.");
@@ -284,6 +410,7 @@ export function lookupMemory({ superStore, learned = [], query, limit = LOOKUP_M
     for (const v of p.vocabularies || []) cands.push({ source: label, text: `${v.name}: ${v.values.join(", ")}` });
     for (const o of p.observations || []) cands.push({ source: label, text: `noticed: ${o}` });
     for (const r of p.rules || []) cands.push({ source: label, text: `rule: ${r}` });
+    for (const r of p.relations || []) cands.push({ source: label, text: `link: ${r}` });
     for (const chunk of (p.text || "").match(/.{1,400}/gs) || []) cands.push({ source: `${label} raw`, text: chunk });
   }
   for (const l of superStore?.links || []) cands.push({ source: "cross-portal", text: l });
@@ -372,6 +499,7 @@ export function publicSuperMemory(store, { building = false } = {}) {
       vocabularies: (p.vocabularies || []).length,
       observations: (p.observations || []).length,
       rules: (p.rules || []).length,
+      runAs: p.runAs || null,
     })),
   };
 }

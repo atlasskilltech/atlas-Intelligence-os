@@ -1,8 +1,9 @@
 import { getActor } from "@/lib/context";
 import { fail, ok, readJsonBody } from "@/lib/http/respond";
-import { publicSuperMemory } from "@/lib/memory/memoryCore";
+import { listProjects } from "@/lib/connectors/projects/projectRepo";
+import { memoryActionsFor, publicSuperMemory } from "@/lib/memory/memoryCore";
 import { MemoryError } from "@/lib/memory/learnedMemory";
-import { isBuilding, readSuperMemory, scheduleSuperMemory } from "@/lib/memory/superMemory";
+import { isBuilding, readSuperMemory, scheduleSuperMemory, setRunAs } from "@/lib/memory/superMemory";
 
 const requireAdmin = async () => {
   const actor = await getActor();
@@ -10,11 +11,14 @@ const requireAdmin = async () => {
   return actor;
 };
 
-/** GET → { memory } NEXUS super memory status per portal (no raw data). Admin only. */
+/** GET → { memory, projects } super-memory status per portal (no raw data) + each project's "runs as". Admin only. */
 export async function GET() {
   try {
     await requireAdmin();
-    return ok({ memory: publicSuperMemory(await readSuperMemory(), { building: isBuilding() }) });
+    const projects = (await listProjects())
+      .map((p) => ({ id: p.id, name: p.name, delegated: !!p.delegated, runAs: p.superMemoryRunAs || "", actions: memoryActionsFor(p).actions }))
+      .filter((p) => p.actions.length);
+    return ok({ memory: publicSuperMemory(await readSuperMemory(), { building: isBuilding() }), projects });
   } catch (err) {
     return fail(err);
   }
@@ -30,6 +34,17 @@ export async function POST(request) {
     const body = await readJsonBody(request, 2_000);
     scheduleSuperMemory({ reason: "manual", refreshPortals: body.refreshPortals === true });
     return ok({ started: true }, 202);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** PATCH { projectId, runAs } → sets the email the super-memory fetch sends as X-IntelligenceOS-User ("" clears). Admin only. */
+export async function PATCH(request) {
+  try {
+    const actor = await requireAdmin();
+    const body = await readJsonBody(request, 2_000);
+    return ok(await setRunAs(actor, String(body.projectId || ""), body.runAs));
   } catch (err) {
     return fail(err);
   }

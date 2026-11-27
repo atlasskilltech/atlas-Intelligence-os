@@ -4,10 +4,10 @@ import path from "node:path";
 import { getDataDir, getSecretValues, isServerless } from "../config/env.js";
 import { parseBody } from "../connectors/http/parseBody.js";
 import { safeFetch } from "../connectors/http/safeFetch.js";
-import { USER_AGENT, listProjects, projectKey } from "../connectors/projects/projectRepo.js";
+import { USER_AGENT, USER_HEADER, listProjects, patchProject, projectKey } from "../connectors/projects/projectRepo.js";
 import { redact } from "../security/redact.js";
 import { readJson, updateJson } from "../storage/jsonFile.js";
-import { MEMORY_VERSION, condensePortal, crossPortalLinks, memoryActionsFor, nightlyDue } from "./memoryCore.js";
+import { MEMORY_VERSION, cleanRunAs, condensePortal, crossPortalLinks, memoryActionsFor, nightlyDue } from "./memoryCore.js";
 
 /**
  * NEXUS super memory (spec B5). A background job fetches, for every connected
@@ -37,6 +37,15 @@ const clean = (s) => redact(String(s ?? ""), getSecretValues());
 
 export const readSuperMemory = () => readJson(FILE, EMPTY);
 
+/** Admin: set (or clear with "") the email the super-memory fetch acts as for one project. */
+export async function setRunAs(actor, projectId, email) {
+  if (actor?.role !== "admin") throw Object.assign(new Error("Only administrators can change this."), { publicMessage: "Only administrators can change this.", status: 403, type: "forbidden" });
+  const c = cleanRunAs(email);
+  if (c.error) throw Object.assign(new Error(c.error), { publicMessage: c.error, status: 400, type: "validation", fields: { runAs: c.error } });
+  const p = await patchProject(projectId, { superMemoryRunAs: c.value || null });
+  return { projectId: p.id, runAs: p.superMemoryRunAs || null };
+}
+
 async function takeLock(now) {
   await fs.mkdir(path.resolve(getDataDir()), { recursive: true });
   try {
@@ -65,11 +74,22 @@ async function fetchAction(project, action, { refresh = false } = {}) {
   try {
     const res = await safeFetch(project.baseUrl + action.path + (refresh ? "?refresh=1" : ""), {
       method: "GET",
-      headers: { Authorization: `Bearer ${projectKey(project)}`, Accept: "application/json", "User-Agent": USER_AGENT, "X-IntelligenceOS-Purpose": "super-memory" },
+      headers: {
+        Authorization: `Bearer ${projectKey(project)}`,
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+        "X-IntelligenceOS-Purpose": "super-memory",
+        // "Super memory runs as" (admin-set per project): portals that scope their memory by user (HRMS…) need it.
+        ...(project.superMemoryRunAs ? { [USER_HEADER]: project.superMemoryRunAs } : {}),
+      },
       timeoutMs: CALL_TIMEOUT_MS,
       maxBytes: CALL_MAX_BYTES,
     });
     const data = parseBody(res);
+    if (res.status === 403 || (res.status === 400 && !project.superMemoryRunAs && project.delegated)) {
+      const why = typeof data?.error === "string" ? data.error : typeof data?.error?.message === "string" ? data.error.message : "";
+      return { action: action.id, ok: false, needsRunAs: true, error: clean(`HTTP ${res.status}${why ? `: ${why}` : ""}`).slice(0, 300) };
+    }
     if (res.status < 200 || res.status >= 300) {
       const why = typeof data?.error === "string" ? data.error : typeof data?.error?.message === "string" ? data.error.message : "";
       return { action: action.id, ok: false, error: clean(`HTTP ${res.status}${why ? `: ${why}` : ""}`).slice(0, 300) };
@@ -130,7 +150,7 @@ export async function buildSuperMemory({ projectIds = null, reason = "manual", r
     // Keep an earlier good entry when this run failed for that portal (status shows the failure).
     for (const [id, entry] of Object.entries(portals)) {
       const old = prev.portals?.[id];
-      if (entry.status === "error" && old && old.status !== "error") merged[id] = { ...old, status: "stale", gaps: entry.gaps, lastFailedAt: new Date(now()).toISOString() };
+      if (entry.status === "error" && old && old.status !== "error" && old.status !== "limited") merged[id] = { ...old, status: "stale", gaps: entry.gaps, lastFailedAt: new Date(now()).toISOString() };
     }
     for (const id of Object.keys(merged)) if (!connectedIds.has(id)) delete merged[id];
     const value = {
