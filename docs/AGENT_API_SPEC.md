@@ -104,8 +104,9 @@ Their manifest adds:
   key's scopes still decide what is possible. "Refresh from <project>" rebuilds the list from
   `list_agents` if events were missed.
 - What a project implements for this: §2b.1.
-- Connect form presets: **ATLAS Career Services** and **ATLAS CRM** fill the name and the
-  `/api/intos/v1` URL; the key is generated on that portal's IntelligenceOS Connector settings page.
+- Connect form presets: **ATLAS Career Services**, **ATLAS CRM** and **ATLAS International (VOYA)**
+  fill the name and the `/api/intos/v1` URL (the International preset also ticks "acts as the signed-in
+  user": VOYA runs with each person's own portal permissions); the key is generated on that portal's IntelligenceOS Connector settings page.
 
 ### 2b.1 What a project implements for 2b (ATLAS Procurement, ATLAS Dashboard)
 
