@@ -24,15 +24,15 @@ Adding a portal is one entry in the registry plus its example chips in
 | **Aila** | ATLAS CRM | Artificial Intelligence & Learning Assistant | `https://uat-crm.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_aila` | `aila_brain` |
 | **KAIRO** | ATLAS Career Services | Set by the portal team (not confirmed here) | `https://uat-careerconnect.atlasskilltech.app/api/intos/v1` | No (preset unticked) | `ask_kairo` | `kairo_brain` |
 | **VOYA** | ATLAS International | Set by the portal team (not confirmed here) | per install — `NEXT_PUBLIC_ATLAS_INTERNATIONAL_AGENT_URL` (no preset otherwise) | Yes | `ask_voya` | `voya_brain` |
-| **NOVA** | ATLAS Dashboard | Set by the portal team (not confirmed here) | `https://uat-dashboard.atlasskilltech.app/agent-api` | Yes | `ask_nova` | `nova_brain` |
-| **MIRA** | ATLAS HRMS | Set by the portal team (not confirmed here) | `https://uat-hr.atlasskilltech.app/agent-api` | Yes | `ask_mira` | `mira_brain` |
-| **SAGE** | ATLAS LearnX | Set by the portal team (not confirmed here) | `/agent-api` on the LearnX host — `NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL`, else a placeholder | Yes | `ask_sage` | `sage_brain` |
-| **ARYA** | ATLAS Admissions | Set by the portal team (not confirmed here) | `/agent-api` on the Admissions host — `NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL`, else a placeholder | Yes | `ask_arya` | `arya_brain` |
+| **NOVA** | ATLAS Dashboard | Navigating Operations, Visibility & Academics | `https://uat-dashboard.atlasskilltech.app/agent-api` | Yes | `ask_nova` | `nova_brain` |
+| **MIRA** | ATLAS HRMS | My Intelligent Resource Assistant | `https://uat-hr.atlasskilltech.app/agent-api` | Yes | `ask_mira` | `mira_brain` |
+| **SAGE** | ATLAS LearnX | Smart Academic Guide for Education | `/agent-api` on the LearnX host — `NEXT_PUBLIC_ATLAS_LEARNX_AGENT_URL`, else a placeholder | Yes | `ask_sage` | `sage_brain` |
+| **ARYA** | ATLAS Admissions | Admissions Response & Yield Assistant | `/agent-api` on the Admissions host — `NEXT_PUBLIC_ATLAS_ADMISSIONS_AGENT_URL`, else a placeholder | Yes | `ask_arya` | `arya_brain` |
 
 KAIRO's and VOYA's ask action may be published as a generic `ask` / `agent_ask` on older portal
 builds; the project is then matched to its agent by name, and the planner is told to accept those ids.
 
-Name meanings are recorded in the registry (`meaning`) only once a portal publishes them; never
+Name meanings are recorded in the registry (`meaning`); KAIRO and VOYA are left blank until those portal teams confirm theirs — never
 invent one. The `NEXT_PUBLIC_*` hosts are read at **build time** (the Connect form runs in the
 browser). With no value the preset shows `https://your-<portal>-host/agent-api`, which the admin
 must replace before connecting.
