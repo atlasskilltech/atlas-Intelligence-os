@@ -302,6 +302,16 @@ export const PROJECT_PRESETS = [
     keyHint: "CRM → Settings → IntelligenceOS Connector → Generate API key.",
     delegated: false,
   },
+  {
+    // The International portal's own agent, VOYA. Acts as the signed-in user so
+    // VOYA keeps each person's RBAC scope in the portal.
+    id: "international_voya",
+    label: "ATLAS International (VOYA)",
+    name: "ATLAS International",
+    baseUrl: "https://progression.atlasskilltech.app/api/intos/v1",
+    keyHint: "International portal → Settings & RBAC → VOYA → Connect VOYA to ATLAS IntelligenceOS → Create key.",
+    delegated: true,
+  },
 ];
 
 function ConnectForm({ onCancel, onConnected }) {
